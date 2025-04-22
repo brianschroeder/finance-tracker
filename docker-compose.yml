@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  finance-tracker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: finance-tracker
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_APP_NAME=Finance Tracker
+      - DB_PATH=/app/data/finance.db
+    restart: unless-stopped 

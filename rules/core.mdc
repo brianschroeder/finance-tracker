@@ -1,0 +1,16 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: Core development guidelines
+globs: ["**/*.ts", "**/*.tsx"]
+alwaysApply: true
+---
+
+- Use TypeScript with strong typing.
+- Follow functional programming paradigms.
+- Implement Test-Driven Development (TDD).
+- Utilize Tailwind CSS for styling.
+- Store data in SQLite for simplicity.
