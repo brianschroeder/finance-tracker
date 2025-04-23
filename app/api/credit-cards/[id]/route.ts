@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getCreditCardById, updateCreditCard, deleteCreditCard } from '@/lib/db';
 
 // Define the CreditCard interface to match lib/db.ts
@@ -11,13 +11,11 @@ interface CreditCard {
 }
 
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: { id: string } }
 ) {
   try {
-    // Ensure params is fully resolved
-    const resolvedParams = await Promise.resolve(params);
-    const id = parseInt(resolvedParams.id);
+    const id = parseInt(context.params.id);
     
     if (isNaN(id)) {
       return NextResponse.json(
@@ -46,13 +44,11 @@ export async function GET(
 }
 
 export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: { id: string } }
 ) {
   try {
-    // Ensure params is fully resolved
-    const resolvedParams = await Promise.resolve(params);
-    const id = parseInt(resolvedParams.id);
+    const id = parseInt(context.params.id);
     
     if (isNaN(id)) {
       return NextResponse.json(
@@ -111,13 +107,11 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: { id: string } }
 ) {
   try {
-    // Ensure params is fully resolved
-    const resolvedParams = await Promise.resolve(params);
-    const id = parseInt(resolvedParams.id);
+    const id = parseInt(context.params.id);
     
     if (isNaN(id)) {
       return NextResponse.json(
