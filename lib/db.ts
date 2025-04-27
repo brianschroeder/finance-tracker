@@ -494,6 +494,9 @@ export interface RecurringTransaction {
 export function saveRecurringTransaction(transaction: RecurringTransaction) {
   const db = getDb();
   
+  // Validate the categoryId to ensure it exists
+  const categoryIdToUse = validateRecurringCategoryId(transaction.categoryId || null);
+  
   const stmt = db.prepare(`
     INSERT INTO recurring_transactions (
       name,
@@ -509,14 +512,42 @@ export function saveRecurringTransaction(transaction: RecurringTransaction) {
     transaction.amount,
     transaction.dueDate,
     transaction.isEssential ? 1 : 0,
-    transaction.categoryId || null
+    categoryIdToUse
   );
   
   return result.lastInsertRowid;
 }
 
+export function validateRecurringCategoryId(categoryId: number | null): number | null {
+  if (categoryId === null) {
+    return null;
+  }
+  
+  try {
+    const db = getDb();
+    
+    // Check if the category exists
+    const category = db.prepare(`
+      SELECT id FROM recurring_categories WHERE id = ?
+    `).get(categoryId);
+    
+    if (!category) {
+      console.warn(`Category ID ${categoryId} does not exist, resetting to null`);
+      return null;
+    }
+    
+    return categoryId;
+  } catch (error) {
+    console.error('Error validating category ID:', error);
+    return null; // Default to null on any error
+  }
+}
+
 export function updateRecurringTransaction(transaction: RecurringTransaction) {
   const db = getDb();
+  
+  // Validate the categoryId to ensure it exists
+  const categoryIdToUse = validateRecurringCategoryId(transaction.categoryId || null);
   
   const stmt = db.prepare(`
     UPDATE recurring_transactions
@@ -529,7 +560,7 @@ export function updateRecurringTransaction(transaction: RecurringTransaction) {
     transaction.amount,
     transaction.dueDate,
     transaction.isEssential ? 1 : 0,
-    transaction.categoryId || null,
+    categoryIdToUse,
     transaction.id
   );
   
@@ -1929,10 +1960,12 @@ export function getRecurringCategoryById(id: number) {
   
   if (!category) return null;
   
+  // Use type assertion and ensure isActive is boolean
+  const result = category as any;
   return {
-    ...category,
-    isActive: !!category.isActive
-  };
+    ...result,
+    isActive: !!result.isActive
+  } as RecurringCategory;
 }
 
 export function saveRecurringCategory(category: RecurringCategory) {
