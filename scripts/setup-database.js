@@ -45,6 +45,17 @@ db.prepare(`
   )
 `).run();
 
+// Create recurring categories table
+db.prepare(`
+  CREATE TABLE recurring_categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    color TEXT NOT NULL DEFAULT '#3B82F6', /* Default blue color */
+    isActive INTEGER NOT NULL DEFAULT 1, /* Boolean 0 or 1 */
+    createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )
+`).run();
+
 // Create recurring transactions table
 db.prepare(`
   CREATE TABLE recurring_transactions (
@@ -53,7 +64,9 @@ db.prepare(`
     amount REAL NOT NULL,
     dueDate INTEGER NOT NULL, /* Day of month (1-31) */
     isEssential INTEGER NOT NULL DEFAULT 0, /* Boolean 0 or 1 */
-    createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    categoryId INTEGER,
+    createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (categoryId) REFERENCES recurring_categories(id) ON DELETE CASCADE
   )
 `).run();
 
@@ -199,6 +212,7 @@ db.prepare(`
 console.log('Database initialized successfully!');
 console.log('Created tables:');
 console.log('- assets');
+console.log('- recurring_categories');
 console.log('- recurring_transactions');
 console.log('- pay_settings');
 console.log('- completed_transactions');

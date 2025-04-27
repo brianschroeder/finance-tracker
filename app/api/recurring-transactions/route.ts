@@ -53,7 +53,8 @@ export async function POST(request: Request) {
       name: data.name.trim(),
       amount,
       dueDate,
-      isEssential: !!data.isEssential
+      isEssential: !!data.isEssential,
+      categoryId: data.categoryId || null
     };
     
     // Save to database

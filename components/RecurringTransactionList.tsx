@@ -10,6 +10,7 @@ export default function RecurringTransactionList() {
   const [error, setError] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<RecurringTransaction | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<number | null>(null);
   
   // Fetch all recurring transactions
   const fetchTransactions = async () => {
@@ -124,6 +125,7 @@ export default function RecurringTransactionList() {
   const resetForms = () => {
     setShowAddForm(false);
     setEditingTransaction(null);
+    setSelectedTransaction(null);
   };
 
   // Add event listener for the Add Transaction button
@@ -167,6 +169,12 @@ export default function RecurringTransactionList() {
       <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
         <h3 className="text-lg font-semibold">Recurring Transactions</h3>
         <div className="flex space-x-2">
+          <a
+            href="/recurring-categories"
+            className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Manage Categories
+          </a>
           <button
             onClick={() => {
               resetForms();
@@ -238,6 +246,9 @@ export default function RecurringTransactionList() {
                   Due Date
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Category
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Type
                 </th>
                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -246,25 +257,37 @@ export default function RecurringTransactionList() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {transactions.map((transaction) => (
+              {transactions.map(transaction => (
                 <tr key={transaction.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {transaction.name}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">{transaction.name}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatCurrency(transaction.amount)}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{formatCurrency(transaction.amount)}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {transaction.dueDate}
-                    <span className="text-gray-400 text-xs ml-1">
-                      {['st', 'nd', 'rd'][((transaction.dueDate + 90) % 100 - 91) % 10] || 'th'}
-                    </span>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">Day {transaction.dueDate}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {transaction.category ? (
+                      <div className="flex items-center">
+                        <span 
+                          className="inline-block w-3 h-3 rounded-full mr-2" 
+                          style={{ backgroundColor: transaction.category.color }}
+                        />
+                        <span className="text-sm text-gray-900">{transaction.category.name}</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-gray-500">No Category</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      transaction.isEssential ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                      transaction.isEssential
+                        ? 'bg-gray-100 text-gray-800'
+                        : 'bg-blue-100 text-blue-800'
                     }`}>
-                      {transaction.isEssential ? 'Essential' : 'Non-essential'}
+                      {transaction.isEssential ? 'Essential' : 'Non-Essential'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -272,31 +295,28 @@ export default function RecurringTransactionList() {
                       href="#edit"
                       onClick={(e) => {
                         e.preventDefault();
-                        if (editingTransaction?.id === transaction.id) {
-                          // If clicking on the same transaction that's being edited, cancel edit
+                        if (selectedTransaction === transaction.id) {
+                          // If clicking on the same transaction that's selected, cancel the selection
                           resetForms();
                         } else {
+                          // Otherwise select this transaction and edit it
                           resetForms();
-                          // Use setTimeout to ensure state updates have time to process
-                          setTimeout(() => {
-                            setEditingTransaction(transaction);
-                            // Force scroll to the edit form
-                            window.scrollTo(0, 0);
-                          }, 10);
+                          setSelectedTransaction(transaction.id || null);
+                          setEditingTransaction(transaction);
                         }
                       }}
                       className="bg-blue-100 text-blue-700 px-3 py-1 rounded-md mr-3 hover:bg-blue-200 inline-block"
                     >
-                      {editingTransaction?.id === transaction.id ? 'Cancel' : 'Edit'}
+                      {selectedTransaction === transaction.id ? 'Cancel' : 'Edit'}
                     </a>
-                    {editingTransaction?.id === transaction.id && (
+                    {selectedTransaction === transaction.id && (
                       <a
                         href="#delete"
                         onClick={(e) => {
                           e.preventDefault();
-                          transaction.id && handleDeleteTransaction(transaction.id);
+                          handleDeleteTransaction(transaction.id!);
                         }}
-                        className="bg-red-100 text-red-700 px-3 py-1 rounded-md hover:bg-red-200 inline-block"
+                        className="bg-gray-100 text-gray-700 px-3 py-1 rounded-md hover:bg-gray-200 inline-block"
                       >
                         Delete
                       </a>

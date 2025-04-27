@@ -54,7 +54,8 @@ export async function PUT(
       name: data.name.trim(),
       amount,
       dueDate,
-      isEssential: !!data.isEssential
+      isEssential: !!data.isEssential,
+      categoryId: data.categoryId || null
     };
     
     // Update in database

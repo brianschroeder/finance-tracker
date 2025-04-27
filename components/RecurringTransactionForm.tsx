@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { RecurringTransaction } from '@/lib/db';
+import { useState, useEffect } from 'react';
+import { RecurringTransaction, RecurringCategory } from '@/lib/db';
 
 interface RecurringTransactionFormProps {
   onSubmit: (transaction: Omit<RecurringTransaction, 'id' | 'createdAt'>) => Promise<void>;
@@ -15,6 +15,7 @@ interface FormData {
   amount: string; // Use string for form input, convert to number on submission
   dueDate: number;
   isEssential: boolean;
+  categoryId: number | null;
 }
 
 export default function RecurringTransactionForm({
@@ -27,11 +28,34 @@ export default function RecurringTransactionForm({
     name: initialValues?.name || '',
     amount: initialValues?.amount?.toString() || '0',
     dueDate: initialValues?.dueDate || 1,
-    isEssential: initialValues?.isEssential || false
+    isEssential: initialValues?.isEssential || false,
+    categoryId: initialValues?.categoryId || null
   });
   
+  const [categories, setCategories] = useState<RecurringCategory[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // Load categories on component mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/recurring-categories');
+        if (!response.ok) {
+          throw new Error('Failed to fetch categories');
+        }
+        const data = await response.json();
+        setCategories(data);
+      } catch (err) {
+        console.error('Error fetching categories:', err);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target as HTMLInputElement;
@@ -50,6 +74,10 @@ export default function RecurringTransactionForm({
       if (!isNaN(dueDate) && dueDate >= 1 && dueDate <= 31) {
         setFormData(prev => ({ ...prev, [name]: dueDate }));
       }
+    } else if (name === 'categoryId') {
+      // Handle category selection
+      const categoryId = value === '' ? null : parseInt(value, 10);
+      setFormData(prev => ({ ...prev, categoryId }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
@@ -66,7 +94,8 @@ export default function RecurringTransactionForm({
         name: formData.name,
         amount: parseFloat(formData.amount) || 0,
         dueDate: formData.dueDate,
-        isEssential: formData.isEssential
+        isEssential: formData.isEssential,
+        categoryId: formData.categoryId
       };
       
       await onSubmit(transaction);
@@ -76,6 +105,14 @@ export default function RecurringTransactionForm({
       setSubmitting(false);
     }
   };
+
+  // Format for displaying category color dots
+  const CategoryColorDot = ({ color }: { color: string }) => (
+    <span 
+      className="inline-block w-3 h-3 rounded-full mr-2" 
+      style={{ backgroundColor: color }}
+    />
+  );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -119,6 +156,47 @@ export default function RecurringTransactionForm({
             placeholder="0.00"
             required
           />
+        </div>
+      </div>
+      
+      <div>
+        <label htmlFor="categoryId" className="block text-sm font-medium text-gray-700">
+          Category
+        </label>
+        <select
+          id="categoryId"
+          name="categoryId"
+          value={formData.categoryId || ''}
+          onChange={handleChange}
+          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md"
+        >
+          <option value="">No Category</option>
+          {categories.map(category => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </select>
+        <div className="mt-2 flex justify-between items-center">
+          <div className="flex flex-wrap gap-2 max-w-[80%]">
+            {categories.map(category => (
+              <span 
+                key={category.id}
+                className="inline-flex items-center text-xs px-2 py-1 rounded-full"
+                style={{ backgroundColor: `${category.color}20` }}
+              >
+                <CategoryColorDot color={category.color} />
+                {category.name}
+              </span>
+            ))}
+          </div>
+          <a 
+            href="/recurring-categories" 
+            target="_blank" 
+            className="text-xs text-blue-600 hover:text-blue-800 underline"
+          >
+            Manage Categories
+          </a>
         </div>
       </div>
       

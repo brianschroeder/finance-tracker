@@ -90,7 +90,9 @@ function initDb() {
         amount REAL NOT NULL,
         dueDate INTEGER NOT NULL, /* Day of month (1-31) */
         isEssential INTEGER NOT NULL DEFAULT 0, /* Boolean 0 or 1 */
-        createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        categoryId INTEGER,
+        createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (categoryId) REFERENCES recurring_categories(id) ON DELETE CASCADE
       )
     `).run();
   }
@@ -162,6 +164,24 @@ function initDb() {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         allocatedAmount REAL NOT NULL DEFAULT 0,
+        color TEXT NOT NULL DEFAULT '#3B82F6', /* Default blue color */
+        isActive INTEGER NOT NULL DEFAULT 1, /* Boolean 0 or 1 */
+        createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run();
+  }
+
+  // Check if recurring transaction categories table exists
+  const recurringCategoriesTableExists = db.prepare(`
+    SELECT name FROM sqlite_master WHERE type='table' AND name='recurring_categories'
+  `).get();
+  
+  if (!recurringCategoriesTableExists) {
+    // Create recurring transaction categories table
+    db.prepare(`
+      CREATE TABLE recurring_categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
         color TEXT NOT NULL DEFAULT '#3B82F6', /* Default blue color */
         isActive INTEGER NOT NULL DEFAULT 1, /* Boolean 0 or 1 */
         createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -466,7 +486,9 @@ export interface RecurringTransaction {
   amount: number;
   dueDate: number;
   isEssential: boolean;
+  categoryId?: number | null;
   createdAt?: string;
+  category?: RecurringCategory; // Optional joined category data
 }
 
 export function saveRecurringTransaction(transaction: RecurringTransaction) {
@@ -477,15 +499,17 @@ export function saveRecurringTransaction(transaction: RecurringTransaction) {
       name,
       amount,
       dueDate,
-      isEssential
-    ) VALUES (?, ?, ?, ?)
+      isEssential,
+      categoryId
+    ) VALUES (?, ?, ?, ?, ?)
   `);
   
   const result = stmt.run(
     transaction.name,
     transaction.amount,
     transaction.dueDate,
-    transaction.isEssential ? 1 : 0
+    transaction.isEssential ? 1 : 0,
+    transaction.categoryId || null
   );
   
   return result.lastInsertRowid;
@@ -496,7 +520,7 @@ export function updateRecurringTransaction(transaction: RecurringTransaction) {
   
   const stmt = db.prepare(`
     UPDATE recurring_transactions
-    SET name = ?, amount = ?, dueDate = ?, isEssential = ?
+    SET name = ?, amount = ?, dueDate = ?, isEssential = ?, categoryId = ?
     WHERE id = ?
   `);
   
@@ -505,6 +529,7 @@ export function updateRecurringTransaction(transaction: RecurringTransaction) {
     transaction.amount,
     transaction.dueDate,
     transaction.isEssential ? 1 : 0,
+    transaction.categoryId || null,
     transaction.id
   );
   
@@ -527,14 +552,31 @@ export function getAllRecurringTransactions() {
   const db = getDb();
   
   const transactions = db.prepare(`
-    SELECT * FROM recurring_transactions ORDER BY dueDate ASC
+    SELECT t.*, c.name as categoryName, c.color as categoryColor 
+    FROM recurring_transactions t
+    LEFT JOIN recurring_categories c ON t.categoryId = c.id
+    ORDER BY t.dueDate ASC
   `).all();
   
-  // Convert isEssential from 0/1 to boolean
-  return transactions.map((transaction: any) => ({
-    ...transaction,
-    isEssential: !!transaction.isEssential
-  }));
+  // Convert isEssential from 0/1 to boolean and format category data
+  return transactions.map((transaction: any) => {
+    const result: RecurringTransaction = {
+      ...transaction,
+      isEssential: !!transaction.isEssential
+    };
+    
+    // Add category object if available
+    if (transaction.categoryName) {
+      result.category = {
+        id: transaction.categoryId,
+        name: transaction.categoryName,
+        color: transaction.categoryColor,
+        isActive: true
+      } as RecurringCategory;
+    }
+    
+    return result;
+  });
 }
 
 // Pay Settings queries
@@ -1853,4 +1895,101 @@ export function getTotalIncomeForDateRange(startDate: string, endDate: string): 
     console.error('Error calculating total income for date range:', error);
     return 0;
   }
-} 
+}
+
+// Recurring Transaction Categories
+export interface RecurringCategory {
+  id?: number;
+  name: string;
+  color: string;
+  isActive: boolean;
+  createdAt?: string;
+}
+
+export function getAllRecurringCategories() {
+  const db = getDb();
+  
+  const categories = db.prepare(`
+    SELECT * FROM recurring_categories ORDER BY name ASC
+  `).all();
+  
+  // Convert isActive from 0/1 to boolean
+  return categories.map((category: any) => ({
+    ...category,
+    isActive: !!category.isActive
+  }));
+}
+
+export function getRecurringCategoryById(id: number) {
+  const db = getDb();
+  
+  const category = db.prepare(`
+    SELECT * FROM recurring_categories WHERE id = ?
+  `).get(id);
+  
+  if (!category) return null;
+  
+  return {
+    ...category,
+    isActive: !!category.isActive
+  };
+}
+
+export function saveRecurringCategory(category: RecurringCategory) {
+  const db = getDb();
+  
+  const stmt = db.prepare(`
+    INSERT INTO recurring_categories (
+      name,
+      color,
+      isActive
+    ) VALUES (?, ?, ?)
+  `);
+  
+  const result = stmt.run(
+    category.name,
+    category.color,
+    category.isActive ? 1 : 0
+  );
+  
+  return result.lastInsertRowid;
+}
+
+export function updateRecurringCategory(category: RecurringCategory) {
+  const db = getDb();
+  
+  const stmt = db.prepare(`
+    UPDATE recurring_categories
+    SET name = ?, color = ?, isActive = ?
+    WHERE id = ?
+  `);
+  
+  const result = stmt.run(
+    category.name,
+    category.color,
+    category.isActive ? 1 : 0,
+    category.id
+  );
+  
+  return result.changes;
+}
+
+export function deleteRecurringCategory(id: number) {
+  const db = getDb();
+  
+  // First, set categoryId to null for any recurring transactions using this category
+  db.prepare(`
+    UPDATE recurring_transactions
+    SET categoryId = NULL
+    WHERE categoryId = ?
+  `).run(id);
+  
+  // Then delete the category
+  const stmt = db.prepare(`
+    DELETE FROM recurring_categories WHERE id = ?
+  `);
+  
+  const result = stmt.run(id);
+  
+  return result.changes;
+}
