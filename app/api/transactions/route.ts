@@ -13,6 +13,7 @@ import {
 // GET /api/transactions?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD - Get transactions in date range
 export async function GET(request: NextRequest) {
   try {
+    console.log('GET /api/transactions - Request received');
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
@@ -20,28 +21,43 @@ export async function GET(request: NextRequest) {
     
     // Get single transaction by ID
     if (id) {
+      console.log(`Fetching transaction by id: ${id}`);
       const transaction = getTransactionById(Number(id));
       
       if (!transaction) {
+        console.log('Transaction not found');
         return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
       }
       
+      console.log('Transaction found:', transaction);
       return NextResponse.json(transaction);
     }
     
     // Get transactions by date range
     if (startDate && endDate) {
+      console.log(`Fetching transactions by date range: ${startDate} to ${endDate}`);
       const transactions = getTransactionsByDateRange(startDate, endDate);
+      console.log(`Found ${transactions.length} transactions`);
       return NextResponse.json({ transactions });
     }
     
     // Get all transactions
+    console.log('Fetching all transactions');
     const transactions = getAllTransactions();
+    console.log(`Found ${transactions.length} transactions`);
+    
+    // Debug: Print a sample of transactions if any exist
+    if (transactions.length > 0) {
+      console.log('Sample transaction:', JSON.stringify(transactions[0]));
+    } else {
+      console.log('No transactions found in database');
+    }
+    
     return NextResponse.json({ transactions });
   } catch (error) {
     console.error('Error fetching transactions:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch transactions' },
+      { error: 'Failed to fetch transactions', details: String(error) },
       { status: 500 }
     );
   }

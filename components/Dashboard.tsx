@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { format, addWeeks, differenceInDays } from 'date-fns';
 import { RefreshCw } from 'lucide-react';
+import GroupedTransactions from './GroupedTransactions';
 
 import { Button } from '@/components/ui/button';
 
@@ -1465,128 +1466,12 @@ export default function Dashboard() {
         )}
       </div>
       
-      {/* Credit Cards Section - REPLACE THIS ENTIRE SECTION */}
-      {creditCards.filter(card => card.balance > 0).length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-800">Active Credit Cards</h2>
-            <Link 
-              href="/credit-cards" 
-              className="px-3 py-1.5 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors font-medium"
-            >
-              Manage All
-            </Link>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {creditCards
-              .filter(card => card.balance > 0)
-              .map(card => (
-                <div 
-                  key={card.id} 
-                  className="flex items-center p-3 bg-white rounded-lg border border-gray-200"
-                >
-                  <div 
-                    className="w-6 h-6 rounded-full flex items-center justify-center mr-3" 
-                    style={{ backgroundColor: card.color || '#CBD5E0' }}
-                  >
-                    <svg 
-                      className="w-3 h-3 text-white" 
-                      fill="none" 
-                      viewBox="0 0 24 24" 
-                      stroke="currentColor"
-                    >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" 
-                      />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-sm font-medium text-gray-700">{card.name}</h3>
-                    <div className="flex justify-between items-center">
-                      <p className="text-sm font-bold text-gray-800">{formatCurrency(card.balance)}</p>
-                      <p className="text-xs text-gray-500">{calculateCreditUtilization(card.balance, card.limit).toFixed(1)}% used</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-      
-      {/* Budget Categories Section - With Biweekly Data */}
+      {/* Grouped Transactions - Shows spending by vendor */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 mb-6 overflow-hidden">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-lg font-semibold text-gray-800">Biweekly Budget by Category</h2>
-          <Link 
-            href="/budget" 
-            className="px-3 py-1.5 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors font-medium"
-          >
-            Manage Budget
-          </Link>
+          <h2 className="text-lg font-semibold text-gray-800">Spending By Vendor</h2>
         </div>
-        
-        {loadingBudget ? (
-          <div className="space-y-3">
-            <div className="animate-pulse h-16 bg-gray-100 rounded-lg w-full"></div>
-            <div className="animate-pulse h-16 bg-gray-100 rounded-lg w-full"></div>
-            <div className="animate-pulse h-16 bg-gray-100 rounded-lg w-full"></div>
-          </div>
-        ) : budgetCategories.length === 0 ? (
-          <div className="text-center py-8 bg-gray-50 rounded-xl">
-            <p className="text-sm text-gray-600 mb-2">No budget categories available</p>
-            <Link href="/budget" className="text-sm text-blue-600 hover:text-blue-800 font-medium inline-flex items-center gap-1">
-              Set Up Budget Categories
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
-                <path d="M5 12h14"></path>
-                <path d="m12 5 7 7-7 7"></path>
-              </svg>
-            </Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {budgetCategories.map(category => (
-              <div key={category.id} className="bg-white rounded-lg shadow-sm p-4 border border-gray-100 hover:shadow-md transition-shadow">
-                <div className="flex items-center mb-3">
-                  <div 
-                    className="w-8 h-8 rounded-full flex items-center justify-center mr-3"
-                    style={{ backgroundColor: `${category.color}20` }}  
-                  >
-                    <span 
-                      className="inline-block w-4 h-4 rounded-full" 
-                      style={{ 
-                        backgroundColor: category.color 
-                      }}
-                    ></span>
-                  </div>
-                  <h3 className="text-sm font-medium text-gray-700">{category.name}</h3>
-                </div>
-                
-                <p className="text-2xl font-bold text-blue-600 mb-3">
-                  {formatCurrency(category.remaining)}
-                </p>
-                
-                <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden mb-2">
-                  <div 
-                    className="h-1.5 rounded-full" 
-                    style={{ 
-                      width: `${calculatePercentage(category.spent, category.allocatedAmount)}%`,
-                      backgroundColor: category.color 
-                    }}
-                  ></div>
-                </div>
-                
-                <div className="flex justify-between items-center text-xs text-gray-500">
-                  <span>{formatCurrency(category.spent)} spent</span>
-                  <span>{formatCurrency(category.allocatedAmount)} budget</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <GroupedTransactions />
       </div>
       
       {/* Recent Transactions moved to bottom */}
