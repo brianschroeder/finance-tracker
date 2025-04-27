@@ -1083,31 +1083,32 @@ export default function Dashboard() {
         </div>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Financial Summary Cards */}
-        <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* 1. Biweekly Budget Status */}
-          <div className="bg-white rounded-lg shadow-sm p-5 border border-gray-100">
-            <h2 className="text-sm font-medium text-gray-500 mb-2">Biweekly Budget</h2>
+      {/* Financial Overview Section */}
+      <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Financial Overview</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          {/* Biweekly Budget Status */}
+          <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
+            <h3 className="text-sm font-medium text-gray-700 mb-1">Biweekly Budget</h3>
             {loadingBudget ? (
               <div className="animate-pulse h-8 bg-gray-200 rounded w-3/4"></div>
             ) : budgetSummary ? (
-              <p className="text-2xl font-bold text-blue-600 mb-1">
-                {formatCurrency(budgetSummary.totalRemaining)}
+              <p className={`text-2xl font-bold ${budgetSummary.totalRemaining >= 0 ? 'text-blue-600' : 'text-red-500'} mb-1`}>
+                {budgetSummary.totalRemaining >= 0 ? '' : '-'}{formatCurrency(Math.abs(budgetSummary.totalRemaining))}
               </p>
             ) : (
               <p className="text-2xl font-bold text-gray-300 mb-1">No data</p>
             )}
             {budgetSummary && (
-              <p className="text-sm text-gray-500 mt-2">
+              <p className="text-xs text-gray-500 mt-2">
                 {`${formatCurrency(budgetSummary.totalSpent)} / ${formatCurrency(budgetSummary.totalAllocated)} spent`}
               </p>
             )}
           </div>
           
-          {/* 2. Checking Balance */}
-          <div className="bg-white rounded-lg shadow-sm p-5 border border-gray-100">
-            <h2 className="text-sm font-medium text-gray-500 mb-2">Checking Balance</h2>
+          {/* Checking Balance */}
+          <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
+            <h3 className="text-sm font-medium text-gray-700 mb-1">Checking Balance</h3>
             {loading ? (
               <div className="animate-pulse h-8 bg-gray-200 rounded w-3/4"></div>
             ) : assetData ? (
@@ -1117,46 +1118,63 @@ export default function Dashboard() {
             ) : (
               <p className="text-2xl font-bold text-gray-300 mb-1">No data</p>
             )}
-            <p className="text-sm text-gray-500 mt-2">Checking - Pending</p>
+            <p className="text-xs text-gray-500 mt-2">Checking - Pending</p>
           </div>
           
-          {/* 3. Investment Portfolio */}
-          <div className="bg-white rounded-lg shadow-sm p-5 border border-gray-100">
-            <h2 className="text-sm font-medium text-gray-500 mb-2">Investment Portfolio</h2>
+          {/* Net Worth Card */}
+          <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
+            <h3 className="text-sm font-medium text-gray-700 mb-1">Net Worth</h3>
+            {loading || loadingInvestments ? (
+              <div className="animate-pulse h-8 bg-gray-200 rounded w-3/4"></div>
+            ) : assetData ? (
+              <p className="text-2xl font-bold text-blue-600 mb-1">
+                {formatCurrency(calculateNetWorth())}
+              </p>
+            ) : (
+              <p className="text-2xl font-bold text-gray-300 mb-1">No data</p>
+            )}
+            <p className="text-xs text-gray-500 mt-2">Cash + 401k + Investments</p>
+          </div>
+        </div>
+      </div>
+      
+      {/* Investment Portfolio Section */}
+      <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Investment Portfolio</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
             {loadingInvestments ? (
               <div className="animate-pulse h-8 bg-gray-200 rounded w-3/4"></div>
             ) : (
               <>
-                <div className="flex justify-between items-center">
-                  <p className="text-2xl font-bold text-blue-600">
-                    {formatCurrency(investmentData.totalValue)}
-                  </p>
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-sm font-medium text-gray-700">Portfolio Value</h3>
                   <span className={`text-sm font-semibold px-2 py-1 rounded-full ${
                     investmentData.totalGainLossPercent >= 0 
                       ? 'bg-green-100 text-green-700' 
-                      : 'bg-gray-100 text-gray-700'
+                      : 'bg-red-100 text-red-700'
                   }`}>
                     {investmentData.totalGainLossPercent >= 0 ? '+' : ''}
                     {investmentData.totalGainLossPercent.toFixed(1)}%
                   </span>
                 </div>
-                <p className="text-sm text-gray-500 mt-1">
-                  Total investment value
+                <p className="text-2xl font-bold text-blue-600 mb-3">
+                  {formatCurrency(investmentData.totalValue)}
                 </p>
                 
-                <div className="mt-3 pt-3 border-t border-gray-100">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Total gain/loss:</span>
-                    <span className={`text-base font-medium ${
-                      investmentData.totalGainLoss >= 0 ? 'text-green-600' : 'text-gray-600'
+                <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-gray-200">
+                  <div>
+                    <span className="text-xs text-gray-500 block">Total gain/loss</span>
+                    <span className={`text-base font-semibold ${
+                      investmentData.totalGainLoss >= 0 ? 'text-green-600' : 'text-red-600'
                     }`}>
                       {formatCurrency(investmentData.totalGainLoss)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center mt-1">
-                    <span className="text-sm text-gray-600">Today's change:</span>
-                    <span className={`text-base font-medium ${
-                      investmentData.dayChange >= 0 ? 'text-green-600' : 'text-gray-600'
+                  <div>
+                    <span className="text-xs text-gray-500 block">Today's change</span>
+                    <span className={`text-base font-semibold ${
+                      investmentData.dayChange >= 0 ? 'text-green-600' : 'text-red-600'
                     }`}>
                       {formatCurrency(investmentData.dayChange)}
                       <span className="text-xs ml-1">
@@ -1170,14 +1188,14 @@ export default function Dashboard() {
             )}
           </div>
           
-          {/* 4. Next Pay Day (renamed from Projected Savings) */}
-          <div className="bg-white rounded-lg shadow-sm p-5 border border-gray-100">
+          {/* Next Pay Day Info */}
+          <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
             <div className="flex justify-between items-center mb-2">
-              <h2 className="text-sm font-medium text-gray-500">Next Pay Day</h2>
+              <h3 className="text-sm font-medium text-gray-700">Next Pay Day</h3>
               {nextPayDate && daysRemaining !== null && (
-                <div className="text-sm text-blue-600 font-medium">
+                <div className="text-sm font-medium px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
                   {format(nextPayDate, 'MMM d')} 
-                  <span className="text-xs ml-1 text-gray-500">
+                  <span className="text-xs ml-1">
                     ({daysRemaining} {daysRemaining === 1 ? 'day' : 'days'})
                   </span>
                 </div>
@@ -1185,288 +1203,254 @@ export default function Dashboard() {
             </div>
             
             {loading || loadingInvestments || loadingIncome || loadingBudget || loadingNextPayPeriodTransactions ? (
-              <div className="space-y-3">
-                <div className="animate-pulse h-8 bg-gray-200 rounded w-3/4"></div>
-                <div className="animate-pulse h-4 bg-gray-100 rounded w-1/2 mt-1"></div>
-                
-                <div className="border-t pt-2 mt-2">
-                  <div className="flex justify-between items-center">
-                    <div className="animate-pulse h-4 bg-gray-200 rounded w-1/4"></div>
-                    <div className="animate-pulse h-4 bg-gray-200 rounded w-1/4"></div>
-                  </div>
-                </div>
-              </div>
+              <div className="animate-pulse h-8 bg-gray-200 rounded w-3/4 mb-3"></div>
             ) : (
               <>
-                <p className={`text-2xl font-bold ${calculateProjectedTotalSavings() >= 0 ? 'text-blue-600' : 'text-gray-600'} mb-1`}>
+                <p className={`text-2xl font-bold ${calculateProjectedTotalSavings() >= 0 ? 'text-blue-600' : 'text-red-500'} mb-3`}>
                   {formatCurrency(calculateProjectedTotalSavings())}
                 </p>
-                <p className="text-sm text-gray-500">Projected total after next pay</p>
+                <p className="text-xs text-gray-500 mb-3">Projected total after next pay</p>
                 
-                <div className="border-t pt-2 mt-2 flex justify-between">
+                <div className="flex justify-between items-center pt-2 border-t border-gray-200">
                   <span className="text-sm text-gray-600">Next Pay Savings:</span>
-                  <span className={`text-sm font-medium ${nextSavings && nextSavings >= 0 ? 'text-blue-600' : 'text-gray-600'}`}>
+                  <span className={`text-sm font-medium ${nextSavings && nextSavings >= 0 ? 'text-blue-600' : 'text-red-500'}`}>
                     {formatCurrency(nextSavings || 0)}
                   </span>
                 </div>
               </>
             )}
           </div>
-          
-          {/* 5. Net Worth Card */}
-          <div className="bg-white rounded-lg shadow-sm p-5 border border-gray-100">
-            <h2 className="text-sm font-medium text-gray-500 mb-2">Net Worth</h2>
-            {loading || loadingInvestments ? (
-              <div className="animate-pulse h-8 bg-gray-200 rounded w-3/4"></div>
-            ) : assetData ? (
-              <p className="text-2xl font-bold text-blue-600 mb-1">
-                {formatCurrency(calculateNetWorth())}
-              </p>
-            ) : (
-              <p className="text-2xl font-bold text-gray-300 mb-1">No data</p>
-            )}
-            <p className="text-sm text-gray-500 mt-2">Cash + 401k + Investments</p>
-          </div>
-          
-          {/* 6. Credit Card Debt */}
-          <div className="bg-white rounded-lg shadow-sm p-5 border border-gray-100">
-            <h2 className="text-sm font-medium text-gray-500 mb-2">Credit Card Debt</h2>
-            {loadingCreditCards ? (
-              <div className="animate-pulse h-8 bg-gray-200 rounded w-3/4"></div>
-            ) : (
-              <>
-                <p className="text-2xl font-bold text-blue-600 mb-1">
-                  {formatCurrency(calculateTotalCreditCardDebt())}
-                </p>
-                <div className="flex justify-between items-center mt-2">
-                  <p className="text-sm text-gray-500">
-                    {creditCards.filter(card => card.balance > 0).length} active cards
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {calculateCreditUtilization(calculateTotalCreditCardDebt(), calculateTotalCreditLimit()).toFixed(0)}% used
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
+        </div>
+      </div>
+      
+      {/* Account Summaries Section */}
+      <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold text-gray-800">Account Totals</h2>
         </div>
         
-        {/* Asset Summary Card */}
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">Account Totals</h2>
-          
-          {loading ? (
-            <div className="space-y-4">
-              <div className="animate-pulse h-6 bg-gray-200 rounded w-3/4"></div>
-              <div className="animate-pulse h-6 bg-gray-200 rounded w-2/3"></div>
-              <div className="animate-pulse h-6 bg-gray-200 rounded w-1/2"></div>
-            </div>
-          ) : assetData ? (
-            <div className="space-y-5">
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-base font-medium text-gray-700">Savings</span>
+        {loading ? (
+          <div className="space-y-4">
+            <div className="animate-pulse h-6 bg-gray-200 rounded w-3/4"></div>
+            <div className="animate-pulse h-6 bg-gray-200 rounded w-2/3"></div>
+          </div>
+        ) : assetData ? (
+          <div className="space-y-5">
+            {/* Total Card - Updated to be more subtle */}
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="h-2 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
+              <div className="p-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-50 text-blue-500 rounded-full">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <span className="font-medium text-gray-800">Total Savings</span>
+                  </div>
+                  
                   {loading || loadingInvestments ? (
-                    <div className="animate-pulse h-6 bg-gray-200 rounded w-28"></div>
+                    <div className="animate-pulse h-8 bg-gray-100 rounded w-40"></div>
                   ) : (
-                    <span className="text-xl font-bold text-blue-600">
+                    <span className="text-2xl font-bold text-blue-600">
                       {formatCurrency(calculateActualTotalAssets())}
                     </span>
                   )}
                 </div>
-                <div className="w-full bg-gray-100 rounded-full h-2.5 mt-1">
-                  {loading || loadingInvestments ? (
-                    <div className="animate-pulse bg-gray-200 h-2.5 rounded-full w-full"></div>
-                  ) : (
-                    <div className="bg-blue-600 h-2.5 rounded-full w-full"></div>
-                  )}
-                </div>
               </div>
-              
-              {/* Sort accounts by amount in descending order */}
+            </div>
+            
+            {/* Account Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
                 {
                   name: 'Stocks',
+                  icon: (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                  ),
                   amount: loadingInvestments ? 0 : investmentData.totalValue,
-                  color: 'bg-blue-500',
-                  loading: loadingInvestments,
-                  order: 1
+                  color: 'from-blue-500 to-blue-400',
+                  bgLight: 'bg-blue-100',
+                  textColor: 'text-blue-600',
+                  loading: loadingInvestments
                 },
                 {
                   name: 'Cash',
+                  icon: (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                    </svg>
+                  ),
                   amount: assetData.cash,
-                  color: 'bg-blue-400',
-                  loading: false,
-                  order: 2
+                  color: 'from-green-500 to-green-400',
+                  bgLight: 'bg-green-100',
+                  textColor: 'text-green-600',
+                  loading: false
                 },
                 {
                   name: '401k',
+                  icon: (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  ),
                   amount: assetData.retirement401k,
-                  color: 'bg-blue-600',
-                  loading: false,
-                  order: 3
+                  color: 'from-indigo-500 to-indigo-400',
+                  bgLight: 'bg-indigo-100',
+                  textColor: 'text-indigo-600',
+                  loading: false
                 },
                 {
                   name: 'Interest',
+                  icon: (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  ),
                   amount: assetData.interest,
-                  color: 'bg-purple-400',
-                  loading: false,
-                  order: 4
+                  color: 'from-purple-500 to-purple-400',
+                  bgLight: 'bg-purple-100', 
+                  textColor: 'text-purple-600',
+                  loading: false
                 }
               ]
-                .sort((a, b) => a.order - b.order)
+                .sort((a, b) => b.amount - a.amount)
                 .map((account) => (
-                  <div key={account.name}>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-base font-medium text-gray-700">{account.name}</span>
+                  <div key={account.name} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <div className={`h-2 bg-gradient-to-r ${account.color}`}></div>
+                    <div className="p-4">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className={`p-2 rounded-full ${account.bgLight} ${account.textColor}`}>
+                          {account.icon}
+                        </div>
+                        <span className="text-sm font-medium text-gray-700">{account.name}</span>
+                      </div>
+                      
                       {account.loading ? (
-                        <div className="animate-pulse h-6 bg-gray-200 rounded w-20"></div>
+                        <div className="animate-pulse h-7 bg-gray-200 rounded w-28"></div>
                       ) : (
-                        <span className="text-xl font-bold text-blue-600">
+                        <span className={`text-2xl font-bold block ${account.textColor}`}>
                           {formatCurrency(account.amount)}
                         </span>
                       )}
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2.5 mt-1">
-                      {account.loading ? (
-                        <div className="animate-pulse bg-gray-200 h-2.5 rounded-full w-full"></div>
-                      ) : (
-                        <div 
-                          className={`${account.color} h-2.5 rounded-full`} 
-                          style={{ width: `${Math.min(100, (account.amount / calculateActualTotalAssets() * 100))}%` }}
-                        ></div>
-                      )}
+                      
+                      <div className="mt-4 pt-2 border-t border-gray-100 flex justify-between items-center">
+                        <span className="text-xs text-gray-500">
+                          {calculateActualTotalAssets() > 0 
+                            ? `${(account.amount / calculateActualTotalAssets() * 100).toFixed(1)}%` 
+                            : '0%'}
+                        </span>
+                        <div className="w-24 bg-gray-100 rounded-full h-1.5">
+                          <div 
+                            className={`h-1.5 rounded-full bg-gradient-to-r ${account.color}`} 
+                            style={{ width: `${Math.min(100, (account.amount / calculateActualTotalAssets() * 100))}%` }}
+                          ></div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))
               }
             </div>
+          </div>
+        ) : (
+          <p className="text-base text-gray-400">No asset data available</p>
+        )}
+      </div>
+      
+      {/* Credit Card & Funds Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Credit Card Summary */}
+        <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Credit Card Debt</h2>
+          {loadingCreditCards ? (
+            <div className="animate-pulse h-8 bg-gray-200 rounded w-3/4"></div>
           ) : (
-            <p className="text-base text-gray-400">No asset data available</p>
+            <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
+              <p className="text-2xl font-bold text-blue-600 mb-3">
+                {formatCurrency(calculateTotalCreditCardDebt())}
+              </p>
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-gray-600">
+                  {creditCards.filter(card => card.balance > 0).length} active cards
+                </p>
+                <div className="flex items-center">
+                  <div className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: getCreditUtilizationColor(calculateCreditUtilization(calculateTotalCreditCardDebt(), calculateTotalCreditLimit())) }}></div>
+                  <p className="text-sm text-gray-600">
+                    {calculateCreditUtilization(calculateTotalCreditCardDebt(), calculateTotalCreditLimit()).toFixed(0)}% used
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* Fund Accounts */}
+        <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold text-gray-800">Fund Accounts</h2>
+            <Link 
+              href="/assets" 
+              className="px-3 py-1.5 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors font-medium"
+            >
+              Update
+            </Link>
+          </div>
+          
+          {loading ? (
+            <div className="animate-pulse h-32 bg-gray-100 rounded-lg"></div>
+          ) : assetData ? (
+            <div className="grid grid-cols-1 gap-3">
+              {[
+                {
+                  name: "House Fund",
+                  amount: assetData.houseFund || 0,
+                  icon: (
+                    <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
+                  )
+                },
+                {
+                  name: "Vacation Fund",
+                  amount: assetData.vacationFund || 0,
+                  icon: (
+                    <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  )
+                },
+                {
+                  name: "Emergency Fund",
+                  amount: assetData.emergencyFund || 0,
+                  icon: (
+                    <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  )
+                }
+              ].map((fund) => (
+                <div key={fund.name} className="flex items-center justify-between bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                      {fund.icon}
+                    </div>
+                    <h3 className="text-sm font-medium text-gray-700">{fund.name}</h3>
+                  </div>
+                  <p className="text-lg font-bold text-blue-600">{formatCurrency(fund.amount)}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-base text-gray-400">No data available</p>
           )}
         </div>
       </div>
       
-      {/* Account Details - Full Width */}
-      <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-lg font-semibold text-gray-800">Fund Accounts</h2>
-          <Link 
-            href="/assets" 
-            className="px-3 py-1.5 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors font-medium"
-          >
-            Update
-          </Link>
-        </div>
-        
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="animate-pulse bg-gray-100 rounded-lg p-4 h-40"></div>
-            ))}
-          </div>
-        ) : assetData ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {/* Investing Funds */}
-            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="flex items-center mb-3">
-                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
-                  <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <h3 className="text-sm font-medium text-gray-700">Available for Investing</h3>
-              </div>
-              <p className="text-2xl font-bold text-blue-600 mb-3">
-                {formatCurrency(calculateInvestmentFundsRemaining())}
-              </p>
-              <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                <div 
-                  className="h-1.5 bg-blue-500 rounded-full" 
-                  style={{ 
-                    width: `${calculateTotalFunds() > 0 ? 
-                      Math.max(0, Math.min(100, (calculateInvestmentFundsRemaining() / (calculateInvestmentFundsRemaining() + calculateTotalFunds()) * 100))) : 0
-                    }%` 
-                  }}
-                ></div>
-              </div>
-            </div>
-            
-            {/* House Fund */}
-            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="flex items-center mb-3">
-                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
-                  <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                  </svg>
-                </div>
-                <h3 className="text-sm font-medium text-gray-700">House Fund</h3>
-              </div>
-              <p className="text-2xl font-bold text-blue-600 mb-3">{formatCurrency(assetData.houseFund || 0)}</p>
-              <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                <div 
-                  className="h-1.5 bg-blue-500 rounded-full" 
-                  style={{ 
-                    width: `${calculateTotalFunds() > 0 ? 
-                      Math.max(0, Math.min(100, ((assetData.houseFund || 0) / calculateTotalFunds() * 100))) : 0
-                    }%` 
-                  }}
-                ></div>
-              </div>
-            </div>
-            
-            {/* Vacation Fund */}
-            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="flex items-center mb-3">
-                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
-                  <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <h3 className="text-sm font-medium text-gray-700">Vacation Fund</h3>
-              </div>
-              <p className="text-2xl font-bold text-blue-600 mb-3">{formatCurrency(assetData.vacationFund || 0)}</p>
-              <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                <div 
-                  className="h-1.5 bg-blue-500 rounded-full" 
-                  style={{ 
-                    width: `${calculateTotalFunds() > 0 ? 
-                      Math.max(0, Math.min(100, ((assetData.vacationFund || 0) / calculateTotalFunds() * 100))) : 0
-                    }%` 
-                  }}
-                ></div>
-              </div>
-            </div>
-            
-            {/* Emergency Fund */}
-            <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="flex items-center mb-3">
-                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
-                  <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                <h3 className="text-sm font-medium text-gray-700">Emergency Fund</h3>
-              </div>
-              <p className="text-2xl font-bold text-blue-600 mb-3">{formatCurrency(assetData.emergencyFund || 0)}</p>
-              <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                <div 
-                  className="h-1.5 bg-blue-500 rounded-full" 
-                  style={{ 
-                    width: `${calculateTotalFunds() > 0 ? 
-                      Math.max(0, Math.min(100, ((assetData.emergencyFund || 0) / calculateTotalFunds() * 100))) : 0
-                    }%` 
-                  }}
-                ></div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <p className="text-center py-6 text-gray-500">No data available</p>
-        )}
-      </div>
-      
-      {/* Grouped Transactions - Shows spending by vendor */}
+      {/* Spending by Vendor - Keep as is */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 mb-6 overflow-hidden">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-lg font-semibold text-gray-800">Spending By Vendor</h2>
@@ -1474,7 +1458,7 @@ export default function Dashboard() {
         <GroupedTransactions />
       </div>
       
-      {/* Recent Transactions moved to bottom */}
+      {/* Recent Transactions - Keep as is */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 mb-6 overflow-hidden">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-lg font-semibold text-gray-800">Recent Transactions</h2>
@@ -1539,7 +1523,7 @@ export default function Dashboard() {
       </div>
       
       {/* Quick Actions */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mt-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mt-3 mb-6">
         <Link 
           href="/assets" 
           className="flex items-center justify-center px-4 py-2.5 border border-gray-200 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-100 hover:shadow-sm"
