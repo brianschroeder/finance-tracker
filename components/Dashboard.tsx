@@ -126,6 +126,8 @@ export default function Dashboard() {
   const [loadingTransactions, setLoadingTransactions] = useState(true);
   const [creditCards, setCreditCards] = useState<CreditCard[]>([]);
   const [loadingCreditCards, setLoadingCreditCards] = useState(true);
+  const [loadingAccounts, setLoadingAccounts] = useState(true);
+  const [checkingBalance, setCheckingBalance] = useState<number | undefined>(undefined);
   
   // Budget category state
   const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>([]);
@@ -207,6 +209,7 @@ export default function Dashboard() {
   useEffect(() => {
     async function fetchLatestAssets() {
       try {
+        setLoadingAccounts(true);
         const response = await fetch('/api/assets');
         
         if (!response.ok) {
@@ -224,10 +227,14 @@ export default function Dashboard() {
         // Set asset data even if id is null (empty defaults from API)
         setAssetData(data);
         
+        // Set the checking balance from the asset data
+        setCheckingBalance(data.checking || 0);
+        
       } catch (err) {
         console.error('Error fetching assets:', err);
       } finally {
         setLoading(false);
+        setLoadingAccounts(false);
       }
     }
     
@@ -1088,52 +1095,79 @@ export default function Dashboard() {
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Financial Overview</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {/* Biweekly Budget Status */}
-          <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
-            <h3 className="text-sm font-medium text-gray-700 mb-1">Biweekly Budget</h3>
-            {loadingBudget ? (
-              <div className="animate-pulse h-8 bg-gray-200 rounded w-3/4"></div>
-            ) : budgetSummary ? (
-              <p className={`text-2xl font-bold ${budgetSummary.totalRemaining >= 0 ? 'text-blue-600' : 'text-red-500'} mb-1`}>
-                {budgetSummary.totalRemaining >= 0 ? '' : '-'}{formatCurrency(Math.abs(budgetSummary.totalRemaining))}
-              </p>
-            ) : (
-              <p className="text-2xl font-bold text-gray-300 mb-1">No data</p>
-            )}
-            {budgetSummary && (
-              <p className="text-xs text-gray-500 mt-2">
-                {`${formatCurrency(budgetSummary.totalSpent)} / ${formatCurrency(budgetSummary.totalAllocated)} spent`}
-              </p>
-            )}
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="h-2 bg-gradient-to-r from-blue-500 to-blue-400"></div>
+            <div className="p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-blue-50 text-blue-600 rounded-full">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <span className="font-medium text-gray-800">Biweekly Budget</span>
+              </div>
+              {loadingBudget ? (
+                <div className="animate-pulse h-8 bg-gray-100 rounded w-3/4"></div>
+              ) : budgetSummary ? (
+                <p className={`text-2xl font-bold ${budgetSummary.totalRemaining >= 0 ? 'text-blue-600' : 'text-gray-600'}`}>
+                  {budgetSummary.totalRemaining >= 0 ? '' : '-'}{formatCurrency(Math.abs(budgetSummary.totalRemaining))}
+                </p>
+              ) : (
+                <p className="text-2xl font-bold text-gray-300">No data</p>
+              )}
+              {budgetSummary && (
+                <p className="text-xs text-gray-500 mt-2">
+                  {`${formatCurrency(budgetSummary.totalSpent)} / ${formatCurrency(budgetSummary.totalAllocated)} spent`}
+                </p>
+              )}
+            </div>
           </div>
           
           {/* Checking Balance */}
-          <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
-            <h3 className="text-sm font-medium text-gray-700 mb-1">Checking Balance</h3>
-            {loading ? (
-              <div className="animate-pulse h-8 bg-gray-200 rounded w-3/4"></div>
-            ) : assetData ? (
-              <p className="text-2xl font-bold text-blue-600 mb-1">
-                {formatCurrency(calculateRemainingBudget())}
-              </p>
-            ) : (
-              <p className="text-2xl font-bold text-gray-300 mb-1">No data</p>
-            )}
-            <p className="text-xs text-gray-500 mt-2">Checking - Pending</p>
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="h-2 bg-gradient-to-r from-blue-600 to-blue-500"></div>
+            <div className="p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-blue-50 text-blue-700 rounded-full">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
+                </div>
+                <span className="font-medium text-gray-800">Checking Balance</span>
+              </div>
+              {loadingAccounts ? (
+                <div className="animate-pulse h-8 bg-gray-100 rounded w-3/4"></div>
+              ) : checkingBalance !== undefined ? (
+                <p className="text-2xl font-bold text-blue-700">{formatCurrency(checkingBalance)}</p>
+              ) : (
+                <p className="text-2xl font-bold text-gray-300">No data</p>
+              )}
+            </div>
           </div>
           
-          {/* Net Worth Card */}
-          <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
-            <h3 className="text-sm font-medium text-gray-700 mb-1">Net Worth</h3>
-            {loading || loadingInvestments ? (
-              <div className="animate-pulse h-8 bg-gray-200 rounded w-3/4"></div>
-            ) : assetData ? (
-              <p className="text-2xl font-bold text-blue-600 mb-1">
-                {formatCurrency(calculateNetWorth())}
-              </p>
-            ) : (
-              <p className="text-2xl font-bold text-gray-300 mb-1">No data</p>
-            )}
-            <p className="text-xs text-gray-500 mt-2">Cash + 401k + Investments</p>
+          {/* Total Savings Card */}
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="h-2 bg-gradient-to-r from-blue-700 to-blue-600"></div>
+            <div className="p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-blue-50 text-blue-800 rounded-full">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <span className="font-medium text-gray-800">Total Savings</span>
+              </div>
+              {loading || loadingInvestments ? (
+                <div className="animate-pulse h-8 bg-gray-100 rounded w-3/4"></div>
+              ) : assetData ? (
+                <p className="text-2xl font-bold text-blue-800 mb-1">
+                  {formatCurrency(calculateActualTotalAssets())}
+                </p>
+              ) : (
+                <p className="text-2xl font-bold text-gray-300 mb-1">No data</p>
+              )}
+              <p className="text-xs text-gray-500 mt-2">Cash + Interest + Investments</p>
+            </div>
           </div>
         </div>
       </div>
@@ -1141,84 +1175,127 @@ export default function Dashboard() {
       {/* Investment Portfolio Section */}
       <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Investment Portfolio</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
-            {loadingInvestments ? (
-              <div className="animate-pulse h-8 bg-gray-200 rounded w-3/4"></div>
-            ) : (
-              <>
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-sm font-medium text-gray-700">Portfolio Value</h3>
-                  <span className={`text-sm font-semibold px-2 py-1 rounded-full ${
-                    investmentData.totalGainLossPercent >= 0 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'bg-red-100 text-red-700'
-                  }`}>
-                    {investmentData.totalGainLossPercent >= 0 ? '+' : ''}
-                    {investmentData.totalGainLossPercent.toFixed(1)}%
-                  </span>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="h-2 bg-gradient-to-r from-green-600 to-green-500"></div>
+            <div className="p-5">
+              <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-50 text-green-700 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                  </div>
+                  <span className="font-medium text-gray-800">Portfolio Value</span>
                 </div>
-                <p className="text-2xl font-bold text-blue-600 mb-3">
+                <span className={`text-sm font-semibold px-2 py-1 rounded-full ${
+                  investmentData.totalGainLossPercent >= 0 
+                    ? 'bg-green-100 text-green-700' 
+                    : 'bg-red-100 text-red-700'
+                }`}>
+                  {investmentData.totalGainLossPercent >= 0 ? '+' : ''}
+                  {investmentData.totalGainLossPercent.toFixed(1)}%
+                </span>
+              </div>
+              {loadingInvestments ? (
+                <div className="animate-pulse h-8 bg-gray-200 rounded w-3/4"></div>
+              ) : (
+                <p className="text-2xl font-bold text-green-700 mb-3">
                   {formatCurrency(investmentData.totalValue)}
                 </p>
-                
-                <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-gray-200">
-                  <div>
-                    <span className="text-xs text-gray-500 block">Total gain/loss</span>
-                    <span className={`text-base font-semibold ${
-                      investmentData.totalGainLoss >= 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {formatCurrency(investmentData.totalGainLoss)}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-xs text-gray-500 block">Today's change</span>
-                    <span className={`text-base font-semibold ${
-                      investmentData.dayChange >= 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {formatCurrency(investmentData.dayChange)}
-                      <span className="text-xs ml-1">
-                        ({investmentData.dayChange >= 0 ? '+' : ''}
-                        {investmentData.dayChangePercent.toFixed(2)}%)
-                      </span>
-                    </span>
-                  </div>
+              )}
+              
+              <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-gray-200">
+                <div>
+                  <span className="text-xs text-gray-500 block">Total gain/loss</span>
+                  <span className={`text-base font-semibold ${
+                    investmentData.totalGainLoss >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {formatCurrency(investmentData.totalGainLoss)}
+                  </span>
                 </div>
-              </>
-            )}
+                <div>
+                  <span className="text-xs text-gray-500 block">Today's change</span>
+                  <span className={`text-base font-semibold ${
+                    investmentData.dayChange >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {formatCurrency(investmentData.dayChange)}
+                    <span className="text-xs ml-1">
+                      ({investmentData.dayChange >= 0 ? '+' : ''}
+                      {investmentData.dayChangePercent.toFixed(2)}%)
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Investing Funds Card */}
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="h-2 bg-gradient-to-r from-green-500 to-green-400"></div>
+            <div className="p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-green-50 text-green-600 rounded-full">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <span className="font-medium text-gray-800">Investing Funds</span>
+              </div>
+              
+              {loading ? (
+                <div className="animate-pulse h-8 bg-gray-200 rounded w-3/4"></div>
+              ) : (
+                <p className="text-2xl font-bold text-green-600 mb-3">
+                  {formatCurrency(calculateInvestmentFundsRemaining())}
+                </p>
+              )}
+              
+              <p className="text-xs text-gray-500 mt-2">Available funds for investing</p>
+            </div>
           </div>
           
           {/* Next Pay Day Info */}
-          <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-sm font-medium text-gray-700">Next Pay Day</h3>
-              {nextPayDate && daysRemaining !== null && (
-                <div className="text-sm font-medium px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
-                  {format(nextPayDate, 'MMM d')} 
-                  <span className="text-xs ml-1">
-                    ({daysRemaining} {daysRemaining === 1 ? 'day' : 'days'})
-                  </span>
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="h-2 bg-gradient-to-r from-green-400 to-green-300"></div>
+            <div className="p-5">
+              <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-50 text-green-500 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <span className="font-medium text-gray-800">Next Pay Day</span>
                 </div>
+                {nextPayDate && daysRemaining !== null && (
+                  <div className="text-sm font-medium px-2 py-1 bg-green-100 text-green-700 rounded-full">
+                    {format(nextPayDate, 'MMM d')} 
+                    <span className="text-xs ml-1">
+                      ({daysRemaining} {daysRemaining === 1 ? 'day' : 'days'})
+                    </span>
+                  </div>
+                )}
+              </div>
+              
+              {loading || loadingInvestments || loadingIncome || loadingBudget || loadingNextPayPeriodTransactions ? (
+                <div className="animate-pulse h-8 bg-gray-200 rounded w-3/4 mb-3"></div>
+              ) : (
+                <>
+                  <p className={`text-2xl font-bold ${calculateProjectedTotalSavings() >= 0 ? 'text-green-500' : 'text-gray-600'} mb-3`}>
+                    {formatCurrency(calculateProjectedTotalSavings())}
+                  </p>
+                  <p className="text-xs text-gray-500 mb-3">Projected total after next pay</p>
+                  
+                  <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                    <span className="text-sm text-gray-600">Next Pay Savings:</span>
+                    <span className={`text-sm font-medium ${nextSavings && nextSavings >= 0 ? 'text-green-500' : 'text-gray-600'}`}>
+                      {formatCurrency(nextSavings || 0)}
+                    </span>
+                  </div>
+                </>
               )}
             </div>
-            
-            {loading || loadingInvestments || loadingIncome || loadingBudget || loadingNextPayPeriodTransactions ? (
-              <div className="animate-pulse h-8 bg-gray-200 rounded w-3/4 mb-3"></div>
-            ) : (
-              <>
-                <p className={`text-2xl font-bold ${calculateProjectedTotalSavings() >= 0 ? 'text-blue-600' : 'text-red-500'} mb-3`}>
-                  {formatCurrency(calculateProjectedTotalSavings())}
-                </p>
-                <p className="text-xs text-gray-500 mb-3">Projected total after next pay</p>
-                
-                <div className="flex justify-between items-center pt-2 border-t border-gray-200">
-                  <span className="text-sm text-gray-600">Next Pay Savings:</span>
-                  <span className={`text-sm font-medium ${nextSavings && nextSavings >= 0 ? 'text-blue-600' : 'text-red-500'}`}>
-                    {formatCurrency(nextSavings || 0)}
-                  </span>
-                </div>
-              </>
-            )}
           </div>
         </div>
       </div>
@@ -1236,28 +1313,29 @@ export default function Dashboard() {
           </div>
         ) : assetData ? (
           <div className="space-y-5">
-            {/* Total Card - Updated to be more subtle */}
+            {/* Net Worth Card */}
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="h-2 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
+              <div className="h-2 bg-gradient-to-r from-green-700 to-blue-700"></div>
               <div className="p-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-50 text-blue-500 rounded-full">
+                    <div className="p-2 bg-blue-50 text-blue-700 rounded-full">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
-                    <span className="font-medium text-gray-800">Total Savings</span>
+                    <span className="font-medium text-gray-800">Net Worth</span>
                   </div>
                   
                   {loading || loadingInvestments ? (
                     <div className="animate-pulse h-8 bg-gray-100 rounded w-40"></div>
                   ) : (
-                    <span className="text-2xl font-bold text-blue-600">
-                      {formatCurrency(calculateActualTotalAssets())}
+                    <span className="text-2xl font-bold text-blue-700">
+                      {formatCurrency(calculateNetWorth())}
                     </span>
                   )}
                 </div>
+                <p className="text-xs text-gray-500 mt-2">Cash + 401k + Investments + Checking</p>
               </div>
             </div>
             
@@ -1339,14 +1417,14 @@ export default function Dashboard() {
                       
                       <div className="mt-4 pt-2 border-t border-gray-100 flex justify-between items-center">
                         <span className="text-xs text-gray-500">
-                          {calculateActualTotalAssets() > 0 
-                            ? `${(account.amount / calculateActualTotalAssets() * 100).toFixed(1)}%` 
+                          {calculateNetWorth() > 0 
+                            ? `${(account.amount / calculateNetWorth() * 100).toFixed(1)}%` 
                             : '0%'}
                         </span>
                         <div className="w-24 bg-gray-100 rounded-full h-1.5">
                           <div 
                             className={`h-1.5 rounded-full bg-gradient-to-r ${account.color}`} 
-                            style={{ width: `${Math.min(100, (account.amount / calculateActualTotalAssets() * 100))}%` }}
+                            style={{ width: `${Math.min(100, (account.amount / calculateNetWorth() * 100))}%` }}
                           ></div>
                         </div>
                       </div>
