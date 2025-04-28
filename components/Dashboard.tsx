@@ -1062,13 +1062,13 @@ export default function Dashboard() {
   const calculateNetWorth = () => {
     if (!assetData) return 0;
     
-    // Calculate cash assets
-    const cashAssets = assetData.cash + assetData.interest + assetData.checking;
+    // Calculate cash assets (excluding checking)
+    const cashAssets = assetData.cash + assetData.interest;
     
     // Calculate investments (retirement + investment portfolio)
     const investmentsTotal = assetData.retirement401k + (loadingInvestments ? 0 : investmentData.totalValue);
     
-    // Total net worth is cash + investments
+    // Total net worth is cash + investments (excluding checking)
     return cashAssets + investmentsTotal;
   };
 
@@ -1335,7 +1335,7 @@ export default function Dashboard() {
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-gray-500 mt-2">Cash + 401k + Investments + Checking</p>
+                <p className="text-xs text-gray-500 mt-2">Cash + 401k + Investments</p>
               </div>
             </div>
             
