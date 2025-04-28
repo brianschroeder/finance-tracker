@@ -522,7 +522,7 @@ export default function IncomePage() {
             <p className="mt-3 text-3xl font-bold text-gray-800">
               {loadingExpenses || workHoursPerWeek <= 0 
                 ? "Loading..." 
-                : formatCurrency((totalMonthlyExpenses * 12) / (workHoursPerWeek * 52))}
+                : formatCurrency(totalMonthlyExpenses / (workHoursPerWeek * 4))}
             </p>
             <p className="mt-1 text-sm text-gray-600">min to cover expenses</p>
           </div>

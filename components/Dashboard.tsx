@@ -227,8 +227,8 @@ export default function Dashboard() {
         // Set asset data even if id is null (empty defaults from API)
         setAssetData(data);
         
-        // Set the checking balance from the asset data
-        setCheckingBalance(data.checking || 0);
+        // Instead of just data.checking, subtract pendingOnlyAmount
+        setCheckingBalance((data.checking || 0) - (pendingOnlyAmount || 0));
         
       } catch (err) {
         console.error('Error fetching assets:', err);
@@ -239,7 +239,7 @@ export default function Dashboard() {
     }
     
     fetchLatestAssets();
-  }, []);
+  }, [pendingOnlyAmount]);
 
   // Fetch pay settings
   useEffect(() => {
