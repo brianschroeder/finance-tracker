@@ -1314,28 +1314,30 @@ export default function Dashboard() {
         ) : assetData ? (
           <div className="space-y-5">
             {/* Net Worth Card */}
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="h-2 bg-gradient-to-r from-green-700 to-blue-700"></div>
-              <div className="p-5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-50 text-blue-700 rounded-full">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <span className="font-medium text-gray-800">Net Worth</span>
-                  </div>
-                  
-                  {loading || loadingInvestments ? (
-                    <div className="animate-pulse h-8 bg-gray-100 rounded w-40"></div>
-                  ) : (
-                    <span className="text-2xl font-bold text-blue-700">
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <div className="space-y-1 mb-4">
+                <h3 className="text-sm font-medium text-gray-500">Net Worth</h3>
+                {loading || loadingInvestments ? (
+                  <div className="animate-pulse h-8 bg-gray-100 rounded w-40"></div>
+                ) : (
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-gray-900">
                       {formatCurrency(calculateNetWorth())}
                     </span>
-                  )}
+                    <span className="text-sm text-gray-500">total</span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                  <span className="text-gray-600">Cash & Interest</span>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">Cash + 401k + Investments</p>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                  <span className="text-gray-600">401k & Investments</span>
+                </div>
               </div>
             </div>
             
