@@ -64,7 +64,7 @@ A comprehensive personal finance tracking application built with Next.js, TypeSc
    npm run dev
    ```
 
-6. Open [http://localhost:3000](http://localhost:3000) in your browser and follow the onboarding process
+6. Open [http://localhost:3500](http://localhost:3500) in your browser and follow the onboarding process
 
 ### Onboarding Process
 
@@ -92,7 +92,7 @@ If you prefer using Docker:
    docker-compose up -d
    ```
 
-3. Open [http://localhost:3000](http://localhost:3000) in your browser
+3. Open [http://localhost:3500](http://localhost:3500) in your browser
 
 ## Deployment
 

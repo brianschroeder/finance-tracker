@@ -7,7 +7,7 @@
     "dev": "next dev --turbopack",
     "prebuild": "node scripts/clean-next.js",
     "build": "next build",
-    "start": "next start",
+    "start": "node server.js",
     "lint": "next lint",
     "setup": "node scripts/setup.js",
     "check-db": "node scripts/check-db.js",

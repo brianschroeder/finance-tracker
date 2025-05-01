@@ -65,7 +65,7 @@ async function init() {
   console.log('Your finance tracker is ready to use!');
   console.log('\nNext steps:');
   console.log('1. Run "npm run dev" to start the development server');
-  console.log('2. Open http://localhost:3000 in your browser');
+  console.log('2. Open http://localhost:3500 in your browser');
   console.log('3. Set up your financial data through the application interface');
   
   rl.close();
