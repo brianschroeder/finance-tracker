@@ -8,6 +8,7 @@ A comprehensive personal finance tracking application built with Next.js, TypeSc
 - **Asset Tracking**: Track cash, stocks, retirement accounts, and more
 - **Budget Management**: Create and manage budget categories
 - **Transaction Recording**: Log and categorize your spending
+- **Pending Tip Tracking**: Track restaurant tips that are pending after the meal charge has posted
 - **Credit Card Management**: Monitor credit card balances and utilization
 - **Savings Goals**: Set up and track funds for specific goals
 - **Pay Period Planning**: Track expenses based on your pay schedule
@@ -153,6 +154,17 @@ The finance tracker uses SQLite with the following tables:
 - `income_data`: Stores income details
 - `savings_plan`: Stores retirement/savings plan information
 - `credit_cards`: Tracks credit card information
+
+### Database Migrations
+
+If you need to update your database schema:
+
+```
+node scripts/update-database.js
+```
+
+This will run migration scripts to update your database schema, including:
+- Adding the pending field to transactions table for tracking pending transactions
 
 ## Data Management
 

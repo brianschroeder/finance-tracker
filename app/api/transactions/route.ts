@@ -101,6 +101,14 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Validate pendingTipAmount is a number and non-negative if provided
+    if (data.pendingTipAmount !== undefined && (isNaN(data.pendingTipAmount) || data.pendingTipAmount < 0)) {
+      return NextResponse.json(
+        { error: 'Pending tip amount must be a non-negative number' },
+        { status: 400 }
+      );
+    }
+    
     // Create the transaction
     const transaction: Transaction = {
       date: data.date,
@@ -108,7 +116,9 @@ export async function POST(request: NextRequest) {
       name: data.name,
       amount: data.amount,
       cashBack: data.cashBack || 0,
-      notes: data.notes || null
+      notes: data.notes || null,
+      pending: data.pending || false,
+      pendingTipAmount: data.pendingTipAmount || 0
     };
     
     const id = createTransaction(transaction);
@@ -165,6 +175,14 @@ export async function PUT(request: NextRequest) {
       );
     }
     
+    // Validate pendingTipAmount is a number and non-negative if provided
+    if (data.pendingTipAmount !== undefined && (isNaN(data.pendingTipAmount) || data.pendingTipAmount < 0)) {
+      return NextResponse.json(
+        { error: 'Pending tip amount must be a non-negative number' },
+        { status: 400 }
+      );
+    }
+    
     // Check if transaction exists
     const existingTransaction = getTransactionById(data.id);
     if (!existingTransaction) {
@@ -182,7 +200,9 @@ export async function PUT(request: NextRequest) {
       name: data.name,
       amount: data.amount,
       cashBack: data.cashBack || 0,
-      notes: data.notes || null
+      notes: data.notes || null,
+      pending: data.pending || false,
+      pendingTipAmount: data.pendingTipAmount || 0
     };
     
     const changes = updateTransaction(transaction);

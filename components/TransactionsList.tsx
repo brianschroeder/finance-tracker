@@ -14,6 +14,8 @@ interface Transaction {
   amount: number;
   cashBack?: number;
   notes?: string;
+  pending?: boolean;
+  pendingTipAmount?: number;
   createdAt?: string;
   category?: {
     id: number;
@@ -48,7 +50,9 @@ export default function TransactionsList() {
     name: '',
     amount: 0,
     cashBack: 0,
-    notes: ''
+    notes: '',
+    pending: false,
+    pendingTipAmount: 0
   });
 
   // Tab state
@@ -138,7 +142,9 @@ export default function TransactionsList() {
       name: '',
       amount: 0,
       cashBack: 0,
-      notes: ''
+      notes: '',
+      pending: false,
+      pendingTipAmount: 0
     });
     setEditingTransaction(null);
     setSelectedTransaction(null);
@@ -206,7 +212,9 @@ export default function TransactionsList() {
       name: transaction.name,
       amount: transaction.amount,
       cashBack: transaction.cashBack || 0,
-      notes: transaction.notes || ''
+      notes: transaction.notes || '',
+      pending: transaction.pending || false,
+      pendingTipAmount: transaction.pendingTipAmount || 0
     });
     setShowForm(true);
   };
@@ -418,6 +426,48 @@ export default function TransactionsList() {
                   </div>
                 </div>
                 
+                <div className="flex items-center mb-4">
+                  <input
+                    type="checkbox"
+                    id="pending"
+                    name="pending"
+                    checked={formData.pending || false}
+                    onChange={(e) => setFormData(prev => ({ ...prev, pending: e.target.checked }))}
+                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor="pending" className="ml-2 block text-sm text-gray-700">
+                    Mark as pending (not yet cleared by bank)
+                  </label>
+                </div>
+                
+                {formData.pending && (
+                  <div className="mb-4">
+                    <label htmlFor="pendingTipAmount" className="block text-sm font-medium text-gray-700 mb-1">
+                      Pending Tip Amount
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <span className="text-gray-500">$</span>
+                      </div>
+                      <input
+                        type="number"
+                        id="pendingTipAmount"
+                        name="pendingTipAmount"
+                        value={formData.pendingTipAmount || ''}
+                        onChange={handleInputChange}
+                        min="0.00"
+                        step="0.01"
+                        className="block w-full pl-7 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Amount expected to be added later (e.g., tip)"
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      For cases like restaurant bills where the meal charge has already posted, but the tip will be added later.
+                      Only the tip amount should be entered here.
+                    </p>
+                  </div>
+                )}
+                
                 <div>
                   <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
                     Notes
@@ -496,7 +546,19 @@ export default function TransactionsList() {
                           {formatDate(transaction.date)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{transaction.name}</div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {transaction.name}
+                            {transaction.pending && (
+                              <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                                Pending
+                              </span>
+                            )}
+                            {transaction.pending && transaction.pendingTipAmount && transaction.pendingTipAmount > 0 && (
+                              <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+                                Tip: {formatCurrency(transaction.pendingTipAmount)}
+                              </span>
+                            )}
+                          </div>
                           {transaction.notes && (
                             <div className="text-xs text-gray-500 truncate max-w-xs">{transaction.notes}</div>
                           )}

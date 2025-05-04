@@ -4,15 +4,17 @@
   "description": "A comprehensive personal finance tracking application built with Next.js, TypeScript, and SQLite",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev -p 3500",
     "prebuild": "node scripts/clean-next.js",
     "build": "next build",
-    "start": "node server.js",
+    "start": "next start -p 3500",
     "lint": "next lint",
     "setup": "node scripts/setup.js",
     "check-db": "node scripts/check-db.js",
     "setup-db": "node scripts/setup-database.js",
-    "initialize": "node scripts/initialize.js"
+    "initialize": "node scripts/setup-database.js",
+    "update-db": "node scripts/update-database.js",
+    "clean": "node clean.js"
   },
   "repository": {
     "type": "git",

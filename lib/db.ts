@@ -205,6 +205,7 @@ function initDb() {
         amount REAL NOT NULL,
         cashBack REAL,
         notes TEXT,
+        pending INTEGER,
         createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (categoryId) REFERENCES budget_categories(id) ON DELETE SET NULL
       )
@@ -1001,6 +1002,8 @@ export interface Transaction {
   amount: number;
   cashBack?: number;
   notes?: string;
+  pending?: boolean;
+  pendingTipAmount?: number;
   createdAt?: string;
   category?: BudgetCategory; // Optional joined category data
 }
@@ -1025,6 +1028,8 @@ export function getAllTransactions() {
       amount: row.amount,
       cashBack: row.cashBack || 0,
       notes: row.notes,
+      pending: row.pending === 1,
+      pendingTipAmount: row.pendingTipAmount || 0,
       createdAt: row.createdAt
     };
     
@@ -1064,6 +1069,8 @@ export function getTransactionById(id: number) {
     amount: transaction.amount,
     cashBack: transaction.cashBack || 0,
     notes: transaction.notes,
+    pending: transaction.pending === 1,
+    pendingTipAmount: transaction.pendingTipAmount || 0,
     createdAt: transaction.createdAt
   };
   
@@ -1091,8 +1098,10 @@ export function createTransaction(transaction: Transaction) {
       name,
       amount,
       cashBack,
-      notes
-    ) VALUES (?, ?, ?, ?, ?, ?)
+      notes,
+      pending,
+      pendingTipAmount
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   const result = stmt.run(
@@ -1101,7 +1110,9 @@ export function createTransaction(transaction: Transaction) {
     transaction.name,
     transaction.amount,
     transaction.cashBack || 0,
-    transaction.notes || null
+    transaction.notes || null,
+    transaction.pending ? 1 : 0,
+    transaction.pendingTipAmount || 0
   );
   
   return result.lastInsertRowid;
@@ -1116,7 +1127,7 @@ export function updateTransaction(transaction: Transaction) {
   
   const stmt = db.prepare(`
     UPDATE transactions
-    SET date = ?, categoryId = ?, name = ?, amount = ?, cashBack = ?, notes = ?
+    SET date = ?, categoryId = ?, name = ?, amount = ?, cashBack = ?, notes = ?, pending = ?, pendingTipAmount = ?
     WHERE id = ?
   `);
   
@@ -1127,6 +1138,8 @@ export function updateTransaction(transaction: Transaction) {
     transaction.amount,
     transaction.cashBack || 0,
     transaction.notes || null,
+    transaction.pending ? 1 : 0,
+    transaction.pendingTipAmount || 0,
     transaction.id
   );
   
@@ -1166,6 +1179,8 @@ export function getTransactionsByDateRange(startDate: string, endDate: string) {
       amount: row.amount,
       cashBack: row.cashBack || 0,
       notes: row.notes,
+      pending: row.pending === 1,
+      pendingTipAmount: row.pendingTipAmount || 0,
       createdAt: row.createdAt
     };
     

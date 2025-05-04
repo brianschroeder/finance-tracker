@@ -49,6 +49,8 @@ interface Transaction {
   categoryId: number | null;
   name: string;
   amount: number;
+  pending?: boolean;
+  pendingTipAmount?: number;
   notes?: string;
   createdAt?: string;
   category?: {
@@ -180,6 +182,11 @@ export default function Dashboard() {
   // State to track when prices were last fetched
   const [lastFetched, setLastFetched] = useState<Date | null>(null);
 
+  // Define variables to track different types of pending amounts
+  const [pendingTransactionAmount, setPendingTransactionAmount] = useState(0);
+  const [pendingTipAmount, setPendingTipAmount] = useState(0);
+  const [totalPendingAmount, setTotalPendingAmount] = useState(0);
+
   const router = useRouter();
 
   // Add redirect to onboarding if necessary data is missing
@@ -206,6 +213,7 @@ export default function Dashboard() {
     checkRequiredData();
   }, [router]);
 
+  // Fetch latest assets and set checking balance
   useEffect(() => {
     async function fetchLatestAssets() {
       try {
@@ -227,8 +235,8 @@ export default function Dashboard() {
         // Set asset data even if id is null (empty defaults from API)
         setAssetData(data);
         
-        // Instead of just data.checking, subtract pendingOnlyAmount
-        setCheckingBalance((data.checking || 0) - (pendingOnlyAmount || 0));
+        // Calculate checking balance minus all pending amounts
+        setCheckingBalance((data.checking || 0) - totalPendingAmount);
         
       } catch (err) {
         console.error('Error fetching assets:', err);
@@ -239,8 +247,16 @@ export default function Dashboard() {
     }
     
     fetchLatestAssets();
-  }, [pendingOnlyAmount]);
+  }, [totalPendingAmount]);
 
+  // Update total pending amount whenever any pending amount changes
+  useEffect(() => {
+    // Sum of pending transaction tips and recurring pending transactions
+    const total = pendingTipAmount + pendingTransactionAmount;
+    setTotalPendingAmount(total);
+    setPendingOnlyAmount(total); // Keep this for backward compatibility
+  }, [pendingTipAmount, pendingTransactionAmount]);
+  
   // Fetch pay settings
   useEffect(() => {
     async function fetchPaySettings() {
@@ -263,7 +279,7 @@ export default function Dashboard() {
     fetchPaySettings();
   }, []);
 
-  // Fetch pending transactions
+  // Fetch pending transactions (recurring expenses)
   useEffect(() => {
     async function fetchPendingTransactions() {
       try {
@@ -285,12 +301,12 @@ export default function Dashboard() {
           const allTransactions = data.transactions || [];
           const pendingOnly = allTransactions.filter((t: PendingTransaction & { isCompleted?: boolean }) => !t.isCompleted);
           
-          // Calculate the pending-only total
+          // Calculate the pending-only total from recurring transactions
           const pendingOnlyTotal = pendingOnly.reduce((sum: number, t: PendingTransaction) => sum + t.amount, 0);
           
           setPendingTransactions(data.transactions || []);
           setPendingTotal(data.totalAmount || 0);
-          setPendingOnlyAmount(pendingOnlyTotal);
+          setPendingTransactionAmount(pendingOnlyTotal);
           
           // Extract pay period dates from the first transaction (if available)
           if (data.transactions && data.transactions.length > 0) {
@@ -305,7 +321,43 @@ export default function Dashboard() {
     
     fetchPendingTransactions();
   }, []);
-
+  
+  // Fetch recent transactions
+  useEffect(() => {
+    fetchRecentTransactions();
+  }, [assetData]);
+  
+  // Updated function to fetch recent transactions and calculate pending amount
+  async function fetchRecentTransactions() {
+    try {
+      setLoadingTransactions(true);
+      const response = await fetch('/api/transactions?limit=5');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch recent transactions');
+      }
+      
+      const data = await response.json();
+      
+      if (data.transactions) {
+        setRecentTransactions(data.transactions);
+        
+        // Calculate only pending tip amounts from regular transactions
+        const pendingTips = data.transactions
+          .filter((transaction: Transaction) => transaction.pending)
+          .reduce((sum: number, transaction: Transaction) => 
+            sum + (transaction.pendingTipAmount || 0), 0);
+        
+        // Update the pending tip amount state
+        setPendingTipAmount(pendingTips);
+      }
+    } catch (err) {
+      console.error('Error fetching recent transactions:', err);
+    } finally {
+      setLoadingTransactions(false);
+    }
+  }
+  
   // Calculate next pay date whenever pay settings change
   useEffect(() => {
     if (!paySettings?.lastPayDate) return;
@@ -339,30 +391,6 @@ export default function Dashboard() {
     setDaysRemaining(differenceInDays(nextDate, today));
   }, [paySettings]);
 
-  // Fetch recent transactions
-  useEffect(() => {
-    async function fetchRecentTransactions() {
-      try {
-        setLoadingTransactions(true);
-        const response = await fetch('/api/transactions');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch transactions');
-        }
-        
-        const data = await response.json();
-        const transactions = data.transactions || [];
-        setRecentTransactions(transactions.slice(0, 5)); // Get 5 most recent
-      } catch (err) {
-        console.error('Error fetching recent transactions:', err);
-      } finally {
-        setLoadingTransactions(false);
-      }
-    }
-    
-    fetchRecentTransactions();
-  }, []);
-  
   // Fetch budget categories and spending
   useEffect(() => {
     async function fetchBudgetData() {
@@ -652,7 +680,8 @@ export default function Dashboard() {
   // Calculate daily budget remaining until next pay date
   const calculateDailyBudgetRemaining = () => {
     if (!budgetSummary || !daysRemaining || daysRemaining <= 0) return 0;
-    return budgetSummary.totalRemaining / daysRemaining;
+    // Include pending tip amount in the calculation
+    return (budgetSummary.totalRemaining - pendingTipAmount) / daysRemaining;
   };
 
   // Helper function to format dates consistently in YYYY-MM-DD format
@@ -709,10 +738,10 @@ export default function Dashboard() {
     return available > 0 ? available : 0;
   };
 
-  // Calculate remaining budget (checking balance minus PENDING transactions only)
+  // Calculate remaining budget (checking balance minus all pending amounts)
   const calculateRemainingBudget = () => {
     if (!assetData) return 0;
-    return assetData.checking - pendingOnlyAmount;
+    return assetData.checking - totalPendingAmount;
   };
 
   const formatTransactionDate = (dateString: string) => {
@@ -1109,15 +1138,20 @@ export default function Dashboard() {
               {loadingBudget ? (
                 <div className="animate-pulse h-8 bg-gray-100 rounded w-3/4"></div>
               ) : budgetSummary ? (
-                <p className={`text-2xl font-bold ${budgetSummary.totalRemaining >= 0 ? 'text-blue-600' : 'text-gray-600'}`}>
-                  {budgetSummary.totalRemaining >= 0 ? '' : '-'}{formatCurrency(Math.abs(budgetSummary.totalRemaining))}
+                <p className={`text-2xl font-bold ${(budgetSummary.totalRemaining - pendingTipAmount) >= 0 ? 'text-blue-600' : 'text-gray-600'}`}>
+                  {(budgetSummary.totalRemaining - pendingTipAmount) >= 0 ? '' : '-'}{formatCurrency(Math.abs(budgetSummary.totalRemaining - pendingTipAmount))}
                 </p>
               ) : (
                 <p className="text-2xl font-bold text-gray-300">No data</p>
               )}
               {budgetSummary && (
                 <p className="text-xs text-gray-500 mt-2">
-                  {`${formatCurrency(budgetSummary.totalSpent)} / ${formatCurrency(budgetSummary.totalAllocated)} spent`}
+                  {`${formatCurrency(budgetSummary.totalSpent + pendingTipAmount)} / ${formatCurrency(budgetSummary.totalAllocated)} spent`}
+                  {pendingTipAmount > 0 && (
+                    <span className="ml-1 text-blue-500">
+                      (includes ${formatCurrency(pendingTipAmount)} pending)
+                    </span>
+                  )}
                 </p>
               )}
             </div>
@@ -1138,7 +1172,34 @@ export default function Dashboard() {
               {loadingAccounts ? (
                 <div className="animate-pulse h-8 bg-gray-100 rounded w-3/4"></div>
               ) : checkingBalance !== undefined ? (
-                <p className="text-2xl font-bold text-blue-700">{formatCurrency(checkingBalance)}</p>
+                <>
+                  <p className="text-2xl font-bold text-blue-700">{formatCurrency(checkingBalance)}</p>
+                  {totalPendingAmount > 0 && (
+                    <div className="mt-2 text-xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-blue-600 flex items-center">
+                          <span className="mr-1 w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
+                          Pending total:
+                        </span>
+                        <span className="font-medium text-blue-600">{formatCurrency(totalPendingAmount)}</span>
+                      </div>
+                      
+                      {/* Show the breakdown of pending amounts */}
+                      {pendingTransactionAmount > 0 && (
+                        <div className="flex items-center justify-between pl-4 mt-1">
+                          <span className="text-gray-600">Recurring pending:</span>
+                          <span className="text-gray-600">{formatCurrency(pendingTransactionAmount)}</span>
+                        </div>
+                      )}
+                      {pendingTipAmount > 0 && (
+                        <div className="flex items-center justify-between pl-4 mt-1">
+                          <span className="text-gray-600">Checking pending:</span>
+                          <span className="text-gray-600">{formatCurrency(pendingTipAmount)}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
               ) : (
                 <p className="text-2xl font-bold text-gray-300">No data</p>
               )}
