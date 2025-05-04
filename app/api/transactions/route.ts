@@ -116,6 +116,7 @@ export async function POST(request: NextRequest) {
       name: data.name,
       amount: data.amount,
       cashBack: data.cashBack || 0,
+      cashbackPosted: data.cashbackPosted !== undefined ? data.cashbackPosted : true,
       notes: data.notes || null,
       pending: data.pending || false,
       pendingTipAmount: data.pendingTipAmount || 0
@@ -192,6 +193,15 @@ export async function PUT(request: NextRequest) {
       );
     }
     
+    // Ensure boolean values are properly formatted
+    const cashbackPosted = typeof data.cashbackPosted === 'boolean' 
+      ? data.cashbackPosted 
+      : data.cashbackPosted === 'true' || data.cashbackPosted === true || data.cashbackPosted === 1;
+    
+    const pending = typeof data.pending === 'boolean'
+      ? data.pending
+      : data.pending === 'true' || data.pending === true || data.pending === 1;
+    
     // Update the transaction
     const transaction: Transaction = {
       id: data.id,
@@ -199,23 +209,34 @@ export async function PUT(request: NextRequest) {
       categoryId: data.categoryId || null,
       name: data.name,
       amount: data.amount,
-      cashBack: data.cashBack || 0,
+      cashBack: data.cashBack !== undefined ? Number(data.cashBack) : 0,
+      cashbackPosted: cashbackPosted,
       notes: data.notes || null,
-      pending: data.pending || false,
-      pendingTipAmount: data.pendingTipAmount || 0
+      pending: pending,
+      pendingTipAmount: data.pendingTipAmount !== undefined ? Number(data.pendingTipAmount) : 0
     };
     
-    const changes = updateTransaction(transaction);
+    console.log('Updating transaction with data:', JSON.stringify(transaction));
     
-    return NextResponse.json({ 
-      success: true,
-      changes,
-      message: 'Transaction updated successfully'
-    });
+    try {
+      const changes = updateTransaction(transaction);
+      
+      return NextResponse.json({ 
+        success: true,
+        changes,
+        message: 'Transaction updated successfully'
+      });
+    } catch (dbError) {
+      console.error('Database error updating transaction:', dbError);
+      return NextResponse.json(
+        { error: 'Database error updating transaction', details: String(dbError) },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error('Error updating transaction:', error);
     return NextResponse.json(
-      { error: 'Failed to update transaction' },
+      { error: 'Failed to update transaction', details: String(error) },
       { status: 500 }
     );
   }

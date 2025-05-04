@@ -13,6 +13,9 @@ interface BudgetCategory {
   spent: number;
   cashBack: number;
   rawSpent: number;
+  pendingTipAmount?: number;
+  pendingCashbackAmount?: number;
+  adjustedSpent?: number; // Spent including pending tips, minus pending cashback
   remaining: number;
   daysInPeriod: number;
 }
@@ -23,7 +26,10 @@ interface BudgetSummary {
   totalSpent: number;
   totalCashBack: number;
   totalRawSpent: number;
+  totalAdjustedSpent?: number;
   totalRemaining: number;
+  totalPendingTipAmount?: number;
+  totalPendingCashbackAmount?: number;
   startDate: string;
   endDate: string;
   daysInPeriod: number;
@@ -207,9 +213,22 @@ export default function BudgetAnalysis() {
                     </div>
                     <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
                       <h3 className="text-sm font-medium text-gray-700 mb-1">Total Spent</h3>
-                      <p className="text-2xl font-bold text-gray-700 mt-1">{formatCurrency(summary.totalSpent)}</p>
+                      <p className="text-2xl font-bold text-gray-700 mt-1">
+                        {formatCurrency(summary.totalAdjustedSpent !== undefined ? summary.totalAdjustedSpent : summary.totalSpent)}
+                      </p>
                       <p className="text-xs text-gray-500 mt-1.5">
-                        {((summary.totalSpent / summary.totalAllocated) * 100).toFixed(1)}% of budget
+                        {(((summary.totalAdjustedSpent !== undefined ? summary.totalAdjustedSpent : summary.totalSpent) / summary.totalAllocated) * 100).toFixed(1)}% of budget
+                        {((summary.totalPendingTipAmount && summary.totalPendingTipAmount > 0) || (summary.totalPendingCashbackAmount && summary.totalPendingCashbackAmount > 0)) && (
+                          <span className="block mt-1">
+                            {formatCurrency(summary.totalSpent)} base
+                            {summary.totalPendingTipAmount && summary.totalPendingTipAmount > 0 && (
+                              <span className="block text-gray-600">+{formatCurrency(summary.totalPendingTipAmount)} pending</span>
+                            )}
+                            {summary.totalPendingCashbackAmount && summary.totalPendingCashbackAmount > 0 && (
+                              <span className="block text-blue-600">-{formatCurrency(summary.totalPendingCashbackAmount)} pending cashback</span>
+                            )}
+                          </span>
+                        )}
                         {summary.totalCashBack > 0 && (
                           <span className="block text-blue-600 mt-1">
                             Cash back: {formatCurrency(summary.totalCashBack)} ({((summary.totalCashBack / summary.totalRawSpent) * 100).toFixed(1)}%)
@@ -263,15 +282,28 @@ export default function BudgetAnalysis() {
                       <div 
                         className={`h-2 rounded-full ${category.remaining < 0 ? 'bg-gray-600' : ''}`}
                         style={{ 
-                          width: `${Math.min(calculatePercentage(category.spent, category.allocatedAmount), 100)}%`,
+                          width: `${Math.min(calculatePercentage(category.adjustedSpent || category.spent, category.allocatedAmount), 100)}%`,
                           backgroundColor: category.remaining < 0 ? '#4B5563' : category.color 
                         }}
                       ></div>
                     </div>
                     
                     <div className="flex justify-between items-center text-xs mb-1">
-                      <span className="font-bold text-gray-700">{formatCurrency(category.spent)} spent</span>
-                      <span className="font-medium text-gray-500">{((category.spent / category.allocatedAmount) * 100).toFixed(0)}%</span>
+                      <span className="font-bold text-gray-700">
+                        {formatCurrency(category.adjustedSpent || category.spent)} spent
+                        {((category.pendingTipAmount && category.pendingTipAmount > 0) || (category.pendingCashbackAmount && category.pendingCashbackAmount > 0)) ? (
+                          <span className="block text-gray-500 mt-0.5">
+                            {formatCurrency(category.spent)} base
+                            {category.pendingTipAmount && category.pendingTipAmount > 0 && (
+                              <span className="block">+{formatCurrency(category.pendingTipAmount)} pending</span>
+                            )}
+                            {category.pendingCashbackAmount && category.pendingCashbackAmount > 0 && (
+                              <span className="block">-{formatCurrency(category.pendingCashbackAmount)} cashback pending</span>
+                            )}
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="font-medium text-gray-500">{(((category.adjustedSpent || category.spent) / category.allocatedAmount) * 100).toFixed(0)}%</span>
                       <span className="font-bold text-gray-700">{formatCurrency(category.allocatedAmount)} budget</span>
                     </div>
                     

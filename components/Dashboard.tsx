@@ -51,6 +51,8 @@ interface Transaction {
   amount: number;
   pending?: boolean;
   pendingTipAmount?: number;
+  cashBack?: number;
+  cashbackPosted?: boolean;
   notes?: string;
   createdAt?: string;
   category?: {
@@ -80,7 +82,10 @@ interface BudgetSummary {
   totalSpent: number;
   totalCashBack: number;
   totalRawSpent: number;
+  totalAdjustedSpent?: number;
   totalRemaining: number;
+  totalPendingTipAmount?: number;
+  totalPendingCashbackAmount?: number;
   startDate: string;
   endDate: string;
   daysInPeriod: number;
@@ -185,6 +190,7 @@ export default function Dashboard() {
   // Define variables to track different types of pending amounts
   const [pendingTransactionAmount, setPendingTransactionAmount] = useState(0);
   const [pendingTipAmount, setPendingTipAmount] = useState(0);
+  const [pendingCashbackAmount, setPendingCashbackAmount] = useState(0);
   const [totalPendingAmount, setTotalPendingAmount] = useState(0);
 
   const router = useRouter();
@@ -251,11 +257,12 @@ export default function Dashboard() {
 
   // Update total pending amount whenever any pending amount changes
   useEffect(() => {
-    // Sum of pending transaction tips and recurring pending transactions
-    const total = pendingTipAmount + pendingTransactionAmount;
+    // Sum of pending transaction tips and recurring pending transactions, minus pending cashback
+    // because cashback is money coming back to the account
+    const total = pendingTipAmount + pendingTransactionAmount - pendingCashbackAmount;
     setTotalPendingAmount(total);
     setPendingOnlyAmount(total); // Keep this for backward compatibility
-  }, [pendingTipAmount, pendingTransactionAmount]);
+  }, [pendingTipAmount, pendingTransactionAmount, pendingCashbackAmount]);
   
   // Fetch pay settings
   useEffect(() => {
@@ -348,8 +355,16 @@ export default function Dashboard() {
           .reduce((sum: number, transaction: Transaction) => 
             sum + (transaction.pendingTipAmount || 0), 0);
         
-        // Update the pending tip amount state
+        // Calculate pending cashback amounts (cashback that has not been posted yet)
+        const pendingCashback = data.transactions
+          .filter((transaction: Transaction) => 
+            (transaction.cashBack || 0) > 0 && transaction.cashbackPosted === false)
+          .reduce((sum: number, transaction: Transaction) => 
+            sum + (transaction.cashBack || 0), 0);
+        
+        // Update the pending amount states
         setPendingTipAmount(pendingTips);
+        setPendingCashbackAmount(pendingCashback);
       }
     } catch (err) {
       console.error('Error fetching recent transactions:', err);
@@ -417,7 +432,10 @@ export default function Dashboard() {
           totalSpent: 0,
           totalCashBack: 0,
           totalRawSpent: 0,
+          totalAdjustedSpent: 0,
           totalRemaining: 0,
+          totalPendingTipAmount: 0,
+          totalPendingCashbackAmount: 0,
           startDate: '',
           endDate: '',
           daysInPeriod: 0,
@@ -428,7 +446,21 @@ export default function Dashboard() {
       }
     }
     
+    // Initial fetch
     fetchBudgetData();
+    
+    // Set up event listener for transaction updates
+    const handleTransactionsChanged = () => {
+      fetchBudgetData();
+    };
+    
+    // Add event listener
+    window.addEventListener('transactionsChanged', handleTransactionsChanged);
+    
+    // Clean up the event listener
+    return () => {
+      window.removeEventListener('transactionsChanged', handleTransactionsChanged);
+    };
   }, []);
 
   // Fetch credit cards
@@ -680,8 +712,8 @@ export default function Dashboard() {
   // Calculate daily budget remaining until next pay date
   const calculateDailyBudgetRemaining = () => {
     if (!budgetSummary || !daysRemaining || daysRemaining <= 0) return 0;
-    // Include pending tip amount in the calculation
-    return (budgetSummary.totalRemaining - pendingTipAmount) / daysRemaining;
+    // Use the budget without pending cashback adjustments
+    return calculateBudgetWithoutPendingCashback() / daysRemaining;
   };
 
   // Helper function to format dates consistently in YYYY-MM-DD format
@@ -1101,6 +1133,17 @@ export default function Dashboard() {
     return cashAssets + investmentsTotal;
   };
 
+  // Calculate the budget remaining without considering pending cashback
+  const calculateBudgetWithoutPendingCashback = () => {
+    if (!budgetSummary) return 0;
+    // Start with the allocated amount
+    const allocated = budgetSummary.totalAllocated;
+    // Use totalSpent (which doesn't include cashback adjustment) plus any pending tips
+    const spent = budgetSummary.totalSpent + (budgetSummary.totalPendingTipAmount || 0);
+    // Return allocated minus spent (without cashback adjustment)
+    return allocated - spent;
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-between">
@@ -1138,22 +1181,18 @@ export default function Dashboard() {
               {loadingBudget ? (
                 <div className="animate-pulse h-8 bg-gray-100 rounded w-3/4"></div>
               ) : budgetSummary ? (
-                <p className={`text-2xl font-bold ${(budgetSummary.totalRemaining - pendingTipAmount) >= 0 ? 'text-blue-600' : 'text-gray-600'}`}>
-                  {(budgetSummary.totalRemaining - pendingTipAmount) >= 0 ? '' : '-'}{formatCurrency(Math.abs(budgetSummary.totalRemaining - pendingTipAmount))}
+                <p className={`text-2xl font-bold ${calculateBudgetWithoutPendingCashback() >= 0 ? 'text-blue-600' : 'text-gray-600'}`}>
+                  {calculateBudgetWithoutPendingCashback() >= 0 ? '' : '-'}{formatCurrency(Math.abs(calculateBudgetWithoutPendingCashback()))}
                 </p>
               ) : (
                 <p className="text-2xl font-bold text-gray-300">No data</p>
               )}
               {budgetSummary && (
                 <p className="text-xs text-gray-500 mt-2">
-                  {`${formatCurrency(budgetSummary.totalSpent + pendingTipAmount)} / ${formatCurrency(budgetSummary.totalAllocated)} spent`}
-                  {pendingTipAmount > 0 && (
-                    <span className="ml-1 text-blue-500">
-                      (includes ${formatCurrency(pendingTipAmount)} pending)
-                    </span>
-                  )}
+                  {`${formatCurrency(budgetSummary.totalSpent + (budgetSummary.totalPendingTipAmount || 0))} / ${formatCurrency(budgetSummary.totalAllocated)} spent`}
                 </p>
               )}
+              {/* Note about pending cashback removed */}
             </div>
           </div>
           
@@ -1195,6 +1234,12 @@ export default function Dashboard() {
                         <div className="flex items-center justify-between pl-4 mt-1">
                           <span className="text-gray-600">Checking pending:</span>
                           <span className="text-gray-600">{formatCurrency(pendingTipAmount)}</span>
+                        </div>
+                      )}
+                      {pendingCashbackAmount > 0 && (
+                        <div className="flex items-center justify-between pl-4 mt-1">
+                          <span className="text-gray-600">Pending cashback:</span>
+                          <span className="text-gray-600">+{formatCurrency(pendingCashbackAmount)}</span>
                         </div>
                       )}
                     </div>

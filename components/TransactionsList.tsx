@@ -24,6 +24,7 @@ interface Transaction {
     allocatedAmount: number;
     isActive: boolean;
   };
+  cashbackPosted?: boolean;
 }
 
 interface BudgetCategory {
@@ -38,6 +39,7 @@ export default function TransactionsList() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<BudgetCategory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -50,6 +52,7 @@ export default function TransactionsList() {
     name: '',
     amount: 0,
     cashBack: 0,
+    cashbackPosted: true,
     notes: '',
     pending: false,
     pendingTipAmount: 0
@@ -142,6 +145,7 @@ export default function TransactionsList() {
       name: '',
       amount: 0,
       cashBack: 0,
+      cashbackPosted: true,
       notes: '',
       pending: false,
       pendingTipAmount: 0
@@ -155,6 +159,7 @@ export default function TransactionsList() {
     e.preventDefault();
     
     try {
+      setUpdating(true);
       // Validate form
       if (!formData.date || !formData.name || formData.amount <= 0) {
         toast({
@@ -165,8 +170,14 @@ export default function TransactionsList() {
         return;
       }
       
+      // Check if we're updating a transaction with cashback
+      const hasCashback = editingTransaction && editingTransaction.cashBack && editingTransaction.cashBack > 0;
+      const cashbackStatusChanged = editingTransaction && 
+        formData.cashbackPosted !== editingTransaction.cashbackPosted &&
+        (formData.cashBack || 0) > 0;
+      
       const method = editingTransaction ? 'PUT' : 'POST';
-      const url = '/api/transactions';
+      const url = editingTransaction ? `/api/transactions/${editingTransaction.id}` : '/api/transactions';
       const payload = editingTransaction ? { ...formData, id: editingTransaction.id } : formData;
       
       const response = await fetch(url, {
@@ -177,9 +188,30 @@ export default function TransactionsList() {
         body: JSON.stringify(payload)
       });
       
+      // Check if response is OK first
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to ${editingTransaction ? 'update' : 'create'} transaction`);
+        let errorMessage = 'Failed to update transaction';
+        
+        // Try to parse error response as JSON
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (jsonError) {
+          // If parsing JSON fails, use the status text or a generic message
+          errorMessage = response.statusText || errorMessage;
+          console.error('Failed to parse error response:', jsonError);
+        }
+        
+        throw new Error(errorMessage);
+      }
+      
+      // Success path - try to parse the response
+      let responseData;
+      try {
+        responseData = await response.json();
+      } catch (jsonError) {
+        console.warn('Response is not JSON but operation succeeded:', jsonError);
+        // Continue with default success behavior even if response is not valid JSON
       }
       
       toast({
@@ -191,15 +223,24 @@ export default function TransactionsList() {
       // Refresh transactions list
       fetchTransactions();
       
+      // Dispatch event for cashback changes to update dashboard
+      if (hasCashback || cashbackStatusChanged || (formData.cashBack && formData.cashBack > 0)) {
+        // Create and dispatch a custom event that the dashboard can listen for
+        const event = new Event('transactionsChanged');
+        window.dispatchEvent(event);
+      }
+      
       // Reset the form
       resetForm();
     } catch (err) {
       console.error('Error saving transaction:', err);
       toast({
         title: 'Error',
-        description: err instanceof Error ? err.message : 'Failed to save transaction',
+        description: err instanceof Error ? err.message : 'Failed to update transaction. Please try again.',
         variant: 'error'
       });
+    } finally {
+      setUpdating(false);
     }
   };
   
@@ -212,6 +253,7 @@ export default function TransactionsList() {
       name: transaction.name,
       amount: transaction.amount,
       cashBack: transaction.cashBack || 0,
+      cashbackPosted: transaction.cashbackPosted !== undefined ? transaction.cashbackPosted : true,
       notes: transaction.notes || '',
       pending: transaction.pending || false,
       pendingTipAmount: transaction.pendingTipAmount || 0
@@ -424,6 +466,21 @@ export default function TransactionsList() {
                       />
                     </div>
                   </div>
+                  {(formData.cashBack || 0) > 0 && (
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="cashbackPosted"
+                        name="cashbackPosted"
+                        checked={formData.cashbackPosted || false}
+                        onChange={(e) => setFormData(prev => ({ ...prev, cashbackPosted: e.target.checked }))}
+                        className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <label htmlFor="cashbackPosted" className="ml-2 block text-sm text-gray-700">
+                        Cash back has been posted to account
+                      </label>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="flex items-center mb-4">
@@ -584,8 +641,11 @@ export default function TransactionsList() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
                           {transaction.cashBack && transaction.cashBack > 0 ? (
-                            <span className="text-green-600 font-medium">
+                            <span className={`font-medium ${transaction.cashbackPosted ? 'text-green-600' : 'text-blue-500'}`}>
                               {formatCurrency(transaction.cashBack)}
+                              {!transaction.cashbackPosted && (
+                                <span className="ml-1 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">pending</span>
+                              )}
                             </span>
                           ) : (
                             <span className="text-gray-400">-</span>

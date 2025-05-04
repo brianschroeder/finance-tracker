@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCategorySpending, getActiveBudgetCategories, getPaySettings } from '@/lib/db';
+import { 
+  getCategorySpending, 
+  getActiveBudgetCategories, 
+  getPaySettings,
+  getTransactionsByDateRange, 
+  Transaction
+} from '@/lib/db';
 import { addDays, subDays, format } from 'date-fns';
 
 export async function GET(request: NextRequest) {
@@ -63,6 +69,42 @@ export async function GET(request: NextRequest) {
     // Get all active categories (in case there are categories with no transactions)
     const allCategories = getActiveBudgetCategories();
     
+    // Get all transactions in the date range to calculate pending amounts
+    const transactions = getTransactionsByDateRange(startDateStr, endDateStr);
+    
+    // Calculate pending amounts by category
+    const pendingAmountsByCategory = new Map<number, { pendingTipAmount: number, pendingCashbackAmount: number }>();
+    
+    // Initialize map with all categories
+    allCategories.forEach(category => {
+      pendingAmountsByCategory.set(category.id, { 
+        pendingTipAmount: 0,
+        pendingCashbackAmount: 0
+      });
+    });
+    
+    // Calculate pending tip amounts and pending cashback for each category
+    transactions.forEach((transaction: Transaction) => {
+      const categoryId = transaction.categoryId;
+      if (categoryId !== null && pendingAmountsByCategory.has(categoryId)) {
+        const currentAmounts = pendingAmountsByCategory.get(categoryId);
+        
+        // Add pending tip amounts for pending transactions
+        if (currentAmounts && transaction.pending && transaction.pendingTipAmount) {
+          currentAmounts.pendingTipAmount += transaction.pendingTipAmount;
+        }
+        
+        // Add pending cashback for transactions with unposted cashback
+        if (currentAmounts && transaction.cashBack && transaction.cashBack > 0 && transaction.cashbackPosted === false) {
+          currentAmounts.pendingCashbackAmount += transaction.cashBack;
+        }
+        
+        if (currentAmounts) {
+          pendingAmountsByCategory.set(categoryId, currentAmounts);
+        }
+      }
+    });
+    
     // Calculate the number of days in the period for pro-rating
     const start = new Date(startDateStr);
     const end = new Date(endDateStr);
@@ -71,12 +113,26 @@ export async function GET(request: NextRequest) {
     // Determine if we need to prorate the allocated amount
     const isProratedPeriod = periodType === 'biweekly' || periodType === 'custom';
     
+    // Track total pending amounts
+    let totalPendingTipAmount = 0;
+    let totalPendingCashbackAmount = 0;
+    
     // Merge the data to ensure all active categories are included
     const mergedData = allCategories.map(category => {
       const spendingData = categorySpending.find(item => item.id === category.id);
       const spent = spendingData ? Math.abs(spendingData.spent) : 0;
       const cashBack = spendingData ? spendingData.cashBack || 0 : 0;
       const rawSpent = spendingData ? spendingData.rawSpent || 0 : 0;
+      
+      // Get pending amounts for this category
+      const pendingAmounts = pendingAmountsByCategory.get(category.id) || { 
+        pendingTipAmount: 0, 
+        pendingCashbackAmount: 0 
+      };
+      
+      // Update totals
+      totalPendingTipAmount += pendingAmounts.pendingTipAmount;
+      totalPendingCashbackAmount += pendingAmounts.pendingCashbackAmount;
       
       // If biweekly period, prorate the monthly budget to biweekly
       let allocatedAmount = category.allocatedAmount;
@@ -93,6 +149,9 @@ export async function GET(request: NextRequest) {
         }
       }
       
+      // Calculate the adjusted spent amount with pending tips and without pending cashback
+      const adjustedSpent = spent + pendingAmounts.pendingTipAmount - pendingAmounts.pendingCashbackAmount;
+      
       return {
         id: category.id,
         name: category.name,
@@ -102,7 +161,10 @@ export async function GET(request: NextRequest) {
         spent: spent,
         cashBack: cashBack,
         rawSpent: rawSpent,
-        remaining: allocatedAmount - spent,
+        pendingTipAmount: pendingAmounts.pendingTipAmount,
+        pendingCashbackAmount: pendingAmounts.pendingCashbackAmount,
+        adjustedSpent: adjustedSpent, // New field that includes pending tips and without pending cashback
+        remaining: allocatedAmount - adjustedSpent, // Adjust remaining to account for pending amounts
         daysInPeriod: dayCount
       };
     });
@@ -113,7 +175,8 @@ export async function GET(request: NextRequest) {
     const totalSpent = mergedData.reduce((sum, category) => sum + category.spent, 0);
     const totalCashBack = mergedData.reduce((sum, category) => sum + category.cashBack, 0);
     const totalRawSpent = mergedData.reduce((sum, category) => sum + category.rawSpent, 0);
-    const totalRemaining = totalAllocated - totalSpent;
+    const totalAdjustedSpent = mergedData.reduce((sum, category) => sum + category.adjustedSpent, 0);
+    const totalRemaining = totalAllocated - totalAdjustedSpent;
     
     return NextResponse.json({
       categories: mergedData,
@@ -123,7 +186,10 @@ export async function GET(request: NextRequest) {
         totalSpent,
         totalCashBack,
         totalRawSpent,
+        totalAdjustedSpent,
         totalRemaining,
+        totalPendingTipAmount,
+        totalPendingCashbackAmount,
         startDate: startDateStr,
         endDate: endDateStr,
         daysInPeriod: dayCount,

@@ -204,12 +204,35 @@ function initDb() {
         name TEXT NOT NULL,
         amount REAL NOT NULL,
         cashBack REAL,
+        cashbackPosted INTEGER DEFAULT 0,
         notes TEXT,
         pending INTEGER,
+        pendingTipAmount REAL DEFAULT 0,
         createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (categoryId) REFERENCES budget_categories(id) ON DELETE SET NULL
       )
     `).run();
+  } else {
+    // Check if the cashbackPosted column exists, add it if not
+    const columns = db.prepare(`PRAGMA table_info(transactions)`).all() as ColumnInfo[];
+    const columnNames = columns.map(col => col.name);
+    
+    if (!columnNames.includes('cashbackPosted')) {
+      // Add the cashbackPosted column
+      db.prepare(`
+        ALTER TABLE transactions
+        ADD COLUMN cashbackPosted INTEGER DEFAULT 0
+      `).run();
+    }
+    
+    // Check if the pendingTipAmount column exists, add it if not
+    if (!columnNames.includes('pendingTipAmount')) {
+      // Add the pendingTipAmount column
+      db.prepare(`
+        ALTER TABLE transactions
+        ADD COLUMN pendingTipAmount REAL DEFAULT 0
+      `).run();
+    }
   }
 
   // Check if investments table exists
@@ -1001,6 +1024,7 @@ export interface Transaction {
   name: string;
   amount: number;
   cashBack?: number;
+  cashbackPosted?: boolean;
   notes?: string;
   pending?: boolean;
   pendingTipAmount?: number;
@@ -1027,6 +1051,7 @@ export function getAllTransactions() {
       name: row.name,
       amount: row.amount,
       cashBack: row.cashBack || 0,
+      cashbackPosted: row.cashbackPosted === 1,
       notes: row.notes,
       pending: row.pending === 1,
       pendingTipAmount: row.pendingTipAmount || 0,
@@ -1068,6 +1093,7 @@ export function getTransactionById(id: number) {
     name: transaction.name,
     amount: transaction.amount,
     cashBack: transaction.cashBack || 0,
+    cashbackPosted: transaction.cashbackPosted === 1,
     notes: transaction.notes,
     pending: transaction.pending === 1,
     pendingTipAmount: transaction.pendingTipAmount || 0,
@@ -1098,10 +1124,11 @@ export function createTransaction(transaction: Transaction) {
       name,
       amount,
       cashBack,
+      cashbackPosted,
       notes,
       pending,
       pendingTipAmount
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   const result = stmt.run(
@@ -1110,6 +1137,7 @@ export function createTransaction(transaction: Transaction) {
     transaction.name,
     transaction.amount,
     transaction.cashBack || 0,
+    transaction.cashbackPosted ? 1 : 0,
     transaction.notes || null,
     transaction.pending ? 1 : 0,
     transaction.pendingTipAmount || 0
@@ -1127,7 +1155,7 @@ export function updateTransaction(transaction: Transaction) {
   
   const stmt = db.prepare(`
     UPDATE transactions
-    SET date = ?, categoryId = ?, name = ?, amount = ?, cashBack = ?, notes = ?, pending = ?, pendingTipAmount = ?
+    SET date = ?, categoryId = ?, name = ?, amount = ?, cashBack = ?, cashbackPosted = ?, notes = ?, pending = ?, pendingTipAmount = ?
     WHERE id = ?
   `);
   
@@ -1137,6 +1165,7 @@ export function updateTransaction(transaction: Transaction) {
     transaction.name,
     transaction.amount,
     transaction.cashBack || 0,
+    transaction.cashbackPosted ? 1 : 0,
     transaction.notes || null,
     transaction.pending ? 1 : 0,
     transaction.pendingTipAmount || 0,
@@ -1178,6 +1207,7 @@ export function getTransactionsByDateRange(startDate: string, endDate: string) {
       name: row.name,
       amount: row.amount,
       cashBack: row.cashBack || 0,
+      cashbackPosted: row.cashbackPosted === 1,
       notes: row.notes,
       pending: row.pending === 1,
       pendingTipAmount: row.pendingTipAmount || 0,
