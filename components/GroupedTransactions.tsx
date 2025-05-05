@@ -41,12 +41,64 @@ const GroupedTransactions = () => {
   const [groupedData, setGroupedData] = useState<Array<{name: string, value: number, formattedValue: string}>>([]);
   const [timeSeriesData, setTimeSeriesData] = useState<Array<{date: string, amount: number}>>([]);
   const [viewMode, setViewMode] = useState<'vendor' | 'trend'>('vendor');
+  const [budgetPeriod, setBudgetPeriod] = useState<{startDate: string, endDate: string} | null>(null);
+  const [loadingBudgetPeriod, setLoadingBudgetPeriod] = useState(true);
+
+  // First, fetch the budget period dates
+  useEffect(() => {
+    async function fetchBudgetPeriod() {
+      try {
+        setLoadingBudgetPeriod(true);
+        const response = await fetch('/api/budget-analysis?periodType=biweekly');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch budget period');
+        }
+        
+        const data = await response.json();
+        
+        if (data.summary && data.summary.startDate && data.summary.endDate) {
+          setBudgetPeriod({
+            startDate: data.summary.startDate,
+            endDate: data.summary.endDate
+          });
+          setDebugInfo(`Budget period: ${data.summary.startDate} to ${data.summary.endDate}`);
+        } else {
+          throw new Error('Budget period data not found');
+        }
+      } catch (err: any) {
+        console.error('Error fetching budget period:', err);
+        setDebugInfo(`Error getting budget period: ${err.message || String(err)}`);
+        setError('Failed to load budget period');
+      } finally {
+        setLoadingBudgetPeriod(false);
+      }
+    }
+    
+    fetchBudgetPeriod();
+  }, []);
+
+  // Fetch transactions after we have the budget period
+  useEffect(() => {
+    if (budgetPeriod) {
+      fetchTransactions();
+    }
+  }, [budgetPeriod]);
 
   const fetchTransactions = async () => {
+    if (!budgetPeriod) {
+      setDebugInfo('No budget period available, cannot fetch transactions');
+      return;
+    }
+    
     try {
       setLoading(true);
-      setDebugInfo('Fetching transactions...');
-      const response = await fetch('/api/transactions');
+      setDebugInfo(`Fetching transactions for period ${budgetPeriod.startDate} to ${budgetPeriod.endDate}...`);
+      
+      // Add startDate and endDate query parameters
+      const response = await fetch(
+        `/api/transactions?startDate=${budgetPeriod.startDate}&endDate=${budgetPeriod.endDate}`
+      );
       
       if (!response.ok) {
         throw new Error('Failed to fetch transactions');
@@ -84,10 +136,6 @@ const GroupedTransactions = () => {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchTransactions();
-  }, []);
 
   // Process transactions data whenever it changes
   useEffect(() => {
@@ -226,7 +274,20 @@ const GroupedTransactions = () => {
     }
   };
 
-  if (loading) {
+  // Format the date range for display
+  const formatDateRange = () => {
+    if (!budgetPeriod) return '';
+    
+    try {
+      const startDate = new Date(budgetPeriod.startDate);
+      const endDate = new Date(budgetPeriod.endDate);
+      return `${startDate.getMonth() + 1}/${startDate.getDate()} - ${endDate.getMonth() + 1}/${endDate.getDate()}`;
+    } catch {
+      return `${budgetPeriod.startDate} - ${budgetPeriod.endDate}`;
+    }
+  };
+
+  if (loading || loadingBudgetPeriod) {
     return (
       <div className="flex justify-center items-center h-64 bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="flex flex-col items-center">
@@ -252,186 +313,126 @@ const GroupedTransactions = () => {
 
   if (groupedData.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 h-64">
-        <div className="flex justify-center items-center h-full">
-          <div className="text-center">
-            <div className="text-gray-500 font-medium mb-2">No transaction data available</div>
-            <div className="text-xs text-gray-400 max-w-md whitespace-pre-line">{debugInfo}</div>
-            <button
-              onClick={addTestData}
-              disabled={addingTestData}
-              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition duration-200"
-            >
-              {addingTestData ? 'Adding...' : 'Add Test Transactions'}
-            </button>
-          </div>
-        </div>
+      <div className="bg-gray-50 rounded-xl border border-gray-200 p-8 text-center">
+        <p className="text-gray-600 mb-2">No transactions found for this pay period</p>
+        {budgetPeriod && (
+          <p className="text-sm text-gray-500">{formatDateRange()}</p>
+        )}
       </div>
     );
   }
 
-  // Calculate total spending
-  const totalSpending = groupedData.reduce((sum, item) => sum + item.value, 0);
-
   return (
-    <div className="w-full mx-auto">
-      {/* Chart selection tabs */}
-      <div className="flex justify-center mb-6 border-b border-gray-200">
-        <button
-          className={`py-3 px-8 font-medium text-sm transition-colors ${
-            viewMode === 'vendor' 
-              ? 'text-blue-600 border-b-2 border-blue-600' 
-              : 'text-gray-500 hover:text-gray-700'
-          }`}
-          onClick={() => setViewMode('vendor')}
-        >
-          By Vendor
-        </button>
-        <button
-          className={`py-3 px-8 font-medium text-sm transition-colors ${
-            viewMode === 'trend' 
-              ? 'text-blue-600 border-b-2 border-blue-600' 
-              : 'text-gray-500 hover:text-gray-700'
-          }`}
-          onClick={() => setViewMode('trend')}
-        >
-          Spending Trend
-        </button>
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex gap-3">
+          <button
+            onClick={() => setViewMode('vendor')}
+            className={`px-3 py-1.5 text-sm font-medium rounded ${
+              viewMode === 'vendor' 
+                ? 'bg-blue-100 text-blue-700' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            By Vendor
+          </button>
+          <button
+            onClick={() => setViewMode('trend')}
+            className={`px-3 py-1.5 text-sm font-medium rounded ${
+              viewMode === 'trend' 
+                ? 'bg-blue-100 text-blue-700' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            By Date
+          </button>
+        </div>
+        
+        {budgetPeriod && (
+          <div className="text-sm text-gray-500">
+            Current Pay Period: {formatDateRange()}
+          </div>
+        )}
       </div>
 
       {viewMode === 'vendor' ? (
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* New Modern Bar Chart section */}
-          <div className="w-full lg:w-2/3">
-            <div className="h-[630px] bg-white p-8 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-800 mb-8">Spending Distribution</h3>
-              
-              {/* Custom spending distribution visualization */}
-              <div className="space-y-4">
-                {groupedData.map((group, index) => (
-                  <div key={index} className="flex items-center space-x-3">
-                    <div className="w-28 truncate text-sm font-medium text-gray-700">{group.name}</div>
-                    
-                    <div className="flex-1 h-9 relative">
-                      <div 
-                        className="absolute inset-0 bg-gray-100 rounded-md"
-                      ></div>
-                      <div 
-                        style={{ 
-                          width: `${Math.min(100, (group.value / Math.max(...groupedData.map(d => d.value))) * 100)}%`,
-                          background: `linear-gradient(to right, ${GRADIENTS[index % GRADIENTS.length][0]}, ${GRADIENTS[index % GRADIENTS.length][1]})`
-                        }} 
-                        className="absolute inset-0 h-full rounded-md transition-all duration-500"
-                      ></div>
-                      <div className="absolute inset-0 flex items-center justify-end pr-3">
-                        <span className="text-sm font-semibold text-gray-700">{formatCurrency(group.value)}</span>
-                      </div>
-                    </div>
-                  </div>
+        <div className="h-96">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={groupedData}
+              margin={{ top: 5, right: 30, left: 20, bottom: 60 }}
+              layout="vertical"
+            >
+              <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+              <XAxis 
+                type="number" 
+                tickFormatter={(value) => formatCurrency(value)}
+              />
+              <YAxis 
+                dataKey="name" 
+                type="category" 
+                width={150}
+                tick={{ fontSize: 12 }}
+              />
+              <Tooltip 
+                formatter={(value: number) => formatCurrency(value)} 
+                labelFormatter={(label) => `Vendor: ${label}`}
+                contentStyle={{
+                  backgroundColor: 'white',
+                  borderRadius: '8px',
+                  padding: '10px',
+                  boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)'
+                }}
+              />
+              <Bar dataKey="value">
+                {groupedData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Vendor breakdown section */}
-          <div className="w-full lg:w-1/3">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden h-[650px]">
-              <div className="p-5 border-b border-gray-100 bg-gray-50">
-                <h3 className="text-base font-semibold text-gray-700">Vendor Breakdown</h3>
-              </div>
-              <div className="overflow-y-auto" style={{ height: "calc(100% - 125px)" }}>
-                {groupedData.map((group, index) => (
-                  <div key={index} className="flex items-center py-5 px-6 border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center flex-1 min-w-0">
-                      <div 
-                        className="w-7 h-7 rounded-full mr-4 flex-shrink-0" 
-                        style={{ 
-                          background: `linear-gradient(to right, ${GRADIENTS[index % GRADIENTS.length][0]}, ${GRADIENTS[index % GRADIENTS.length][1]})` 
-                        }} 
-                      />
-                      <span className="text-base font-medium text-gray-700 truncate max-w-[220px]">{group.name}</span>
-                    </div>
-                    <div className="flex flex-col items-end">
-                      <span className="font-semibold text-gray-800 text-base">{formatCurrency(group.value)}</span>
-                      <span className="text-sm text-gray-500">
-                        {Math.round((group.value / totalSpending) * 100)}%
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="p-5 bg-gray-50 border-t border-gray-100">
-                <div className="flex justify-between font-semibold">
-                  <span className="text-sm text-gray-700">Total</span>
-                  <span className="text-gray-800">{formatCurrency(totalSpending)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       ) : (
-        <div className="w-full">
-          {/* Time Series Chart */}
-          <div className="h-[650px] bg-white p-8 rounded-xl shadow-sm border border-gray-100 mb-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-6">Spending Trend</h3>
-            <div className="h-[calc(100%-3.5rem)]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={timeSeriesData}
-                  margin={{
-                    top: 20,
-                    right: 30,
-                    left: 30,
-                    bottom: 20,
-                  }}
-                >
-                  <defs>
-                    <linearGradient id="colorSpending" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} horizontal={true} stroke="#f0f0f0" />
-                  <XAxis 
-                    dataKey="date" 
-                    tickFormatter={formatDateForDisplay}
-                    tick={{ fontSize: 13, fill: '#6B7280' }}
-                    axisLine={false}
-                    tickLine={false}
-                    dy={10}
-                  />
-                  <YAxis 
-                    tickFormatter={(value) => `$${value}`}
-                    tick={{ fontSize: 13, fill: '#6B7280' }}
-                    width={70}
-                    axisLine={false}
-                    tickLine={false}
-                    dx={-10}
-                  />
-                  <Tooltip 
-                    formatter={(value) => [`${formatCurrency(value as number)}`, 'Amount']}
-                    labelFormatter={formatDateForDisplay}
-                    contentStyle={{
-                      backgroundColor: 'white',
-                      borderRadius: '0.5rem',
-                      padding: '0.75rem',
-                      border: '1px solid #e5e7eb',
-                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                    }}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="amount" 
-                    stroke="#3b82f6" 
-                    strokeWidth={2}
-                    fillOpacity={1} 
-                    fill="url(#colorSpending)" 
-                    animationDuration={1500}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+        <div className="h-96">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart
+              data={timeSeriesData}
+              margin={{ top: 10, right: 30, left: 0, bottom: 20 }}
+            >
+              <defs>
+                <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.2}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis 
+                dataKey="date" 
+                tickFormatter={formatDateForDisplay}
+                dy={10}
+              />
+              <YAxis 
+                tickFormatter={(value) => formatCurrency(value)}
+              />
+              <Tooltip 
+                formatter={(value: number) => formatCurrency(value)} 
+                labelFormatter={(label) => `Date: ${new Date(label).toLocaleDateString()}`}
+                contentStyle={{
+                  backgroundColor: 'white',
+                  borderRadius: '8px',
+                  padding: '10px',
+                  boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)'
+                }}
+              />
+              <Area 
+                type="monotone" 
+                dataKey="amount" 
+                stroke="#3b82f6" 
+                fill="url(#colorAmount)" 
+                strokeWidth={2}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       )}
     </div>
