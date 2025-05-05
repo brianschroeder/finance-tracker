@@ -44,11 +44,104 @@ const GroupedTransactions = () => {
   const [budgetPeriod, setBudgetPeriod] = useState<{startDate: string, endDate: string} | null>(null);
   const [loadingBudgetPeriod, setLoadingBudgetPeriod] = useState(true);
 
-  // First, fetch the budget period dates
-  useEffect(() => {
-    async function fetchBudgetPeriod() {
+  // Define fetchBudgetPeriod function outside useEffect so it can be reused
+  const fetchBudgetPeriod = async () => {
+    try {
+      setLoadingBudgetPeriod(true);
+      
+      // First try to get the pay period from the pay settings
       try {
-        setLoadingBudgetPeriod(true);
+        const paySettingsResponse = await fetch('/api/pay-settings');
+        
+        if (!paySettingsResponse.ok) {
+          throw new Error('Failed to fetch pay settings');
+        }
+        
+        const payData = await paySettingsResponse.json();
+        
+        if (payData && payData.lastPayDate) {
+          // Calculate pay period based on last pay date and frequency
+          const lastPayDate = new Date(payData.lastPayDate);
+          // Use UTC methods to avoid timezone issues
+          lastPayDate.setUTCHours(0, 0, 0, 0);
+          
+          const frequency = payData.frequency || 'biweekly';
+          
+          // Calculate current pay period
+          const today = new Date();
+          today.setUTCHours(0, 0, 0, 0);
+          
+          let payPeriodStart = new Date(lastPayDate);
+          
+          // Find the pay period start that is before today
+          while (payPeriodStart > today) {
+            // Move back one pay period
+            if (frequency === 'weekly') {
+              payPeriodStart.setUTCDate(payPeriodStart.getUTCDate() - 7);
+            } else {
+              payPeriodStart.setUTCDate(payPeriodStart.getUTCDate() - 14);
+            }
+          }
+          
+          // Move forward to find the current pay period
+          while (true) {
+            const payPeriodEnd = new Date(payPeriodStart);
+            
+            // Set the end date to be exactly the duration of pay period after start, minus 1ms
+            // This is important because the end date is inclusive
+            if (frequency === 'weekly') {
+              payPeriodEnd.setUTCDate(payPeriodStart.getUTCDate() + 7 - 1);
+            } else {
+              payPeriodEnd.setUTCDate(payPeriodStart.getUTCDate() + 14 - 1);
+            }
+            
+            // Add 23:59:59.999 to end date to make it inclusive of the whole day
+            payPeriodEnd.setUTCHours(23, 59, 59, 999);
+            
+            // If today is within this pay period, we've found it
+            if (today <= payPeriodEnd) {
+              // Format dates as YYYY-MM-DD for API consumption
+              const formatDateString = (date: Date) => {
+                const year = date.getUTCFullYear();
+                const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+                const day = String(date.getUTCDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+              };
+              
+              // Create a new Date just for end date display to ensure we get the full last day
+              const displayEndDate = new Date(payPeriodEnd);
+              
+              const formattedStart = formatDateString(payPeriodStart);
+              const formattedEnd = formatDateString(displayEndDate);
+              
+              console.log('Calculated pay period dates:', formattedStart, 'to', formattedEnd);
+              
+              setBudgetPeriod({
+                startDate: formattedStart,
+                endDate: formattedEnd
+              });
+              
+              setDebugInfo(`Pay period calculated: ${formattedStart} to ${formattedEnd}`);
+              break;
+            }
+            
+            // Move to next pay period start
+            const nextStart = new Date(payPeriodEnd);
+            nextStart.setUTCDate(nextStart.getUTCDate() + 1);
+            payPeriodStart = nextStart;
+            
+            // Safety check to prevent infinite loops
+            if (payPeriodStart > new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)) {
+              throw new Error('Failed to find current pay period within reasonable time range');
+            }
+          }
+        } else {
+          throw new Error('Pay settings data is incomplete');
+        }
+      } catch (payErr) {
+        console.error('Error calculating pay period from pay settings:', payErr);
+        
+        // Fallback to the budget-analysis API
         const response = await fetch('/api/budget-analysis?periodType=biweekly');
         
         if (!response.ok) {
@@ -58,23 +151,29 @@ const GroupedTransactions = () => {
         const data = await response.json();
         
         if (data.summary && data.summary.startDate && data.summary.endDate) {
+          console.log('Budget API returned period:', data.summary.startDate, 'to', data.summary.endDate);
+          
           setBudgetPeriod({
             startDate: data.summary.startDate,
             endDate: data.summary.endDate
           });
-          setDebugInfo(`Budget period: ${data.summary.startDate} to ${data.summary.endDate}`);
+          
+          setDebugInfo(`Budget period from API: ${data.summary.startDate} to ${data.summary.endDate}`);
         } else {
-          throw new Error('Budget period data not found');
+          throw new Error('Budget period data not available from API');
         }
-      } catch (err: any) {
-        console.error('Error fetching budget period:', err);
-        setDebugInfo(`Error getting budget period: ${err.message || String(err)}`);
-        setError('Failed to load budget period');
-      } finally {
-        setLoadingBudgetPeriod(false);
       }
+    } catch (err: any) {
+      console.error('Error fetching budget period:', err);
+      setDebugInfo(`Error getting budget period: ${err.message}`);
+      setError('Failed to load budget period');
+    } finally {
+      setLoadingBudgetPeriod(false);
     }
-    
+  };
+
+  // First, fetch the budget period dates
+  useEffect(() => {
     fetchBudgetPeriod();
   }, []);
 
@@ -100,6 +199,8 @@ const GroupedTransactions = () => {
         `/api/transactions?startDate=${budgetPeriod.startDate}&endDate=${budgetPeriod.endDate}`
       );
       
+      console.log(`Fetching transactions with date range: ${budgetPeriod.startDate} to ${budgetPeriod.endDate}`);
+      
       if (!response.ok) {
         throw new Error('Failed to fetch transactions');
       }
@@ -120,7 +221,7 @@ const GroupedTransactions = () => {
         transactionsArray = [data];
       }
       
-      console.log('Extracted transactions data:', transactionsArray);
+      console.log('Extracted transactions data:', transactionsArray.length, 'transactions');
       
       if (transactionsArray.length > 0) {
         console.log('First transaction:', transactionsArray[0]);
@@ -279,10 +380,36 @@ const GroupedTransactions = () => {
     if (!budgetPeriod) return '';
     
     try {
-      const startDate = new Date(budgetPeriod.startDate);
-      const endDate = new Date(budgetPeriod.endDate);
-      return `${startDate.getMonth() + 1}/${startDate.getDate()} - ${endDate.getMonth() + 1}/${endDate.getDate()}`;
-    } catch {
+      // Improved date parsing to handle different formats
+      const formatDate = (dateStr: string) => {
+        try {
+          // Parse the date in a way that won't be affected by timezones
+          const parts = dateStr.split('-');
+          if (parts.length === 3) {
+            // Format is YYYY-MM-DD
+            const month = parseInt(parts[1]);
+            const day = parseInt(parts[2]);
+            return `${month}/${day}`;
+          }
+          
+          // Fallback to Date parsing if needed
+          const date = new Date(dateStr);
+          if (!isNaN(date.getTime())) {
+            return `${date.getMonth() + 1}/${date.getDate()}`;
+          }
+          
+          console.warn('Could not parse date:', dateStr);
+          return dateStr;
+        } catch (e) {
+          console.error('Error parsing date:', e);
+          return dateStr;
+        }
+      };
+      
+      console.log('Formatting date range from:', budgetPeriod.startDate, 'to', budgetPeriod.endDate);
+      return `${formatDate(budgetPeriod.startDate)} - ${formatDate(budgetPeriod.endDate)}`;
+    } catch (error) {
+      console.error('Error formatting date range:', error);
       return `${budgetPeriod.startDate} - ${budgetPeriod.endDate}`;
     }
   };
@@ -349,8 +476,27 @@ const GroupedTransactions = () => {
         </div>
         
         {budgetPeriod && (
-          <div className="text-sm text-gray-500">
-            Current Pay Period: {formatDateRange()}
+          <div className="flex items-center">
+            <div className="text-sm font-medium bg-blue-50 text-blue-700 px-3 py-1.5 rounded-md border border-blue-100">
+              Pay Period: <span className="font-bold">{formatDateRange()}</span>
+            </div>
+            <button 
+              onClick={async () => {
+                // First refresh the budget period
+                await fetchBudgetPeriod();
+                // Then refresh transactions if we have a budget period
+                if (budgetPeriod) {
+                  await fetchTransactions();
+                }
+              }}
+              className="ml-2 p-1.5 text-gray-500 hover:text-blue-600 rounded-md hover:bg-gray-100"
+              title="Refresh data"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+            </button>
           </div>
         )}
       </div>
