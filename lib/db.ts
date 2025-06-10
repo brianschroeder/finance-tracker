@@ -1040,7 +1040,7 @@ export function getAllTransactions() {
            c.id as cat_id, c.name as cat_name, c.color as cat_color 
     FROM transactions t
     LEFT JOIN budget_categories c ON t.categoryId = c.id
-    ORDER BY t.date DESC
+    ORDER BY t.date DESC, t.createdAt DESC
   `).all();
   
   return transactions.map((row: any) => {
@@ -1196,7 +1196,7 @@ export function getTransactionsByDateRange(startDate: string, endDate: string) {
     FROM transactions t
     LEFT JOIN budget_categories c ON t.categoryId = c.id
     WHERE t.date >= ? AND t.date <= ?
-    ORDER BY t.date DESC
+    ORDER BY t.date DESC, t.createdAt DESC
   `).all(startDate, endDate);
   
   return transactions.map((row: any) => {
@@ -1235,7 +1235,7 @@ export function getTransactionsByCategoryId(categoryId: number) {
   const transactions = db.prepare(`
     SELECT * FROM transactions 
     WHERE categoryId = ?
-    ORDER BY date DESC
+    ORDER BY date DESC, createdAt DESC
   `).all(categoryId);
   
   return transactions;
@@ -1247,7 +1247,7 @@ export function getTransactionsByCategoryIdAndDateRange(categoryId: number, star
   const transactions = db.prepare(`
     SELECT * FROM transactions 
     WHERE categoryId = ? AND date >= ? AND date <= ?
-    ORDER BY date DESC
+    ORDER BY date DESC, createdAt DESC
   `).all(categoryId, startDate, endDate);
   
   return transactions;

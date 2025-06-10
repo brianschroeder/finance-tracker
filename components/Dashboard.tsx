@@ -1144,6 +1144,22 @@ export default function Dashboard() {
     return allocated - spent;
   };
 
+  // Add a function to calculate net worth (savings minus debt)
+  const calculateNetWorthWithDebt = () => {
+    if (!assetData) return { netWorth: 0, totalSavings: 0, totalDebt: 0 };
+    
+    // Calculate total savings (cash + interest + investments)
+    const totalSavings = calculateActualTotalAssets();
+    
+    // Calculate total debt (credit card debt)
+    const totalDebt = calculateTotalCreditCardDebt();
+    
+    // Net worth is savings minus debt
+    const netWorth = totalSavings - totalDebt;
+    
+    return { netWorth, totalSavings, totalDebt };
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-between">
@@ -1251,7 +1267,7 @@ export default function Dashboard() {
             </div>
           </div>
           
-          {/* Total Savings Card */}
+          {/* Net Worth Card */}
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="h-2 bg-gradient-to-r from-blue-700 to-blue-600"></div>
             <div className="p-5">
@@ -1261,18 +1277,38 @@ export default function Dashboard() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <span className="font-medium text-gray-800">Total Savings</span>
+                <span className="font-medium text-gray-800">Total Savings </span>
               </div>
-              {loading || loadingInvestments ? (
+              {loading || loadingInvestments || loadingCreditCards ? (
                 <div className="animate-pulse h-8 bg-gray-100 rounded w-3/4"></div>
               ) : assetData ? (
-                <p className="text-2xl font-bold text-blue-800 mb-1">
-                  {formatCurrency(calculateActualTotalAssets())}
-                </p>
+                <>
+                  <p className={`text-2xl font-bold mb-1 ${calculateNetWorthWithDebt().netWorth >= 0 ? 'text-blue-800' : 'text-purple-600'}`}>
+                    {formatCurrency(calculateNetWorthWithDebt().netWorth)}
+                  </p>
+                  
+                  {/* Breakdown similar to checking balance */}
+                  <div className="mt-2 text-xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-blue-600 flex items-center">
+                        <span className="mr-1 w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
+                        Total Savings:
+                      </span>
+                      <span className="font-medium text-blue-600">{formatCurrency(calculateNetWorthWithDebt().totalSavings)}</span>
+                    </div>
+                    
+                    {/* Show debt if it exists */}
+                    {calculateNetWorthWithDebt().totalDebt > 0 && (
+                      <div className="flex items-center justify-between pl-4 mt-1">
+                        <span className="text-purple-600">Total Debt:</span>
+                        <span className="text-purple-600">-{formatCurrency(calculateNetWorthWithDebt().totalDebt)}</span>
+                      </div>
+                    )}
+                  </div>
+                </>
               ) : (
                 <p className="text-2xl font-bold text-gray-300 mb-1">No data</p>
               )}
-              <p className="text-xs text-gray-500 mt-2">Cash + Interest + Investments</p>
             </div>
           </div>
         </div>
