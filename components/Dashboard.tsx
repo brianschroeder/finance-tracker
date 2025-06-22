@@ -7,6 +7,7 @@ import { RefreshCw } from 'lucide-react';
 import GroupedTransactions from './GroupedTransactions';
 
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 import { toast } from '@/components/ui/use-toast';
 import { useRouter } from 'next/navigation';
@@ -151,6 +152,12 @@ export default function Dashboard() {
   const [nextPayPeriodTransactions, setNextPayPeriodTransactions] = useState<RecurringTransaction[]>([]);
   const [loadingNextPayPeriodTransactions, setLoadingNextPayPeriodTransactions] = useState(true);
 
+  // Additional budget state - array of budget items
+  const [additionalBudgetItems, setAdditionalBudgetItems] = useState<{id: string, amount: string, description: string}[]>([]);
+  const [newBudgetAmount, setNewBudgetAmount] = useState<string>('');
+  const [newBudgetDescription, setNewBudgetDescription] = useState<string>('');
+  const [showAdditionalBudget, setShowAdditionalBudget] = useState<boolean>(false);
+
   // Track the individual components for displaying the breakdown
   const [savingsBreakdown, setSavingsBreakdown] = useState({
     biweeklyPay: 0, 
@@ -194,6 +201,23 @@ export default function Dashboard() {
   const [totalPendingAmount, setTotalPendingAmount] = useState(0);
 
   const router = useRouter();
+
+  // Load additional budget items from localStorage on component mount
+  useEffect(() => {
+    const savedItems = localStorage.getItem('additionalBudgetItems');
+    if (savedItems) {
+      try {
+        setAdditionalBudgetItems(JSON.parse(savedItems));
+      } catch (error) {
+        console.error('Error parsing saved budget items:', error);
+      }
+    }
+  }, []);
+
+  // Save additional budget items to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('additionalBudgetItems', JSON.stringify(additionalBudgetItems));
+  }, [additionalBudgetItems]);
 
   // Add redirect to onboarding if necessary data is missing
   useEffect(() => {
@@ -1144,6 +1168,34 @@ export default function Dashboard() {
     return allocated - spent;
   };
 
+  // Calculate total budget including additional amounts
+  const calculateTotalBudgetWithAdditional = () => {
+    const baseBudget = calculateBudgetWithoutPendingCashback();
+    const totalAdditional = additionalBudgetItems.reduce((sum, item) => {
+      return sum + (parseFloat(item.amount) || 0);
+    }, 0);
+    return baseBudget + totalAdditional;
+  };
+
+  // Add new budget item
+  const addBudgetItem = () => {
+    if (newBudgetAmount && parseFloat(newBudgetAmount) > 0) {
+      const newItem = {
+        id: Date.now().toString(),
+        amount: newBudgetAmount,
+        description: newBudgetDescription || 'Additional Budget'
+      };
+      setAdditionalBudgetItems([...additionalBudgetItems, newItem]);
+      setNewBudgetAmount('');
+      setNewBudgetDescription('');
+    }
+  };
+
+  // Remove budget item
+  const removeBudgetItem = (id: string) => {
+    setAdditionalBudgetItems(additionalBudgetItems.filter(item => item.id !== id));
+  };
+
   // Add a function to calculate net worth (savings minus debt)
   const calculateNetWorthWithDebt = () => {
     if (!assetData) return { netWorth: 0, totalSavings: 0, totalDebt: 0 };
@@ -1208,7 +1260,109 @@ export default function Dashboard() {
                   {`${formatCurrency(budgetSummary.totalSpent + (budgetSummary.totalPendingTipAmount || 0))} / ${formatCurrency(budgetSummary.totalAllocated)} spent`}
                 </p>
               )}
-              {/* Note about pending cashback removed */}
+              
+              {/* Additional Budget Section */}
+              <div className="mt-4 pt-3 border-t border-gray-100">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-medium text-gray-600">Additional Budget:</span>
+                  <button
+                    onClick={() => setShowAdditionalBudget(!showAdditionalBudget)}
+                    className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors"
+                  >
+                    {showAdditionalBudget ? (
+                      <>
+                        <span>Hide</span>
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </>
+                    ) : (
+                      <>
+                        <span>Show</span>
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </>
+                    )}
+                  </button>
+                </div>
+                
+                {showAdditionalBudget && (
+                  <>
+                    {/* Add New Budget Item */}
+                    <div className="space-y-2 mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-400">$</span>
+                          <input
+                            type="number"
+                            value={newBudgetAmount}
+                            onChange={(e) => setNewBudgetAmount(e.target.value)}
+                            placeholder="0.00"
+                            className="w-full h-7 pl-5 pr-2 text-xs border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 bg-gray-50"
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+                        <button
+                          onClick={addBudgetItem}
+                          disabled={!newBudgetAmount || parseFloat(newBudgetAmount) <= 0}
+                          className="h-7 px-2 text-xs bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                        >
+                          Add
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        value={newBudgetDescription}
+                        onChange={(e) => setNewBudgetDescription(e.target.value)}
+                        placeholder="Description (optional)"
+                        className="w-full h-7 px-2 text-xs border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 bg-gray-50"
+                      />
+                    </div>
+
+                    {/* Display Existing Budget Items */}
+                    {additionalBudgetItems.length > 0 && (
+                      <div className="space-y-1 mb-3">
+                        {additionalBudgetItems.map((item) => (
+                          <div key={item.id} className="flex items-center justify-between py-1 px-2 bg-blue-50 rounded-md">
+                            <div className="flex-1">
+                              <span className="text-xs text-gray-700">{item.description}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium text-blue-600">{formatCurrency(parseFloat(item.amount))}</span>
+                              <button
+                                onClick={() => removeBudgetItem(item.id)}
+                                className="text-xs text-red-500 hover:text-red-700 p-1"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Total Budget Calculation - Always Show if There Are Items */}
+                {additionalBudgetItems.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-gray-200">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-blue-600 font-medium">Total Budget:</span>
+                      <span className={`font-bold ${calculateTotalBudgetWithAdditional() >= 0 ? 'text-blue-600' : 'text-gray-600'}`}>
+                        {formatCurrency(calculateTotalBudgetWithAdditional())}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs mt-1">
+                      <span className="text-gray-500">Additional added:</span>
+                      <span className="text-gray-600">
+                        +{formatCurrency(additionalBudgetItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0))}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           
