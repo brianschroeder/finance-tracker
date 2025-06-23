@@ -109,11 +109,11 @@ export default function FundAccountsSummary() {
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-medium text-gray-700">{fund.name}</h3>
-                  {fund.isInvesting && (
-                    <span className="px-1.5 py-0.5 text-xs bg-green-100 text-green-700 rounded-full font-medium">
-                      Investing
-                    </span>
-                  )}
+                  {fund.isInvesting ? (
+                          <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full font-medium">
+                            Investing
+                          </span>
+                  ): null}
                 </div>
                 {fund.description && (
                   <p className="text-xs text-gray-500">{fund.description}</p>
