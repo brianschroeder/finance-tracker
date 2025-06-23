@@ -77,6 +77,41 @@ function initDb() {
     }
   }
   
+  // Create fund_accounts table
+  const fundAccountsTableExists = db.prepare(`
+    SELECT name FROM sqlite_master WHERE type='table' AND name='fund_accounts'
+  `).get();
+  
+  if (!fundAccountsTableExists) {
+    db.prepare(`
+      CREATE TABLE fund_accounts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        amount REAL NOT NULL DEFAULT 0,
+        description TEXT,
+        color TEXT DEFAULT '#3B82F6',
+        icon TEXT DEFAULT 'FaChartLine',
+        isActive BOOLEAN NOT NULL DEFAULT 1,
+        isInvesting BOOLEAN NOT NULL DEFAULT 0,
+        sortOrder INTEGER DEFAULT 0,
+        createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run();
+  } else {
+    // Check if the isInvesting column exists, add it if not
+    const columns = db.prepare(`PRAGMA table_info(fund_accounts)`).all() as ColumnInfo[];
+    const columnNames = columns.map(col => col.name);
+    
+    if (!columnNames.includes('isInvesting')) {
+      // Add the isInvesting column
+      db.prepare(`
+        ALTER TABLE fund_accounts
+        ADD COLUMN isInvesting BOOLEAN NOT NULL DEFAULT 0
+      `).run();
+    }
+  }
+  
   const recurringTransactionsTableExists = db.prepare(`
     SELECT name FROM sqlite_master WHERE type='table' AND name='recurring_transactions'
   `).get();
@@ -501,6 +536,120 @@ export function getLatestAssets(): AssetRecord | undefined {
   // No need to check for old field values since this is a fresh deployment
   
   return assets;
+}
+
+// Fund Accounts Interface and Functions
+export interface FundAccount {
+  id?: number;
+  name: string;
+  amount: number;
+  description?: string;
+  color?: string;
+  icon?: string;
+  isActive?: boolean;
+  isInvesting?: boolean;
+  sortOrder?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Fund Accounts CRUD operations
+export function getAllFundAccounts(): FundAccount[] {
+  const db = getDb();
+  const fundAccounts = db.prepare(`
+    SELECT * FROM fund_accounts 
+    WHERE isActive = 1 
+    ORDER BY sortOrder ASC, name ASC
+  `).all() as FundAccount[];
+  
+  return fundAccounts;
+}
+
+export function createFundAccount(fundAccount: Omit<FundAccount, 'id' | 'createdAt' | 'updatedAt'>): number {
+  const db = getDb();
+  const stmt = db.prepare(`
+    INSERT INTO fund_accounts (
+      name, amount, description, color, icon, isActive, isInvesting, sortOrder
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  
+  const result = stmt.run(
+    fundAccount.name,
+    fundAccount.amount || 0,
+    fundAccount.description || '',
+    fundAccount.color || '#3B82F6',
+    fundAccount.icon || 'FaPiggyBank',
+    fundAccount.isActive !== false ? 1 : 0,
+    fundAccount.isInvesting === true ? 1 : 0,
+    fundAccount.sortOrder || 0
+  );
+  
+  return result.lastInsertRowid as number;
+}
+
+export function updateFundAccount(id: number, fundAccount: Partial<FundAccount>): boolean {
+  const db = getDb();
+  const stmt = db.prepare(`
+    UPDATE fund_accounts 
+    SET name = COALESCE(?, name),
+        amount = COALESCE(?, amount),
+        description = COALESCE(?, description),
+        color = COALESCE(?, color),
+        icon = COALESCE(?, icon),
+        isActive = COALESCE(?, isActive),
+        isInvesting = COALESCE(?, isInvesting),
+        sortOrder = COALESCE(?, sortOrder),
+        updatedAt = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `);
+  
+  const result = stmt.run(
+    fundAccount.name || null,
+    fundAccount.amount !== undefined ? fundAccount.amount : null,
+    fundAccount.description !== undefined ? fundAccount.description : null,
+    fundAccount.color || null,
+    fundAccount.icon || null,
+    fundAccount.isActive !== undefined ? (fundAccount.isActive ? 1 : 0) : null,
+    fundAccount.isInvesting !== undefined ? (fundAccount.isInvesting ? 1 : 0) : null,
+    fundAccount.sortOrder !== undefined ? fundAccount.sortOrder : null,
+    id
+  );
+  
+  return result.changes > 0;
+}
+
+export function deleteFundAccount(id: number): boolean {
+  const db = getDb();
+  const stmt = db.prepare(`
+    UPDATE fund_accounts 
+    SET isActive = 0, updatedAt = CURRENT_TIMESTAMP 
+    WHERE id = ?
+  `);
+  
+  const result = stmt.run(id);
+  return result.changes > 0;
+}
+
+export function getTotalFundAccountsAmount(): number {
+  const db = getDb();
+  const result = db.prepare(`
+    SELECT COALESCE(SUM(amount), 0) as total 
+    FROM fund_accounts 
+    WHERE isActive = 1
+  `).get() as { total: number };
+  
+  return result.total;
+}
+
+export function getTotalInvestingFundAccountsAmount(): number {
+  const db = getDb();
+  const result = db.prepare(`
+    SELECT COALESCE(SUM(amount), 0) as total 
+    FROM fund_accounts 
+    WHERE isActive = 1 AND isInvesting = 1
+  `).get() as { total: number };
+  
+  return result.total;
 }
 
 // Recurring Transactions queries

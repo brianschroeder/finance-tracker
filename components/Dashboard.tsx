@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { format, addWeeks, differenceInDays } from 'date-fns';
 import { RefreshCw } from 'lucide-react';
 import GroupedTransactions from './GroupedTransactions';
+import FundAccountsSummary from './FundAccountsSummary';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -186,6 +187,11 @@ export default function Dashboard() {
     investments: [],
   });
   const [loadingInvestments, setLoadingInvestments] = useState(true);
+
+  // Add fund accounts state
+  const [totalFundAccountsAmount, setTotalFundAccountsAmount] = useState(0);
+  const [totalInvestingFundsAmount, setTotalInvestingFundsAmount] = useState(0);
+  const [loadingFundAccounts, setLoadingFundAccounts] = useState(true);
 
   const [expenses, setExpenses] = useState([]);
   const [error, setError] = useState<string | null>(null);
@@ -783,15 +789,8 @@ export default function Dashboard() {
 
   // Calculate investment funds remaining
   const calculateInvestmentFundsRemaining = () => {
-    if (!assetData) return 0;
-    const cash = assetData.cash || 0;
-    const interest = assetData.interest || 0;
-    const houseFund = assetData.houseFund || 0;
-    const vacationFund = assetData.vacationFund || 0;
-    const emergencyFund = assetData.emergencyFund || 0;
-    const available = cash + interest - houseFund - vacationFund - emergencyFund;
-    // Return 0 if the value would be negative
-    return available > 0 ? available : 0;
+    // Return the total amount from fund accounts marked as investing
+    return totalInvestingFundsAmount;
   };
 
   // Calculate remaining budget (checking balance minus all pending amounts)
@@ -825,12 +824,7 @@ export default function Dashboard() {
   
   // Calculate funds (which come from cash)
   const calculateTotalFunds = () => {
-    if (!assetData) return 0;
-    return (
-      assetData.vacationFund +
-      assetData.emergencyFund +
-      assetData.houseFund
-    );
+    return totalFundAccountsAmount;
   };
 
   // Calculate spending progress percentage for budget categories
@@ -917,6 +911,30 @@ export default function Dashboard() {
   useEffect(() => {
     fetchInvestmentData();
   }, []); // Empty dependency array ensures this runs once when component mounts
+
+  // Fetch fund accounts data
+  useEffect(() => {
+    async function fetchFundAccountsData() {
+      try {
+        setLoadingFundAccounts(true);
+        const response = await fetch('/api/fund-accounts');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch fund accounts');
+        }
+        
+        const data = await response.json();
+        setTotalFundAccountsAmount(data.totalAmount || 0);
+        setTotalInvestingFundsAmount(data.totalInvestingAmount || 0);
+      } catch (error) {
+        console.error('Error fetching fund accounts:', error);
+      } finally {
+        setLoadingFundAccounts(false);
+      }
+    }
+    
+    fetchFundAccountsData();
+  }, []);
 
   async function fetchInvestmentData() {
     try {
@@ -1539,7 +1557,7 @@ export default function Dashboard() {
                 <span className="font-medium text-gray-800">Investing Funds</span>
               </div>
               
-              {loading ? (
+              {loading || loadingFundAccounts ? (
                 <div className="animate-pulse h-8 bg-gray-200 rounded w-3/4"></div>
               ) : (
                 <p className="text-2xl font-bold text-green-600 mb-3">
@@ -1769,60 +1787,14 @@ export default function Dashboard() {
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold text-gray-800">Fund Accounts</h2>
             <Link 
-              href="/assets" 
+              href="/fund-accounts" 
               className="px-3 py-1.5 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors font-medium"
             >
-              Update
+              Manage Funds
             </Link>
           </div>
           
-          {loading ? (
-            <div className="animate-pulse h-32 bg-gray-100 rounded-lg"></div>
-          ) : assetData ? (
-            <div className="grid grid-cols-1 gap-3">
-              {[
-                {
-                  name: "House Fund",
-                  amount: assetData.houseFund || 0,
-                  icon: (
-                    <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                    </svg>
-                  )
-                },
-                {
-                  name: "Vacation Fund",
-                  amount: assetData.vacationFund || 0,
-                  icon: (
-                    <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  )
-                },
-                {
-                  name: "Emergency Fund",
-                  amount: assetData.emergencyFund || 0,
-                  icon: (
-                    <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                  )
-                }
-              ].map((fund) => (
-                <div key={fund.name} className="flex items-center justify-between bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <div className="flex items-center">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
-                      {fund.icon}
-                    </div>
-                    <h3 className="text-sm font-medium text-gray-700">{fund.name}</h3>
-                  </div>
-                  <p className="text-lg font-bold text-blue-600">{formatCurrency(fund.amount)}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-base text-gray-400">No data available</p>
-          )}
+          <FundAccountsSummary />
         </div>
       </div>
       
@@ -1905,6 +1877,12 @@ export default function Dashboard() {
           className="flex items-center justify-center px-4 py-2.5 border border-gray-200 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-100 hover:shadow-sm"
         >
           Update Assets
+        </Link>
+        <Link 
+          href="/fund-accounts" 
+          className="flex items-center justify-center px-4 py-2.5 border border-gray-200 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-100 hover:shadow-sm"
+        >
+          Fund Accounts
         </Link>
         <Link 
           href="/pay-settings" 
