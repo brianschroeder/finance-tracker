@@ -5,6 +5,25 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { format } from 'date-fns';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import {
+  CSS,
+} from '@dnd-kit/utilities';
 
 interface Transaction {
   id?: number;
@@ -25,6 +44,7 @@ interface Transaction {
     isActive: boolean;
   };
   cashbackPosted?: boolean;
+  sortOrder?: number;
 }
 
 interface BudgetCategory {
@@ -33,6 +53,144 @@ interface BudgetCategory {
   allocatedAmount: number;
   color: string;
   isActive: boolean;
+}
+
+// Sortable Transaction Item Component
+function SortableTransactionItem({ 
+  transaction, 
+  onEdit, 
+  onDelete, 
+  formatCurrency, 
+  formatDate, 
+  selectedTransaction 
+}: {
+  transaction: Transaction;
+  onEdit: (transaction: Transaction) => void;
+  onDelete: (id: number) => void;
+  formatCurrency: (amount: number) => string;
+  formatDate: (dateString: string) => string;
+  selectedTransaction: number | null;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: transaction.id! });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`bg-white border border-gray-200 rounded-lg p-4 mb-3 shadow-sm hover:shadow-md transition-shadow ${
+        isDragging ? 'z-50' : ''
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        {/* Drag Handle */}
+        <div 
+          {...attributes} 
+          {...listeners}
+          className="flex items-center cursor-grab active:cursor-grabbing mr-4 p-2 text-gray-400 hover:text-gray-600 rounded"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+          </svg>
+        </div>
+        
+        {/* Transaction Info */}
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+          {/* Date */}
+          <div className="text-sm text-gray-500">
+            {formatDate(transaction.date)}
+          </div>
+          
+          {/* Name */}
+          <div>
+            <div className="text-sm font-medium text-gray-900">
+              {transaction.name}
+              {transaction.pending && (
+                <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                  Pending
+                </span>
+              )}
+              {transaction.pending && transaction.pendingTipAmount && transaction.pendingTipAmount > 0 && (
+                <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+                  Tip: {formatCurrency(transaction.pendingTipAmount)}
+                </span>
+              )}
+            </div>
+            {transaction.notes && (
+              <div className="text-xs text-gray-500 truncate max-w-xs">{transaction.notes}</div>
+            )}
+          </div>
+          
+          {/* Category */}
+          <div>
+            {transaction.category ? (
+              <span 
+                className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" 
+                style={{ 
+                  backgroundColor: `${transaction.category.color}25`,
+                  color: transaction.category.color,
+                  border: `1px solid ${transaction.category.color}50`
+                }}
+              >
+                {transaction.category.name}
+              </span>
+            ) : (
+              <span className="text-xs text-gray-500">Uncategorized</span>
+            )}
+          </div>
+          
+          {/* Amount */}
+          <div className="text-sm font-medium text-gray-900">
+            {formatCurrency(transaction.amount)}
+          </div>
+          
+          {/* Cash Back */}
+          <div className="text-sm">
+            {transaction.cashBack && transaction.cashBack > 0 ? (
+              <span className={`font-medium ${transaction.cashbackPosted ? 'text-green-600' : 'text-blue-500'}`}>
+                {formatCurrency(transaction.cashBack)}
+                {!transaction.cashbackPosted && (
+                  <span className="ml-1 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">pending</span>
+                )}
+              </span>
+            ) : (
+              <span className="text-gray-400">-</span>
+            )}
+          </div>
+        </div>
+        
+        {/* Actions */}
+        <div className="flex gap-2 ml-4">
+          <button
+            onClick={() => onEdit(transaction)}
+            className="bg-blue-100 text-blue-700 px-3 py-1 rounded-md hover:bg-blue-200 text-sm"
+          >
+            {selectedTransaction === transaction.id ? 'Cancel' : 'Edit'}
+          </button>
+          {selectedTransaction === transaction.id && (
+            <button
+              onClick={() => onDelete(transaction.id!)}
+              className="bg-gray-100 text-gray-700 px-3 py-1 rounded-md hover:bg-gray-200 text-sm"
+            >
+              Delete
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function TransactionsList() {
@@ -44,6 +202,14 @@ export default function TransactionsList() {
   const [showForm, setShowForm] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<number | null>(null);
+  
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
   
   // Form state
   const [formData, setFormData] = useState<Transaction>({
@@ -114,6 +280,51 @@ export default function TransactionsList() {
       setCategories(data.categories || []);
     } catch (err) {
       console.error('Error fetching categories:', err);
+    }
+  }
+  
+  // Handle drag end for reordering
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+
+    if (active.id !== over?.id) {
+      const oldIndex = transactions.findIndex((transaction) => transaction.id === active.id);
+      const newIndex = transactions.findIndex((transaction) => transaction.id === over?.id);
+
+      const newTransactions = arrayMove(transactions, oldIndex, newIndex);
+      setTransactions(newTransactions);
+
+      // Update the order in the database
+      try {
+        const transactionIds = newTransactions.map((t) => t.id!);
+        
+        const response = await fetch('/api/transactions', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ transactionIds }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to update transaction order');
+        }
+
+        toast({
+          title: 'Success',
+          description: 'Transaction order updated successfully',
+          variant: 'success'
+        });
+      } catch (err) {
+        console.error('Error updating transaction order:', err);
+        // Revert the order if the API call failed
+        fetchTransactions();
+        toast({
+          title: 'Error',
+          description: 'Failed to update transaction order',
+          variant: 'error'
+        });
+      }
     }
   }
   
@@ -571,115 +782,49 @@ export default function TransactionsList() {
               <p>No transactions found.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <div className="bg-white shadow rounded-lg overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Date
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Name
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Category
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Amount
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Cash Back
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {transactions.map((transaction) => (
-                      <tr key={transaction.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(transaction.date)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {transaction.name}
-                            {transaction.pending && (
-                              <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-200">
-                                Pending
-                              </span>
-                            )}
-                            {transaction.pending && transaction.pendingTipAmount && transaction.pendingTipAmount > 0 && (
-                              <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-50 text-blue-700 border border-blue-100">
-                                Tip: {formatCurrency(transaction.pendingTipAmount)}
-                              </span>
-                            )}
-                          </div>
-                          {transaction.notes && (
-                            <div className="text-xs text-gray-500 truncate max-w-xs">{transaction.notes}</div>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {transaction.category ? (
-                            <span 
-                              className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" 
-                              style={{ 
-                                backgroundColor: `${transaction.category.color}25`, // 25 = 15% opacity in hex
-                                color: transaction.category.color,
-                                border: `1px solid ${transaction.category.color}50` // 50 = 30% opacity in hex
-                              }}
-                            >
-                              {transaction.category.name}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-gray-500">Uncategorized</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                          {formatCurrency(transaction.amount)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                          {transaction.cashBack && transaction.cashBack > 0 ? (
-                            <span className={`font-medium ${transaction.cashbackPosted ? 'text-green-600' : 'text-blue-500'}`}>
-                              {formatCurrency(transaction.cashBack)}
-                              {!transaction.cashbackPosted && (
-                                <span className="ml-1 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">pending</span>
-                              )}
-                            </span>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <a
-                            href="#edit"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              handleEdit(transaction);
-                            }}
-                            className="bg-blue-100 text-blue-700 px-3 py-1 rounded-md mr-3 hover:bg-blue-200 inline-block"
-                          >
-                            {selectedTransaction === transaction.id ? 'Cancel' : 'Edit'}
-                          </a>
-                          {selectedTransaction === transaction.id && (
-                            <a
-                              href="#delete"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                handleDelete(transaction.id!);
-                              }}
-                              className="bg-gray-100 text-gray-700 px-3 py-1 rounded-md hover:bg-gray-200 inline-block"
-                            >
-                              Delete
-                            </a>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            <div className="space-y-4">
+              {/* Header */}
+              <div className="bg-gray-50 px-6 py-3 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-8 h-4"></div> {/* Space for drag handle */}
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-4">
+                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">Date</div>
+                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">Name</div>
+                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">Category</div>
+                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</div>
+                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">Cash Back</div>
+                    </div>
+                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</div>
+                  </div>
+                </div>
               </div>
+              
+              {/* Sortable List */}
+              <DndContext 
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext 
+                  items={transactions.map(t => t.id!)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-2">
+                    {transactions.map((transaction) => (
+                      <SortableTransactionItem
+                        key={transaction.id}
+                        transaction={transaction}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        formatCurrency={formatCurrency}
+                        formatDate={formatDate}
+                        selectedTransaction={selectedTransaction}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             </div>
           )}
         </Tabs>

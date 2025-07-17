@@ -20,6 +20,18 @@ const COLORS = [
   '#84cc16'  // lime-500
 ];
 
+// Additional colors for "Other" breakdown
+const OTHER_COLORS = [
+  '#6b7280', // gray-500
+  '#9ca3af', // gray-400
+  '#d1d5db', // gray-300
+  '#e5e7eb', // gray-200
+  '#f3f4f6', // gray-100
+  '#78716c', // stone-500
+  '#a8a29e', // stone-400
+  '#d6d3d1', // stone-300
+];
+
 // Background gradients for bars
 const GRADIENTS = [
   ['#3b82f6', '#60a5fa'], // blue gradient
@@ -38,7 +50,7 @@ const GroupedTransactions = () => {
   const [error, setError] = useState('');
   const [debugInfo, setDebugInfo] = useState<string>('');
   const [addingTestData, setAddingTestData] = useState(false);
-  const [groupedData, setGroupedData] = useState<Array<{name: string, value: number, formattedValue: string}>>([]);
+  const [groupedData, setGroupedData] = useState<Array<{name: string, value: number, formattedValue: string, otherVendors?: Array<{name: string, value: number}>}>>([]);
   const [timeSeriesData, setTimeSeriesData] = useState<Array<{date: string, amount: number}>>([]);
   const [viewMode, setViewMode] = useState<'vendor' | 'trend'>('vendor');
   const [budgetPeriod, setBudgetPeriod] = useState<{startDate: string, endDate: string} | null>(null);
@@ -318,7 +330,7 @@ const GroupedTransactions = () => {
     
     setDebugInfo(prevInfo => prevInfo + `\nTop vendor: ${result.length > 0 ? result[0].name + ' - ' + formatCurrency(result[0].value) : 'None'}`);
 
-    // Take top 7 vendors and group the rest as "Other"
+    // Take top 7 vendors and group the rest as "Other" with breakdown
     if (result.length > 7) {
       const topVendors = result.slice(0, 7);
       const otherVendors = result.slice(7);
@@ -326,7 +338,11 @@ const GroupedTransactions = () => {
       setGroupedData([...topVendors, { 
         name: 'Other', 
         value: otherTotal,
-        formattedValue: formatCurrency(otherTotal)
+        formattedValue: formatCurrency(otherTotal),
+        otherVendors: otherVendors.map(vendor => ({
+          name: vendor.name,
+          value: vendor.value
+        }))
       }]);
     } else {
       setGroupedData(result);
@@ -412,6 +428,94 @@ const GroupedTransactions = () => {
       console.error('Error formatting date range:', error);
       return `${budgetPeriod.startDate} - ${budgetPeriod.endDate}`;
     }
+  };
+
+  // Custom tooltip to show breakdown for "Other" category
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload || !payload.length) return null;
+    
+    const data = payload[0].payload;
+    
+    if (data.name === 'Other' && data.otherVendors) {
+      return (
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '8px',
+          padding: '12px',
+          boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
+          border: '1px solid #e5e7eb',
+          maxHeight: '300px',
+          overflowY: 'auto',
+          minWidth: '250px'
+        }}>
+          <div style={{ fontWeight: '600', marginBottom: '8px', fontSize: '14px' }}>
+            Other Vendors ({data.otherVendors.length})
+          </div>
+          <div style={{ fontWeight: '500', marginBottom: '12px', color: '#6b7280' }}>
+            Total: {formatCurrency(data.value)}
+          </div>
+          <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+            {data.otherVendors.map((vendor: any, index: number) => (
+              <div key={vendor.name} style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                padding: '6px 8px',
+                margin: '2px 0',
+                backgroundColor: index % 2 === 0 ? '#f9fafb' : 'transparent',
+                borderRadius: '4px',
+                fontSize: '12px'
+              }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  flex: 1,
+                  minWidth: 0
+                }}>
+                  <div 
+                    style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: OTHER_COLORS[index % OTHER_COLORS.length],
+                      marginRight: '8px',
+                      flexShrink: 0
+                    }}
+                  />
+                  <span style={{ 
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {vendor.name}
+                  </span>
+                </div>
+                <span style={{ 
+                  fontWeight: '600',
+                  marginLeft: '8px',
+                  flexShrink: 0
+                }}>
+                  {formatCurrency(vendor.value)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    
+    // Default tooltip for regular vendors
+    return (
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '8px',
+        padding: '10px',
+        boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)'
+      }}>
+        <div style={{ fontWeight: '600' }}>Vendor: {label}</div>
+        <div style={{ marginTop: '4px' }}>{formatCurrency(payload[0].value)}</div>
+      </div>
+    );
   };
 
   if (loading || loadingBudgetPeriod) {
@@ -521,14 +625,7 @@ const GroupedTransactions = () => {
                 tick={{ fontSize: 12 }}
               />
               <Tooltip 
-                formatter={(value: number) => formatCurrency(value)} 
-                labelFormatter={(label) => `Vendor: ${label}`}
-                contentStyle={{
-                  backgroundColor: 'white',
-                  borderRadius: '8px',
-                  padding: '10px',
-                  boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)'
-                }}
+                content={<CustomTooltip />}
               />
               <Bar dataKey="value">
                 {groupedData.map((entry, index) => (

@@ -243,6 +243,7 @@ function initDb() {
         notes TEXT,
         pending INTEGER,
         pendingTipAmount REAL DEFAULT 0,
+        sortOrder INTEGER DEFAULT 0,
         createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (categoryId) REFERENCES budget_categories(id) ON DELETE SET NULL
       )
@@ -266,6 +267,22 @@ function initDb() {
       db.prepare(`
         ALTER TABLE transactions
         ADD COLUMN pendingTipAmount REAL DEFAULT 0
+      `).run();
+    }
+    
+    // Check if the sortOrder column exists, add it if not
+    if (!columnNames.includes('sortOrder')) {
+      // Add the sortOrder column
+      db.prepare(`
+        ALTER TABLE transactions
+        ADD COLUMN sortOrder INTEGER DEFAULT 0
+      `).run();
+      
+      // Initialize sortOrder for existing transactions based on their ID
+      db.prepare(`
+        UPDATE transactions 
+        SET sortOrder = id 
+        WHERE sortOrder = 0
       `).run();
     }
   }
@@ -1177,6 +1194,7 @@ export interface Transaction {
   notes?: string;
   pending?: boolean;
   pendingTipAmount?: number;
+  sortOrder?: number;
   createdAt?: string;
   category?: BudgetCategory; // Optional joined category data
 }
@@ -1189,7 +1207,7 @@ export function getAllTransactions() {
            c.id as cat_id, c.name as cat_name, c.color as cat_color 
     FROM transactions t
     LEFT JOIN budget_categories c ON t.categoryId = c.id
-    ORDER BY t.date DESC, t.createdAt DESC
+    ORDER BY t.date DESC, t.sortOrder ASC, t.createdAt DESC
   `).all();
   
   return transactions.map((row: any) => {
@@ -1266,6 +1284,10 @@ export function getTransactionById(id: number) {
 export function createTransaction(transaction: Transaction) {
   const db = getDb();
   
+  // Get the next sortOrder value
+  const maxSortOrder = db.prepare(`SELECT MAX(sortOrder) as maxSort FROM transactions`).get() as { maxSort: number };
+  const nextSortOrder = (maxSortOrder.maxSort || 0) + 1;
+  
   const stmt = db.prepare(`
     INSERT INTO transactions (
       date,
@@ -1276,8 +1298,9 @@ export function createTransaction(transaction: Transaction) {
       cashbackPosted,
       notes,
       pending,
-      pendingTipAmount
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      pendingTipAmount,
+      sortOrder
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   const result = stmt.run(
@@ -1289,7 +1312,8 @@ export function createTransaction(transaction: Transaction) {
     transaction.cashbackPosted ? 1 : 0,
     transaction.notes || null,
     transaction.pending ? 1 : 0,
-    transaction.pendingTipAmount || 0
+    transaction.pendingTipAmount || 0,
+    transaction.sortOrder || nextSortOrder
   );
   
   return result.lastInsertRowid;
@@ -1304,7 +1328,7 @@ export function updateTransaction(transaction: Transaction) {
   
   const stmt = db.prepare(`
     UPDATE transactions
-    SET date = ?, categoryId = ?, name = ?, amount = ?, cashBack = ?, cashbackPosted = ?, notes = ?, pending = ?, pendingTipAmount = ?
+    SET date = ?, categoryId = ?, name = ?, amount = ?, cashBack = ?, cashbackPosted = ?, notes = ?, pending = ?, pendingTipAmount = ?, sortOrder = ?
     WHERE id = ?
   `);
   
@@ -1318,6 +1342,7 @@ export function updateTransaction(transaction: Transaction) {
     transaction.notes || null,
     transaction.pending ? 1 : 0,
     transaction.pendingTipAmount || 0,
+    transaction.sortOrder || 0,
     transaction.id
   );
   
@@ -1334,6 +1359,23 @@ export function deleteTransaction(id: number) {
   const result = stmt.run(id);
   
   return result.changes;
+}
+
+export function reorderTransactions(transactionIds: number[]) {
+  const db = getDb();
+  
+  const stmt = db.prepare(`
+    UPDATE transactions
+    SET sortOrder = ?
+    WHERE id = ?
+  `);
+  
+  // Update sort order for each transaction
+  for (let i = 0; i < transactionIds.length; i++) {
+    stmt.run(i + 1, transactionIds[i]);
+  }
+  
+  return transactionIds.length;
 }
 
 export function getTransactionsByDateRange(startDate: string, endDate: string) {

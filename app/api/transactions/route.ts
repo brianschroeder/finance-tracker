@@ -6,6 +6,7 @@ import {
   updateTransaction, 
   deleteTransaction,
   getTransactionsByDateRange,
+  reorderTransactions,
   Transaction
 } from '@/lib/db';
 
@@ -276,6 +277,44 @@ export async function DELETE(request: NextRequest) {
     console.error('Error deleting transaction:', error);
     return NextResponse.json(
       { error: 'Failed to delete transaction' },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH /api/transactions - Reorder transactions
+export async function PATCH(request: NextRequest) {
+  try {
+    const data = await request.json();
+    
+    // Validate that transactionIds is provided and is an array
+    if (!data.transactionIds || !Array.isArray(data.transactionIds)) {
+      return NextResponse.json(
+        { error: 'transactionIds array is required' },
+        { status: 400 }
+      );
+    }
+    
+    // Validate that all items are numbers
+    if (!data.transactionIds.every((id: any) => typeof id === 'number' && !isNaN(id))) {
+      return NextResponse.json(
+        { error: 'All transaction IDs must be valid numbers' },
+        { status: 400 }
+      );
+    }
+    
+    // Reorder transactions
+    const changes = reorderTransactions(data.transactionIds);
+    
+    return NextResponse.json({ 
+      success: true,
+      changes,
+      message: 'Transactions reordered successfully'
+    });
+  } catch (error) {
+    console.error('Error reordering transactions:', error);
+    return NextResponse.json(
+      { error: 'Failed to reorder transactions' },
       { status: 500 }
     );
   }
