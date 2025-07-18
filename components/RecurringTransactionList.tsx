@@ -4,15 +4,31 @@ import { useState, useEffect } from 'react';
 import { RecurringTransaction } from '@/lib/db';
 import RecurringTransactionForm from './RecurringTransactionForm';
 
-export default function RecurringTransactionList() {
-  const [transactions, setTransactions] = useState<RecurringTransaction[]>([]);
-  const [loading, setLoading] = useState(true);
+interface RecurringTransactionListProps {
+  initialTransactions?: RecurringTransaction[];
+  onTransactionsUpdate?: () => void;
+}
+
+export default function RecurringTransactionList({ 
+  initialTransactions = [],
+  onTransactionsUpdate 
+}: RecurringTransactionListProps) {
+  const [transactions, setTransactions] = useState<RecurringTransaction[]>(initialTransactions);
+  const [loading, setLoading] = useState(!initialTransactions.length);
   const [error, setError] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<RecurringTransaction | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<number | null>(null);
   const [sortField, setSortField] = useState<'name' | 'amount' | 'dueDate' | 'category' | 'type'>('category');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  
+  // Update local state when initialTransactions prop changes
+  useEffect(() => {
+    if (initialTransactions.length > 0) {
+      setTransactions(initialTransactions);
+      setLoading(false);
+    }
+  }, [initialTransactions]);
   
   // Fetch all recurring transactions
   const fetchTransactions = async () => {
@@ -26,6 +42,11 @@ export default function RecurringTransactionList() {
       
       const data = await response.json();
       setTransactions(data);
+      
+      // Notify parent component of the update
+      if (onTransactionsUpdate) {
+        onTransactionsUpdate();
+      }
     } catch (err) {
       console.error('Error fetching transactions:', err);
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -34,9 +55,11 @@ export default function RecurringTransactionList() {
     }
   };
   
-  // Load transactions on component mount
+  // Load transactions on component mount only if no initial transactions provided
   useEffect(() => {
-    fetchTransactions();
+    if (initialTransactions.length === 0) {
+      fetchTransactions();
+    }
   }, []);
   
   // Add a new transaction
@@ -62,6 +85,11 @@ export default function RecurringTransactionList() {
       
       // Hide the form
       setShowAddForm(false);
+      
+      // Notify parent component of the update
+      if (onTransactionsUpdate) {
+        onTransactionsUpdate();
+      }
     } catch (err) {
       throw err;
     }
@@ -94,6 +122,11 @@ export default function RecurringTransactionList() {
       
       // Clear editing state
       setEditingTransaction(null);
+      
+      // Notify parent component of the update
+      if (onTransactionsUpdate) {
+        onTransactionsUpdate();
+      }
     } catch (err) {
       throw err;
     }
@@ -117,6 +150,11 @@ export default function RecurringTransactionList() {
       
       // Remove the transaction from the list
       setTransactions(prev => prev.filter(t => t.id !== id));
+      
+      // Notify parent component of the update
+      if (onTransactionsUpdate) {
+        onTransactionsUpdate();
+      }
     } catch (err) {
       console.error('Error deleting transaction:', err);
       alert('Failed to delete transaction');
