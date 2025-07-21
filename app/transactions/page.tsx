@@ -1,11 +1,21 @@
+'use client';
+
 import PageTitle from '@/components/PageTitle';
 import TransactionsList from '@/components/TransactionsList';
+import CopyPasteTransactions from '@/components/CopyPasteTransactions';
 import { Card } from '@/components/ui/card';
-import { LinkButton } from '@/components/ui/button';
-import { PlusIcon, CreditCardIcon } from '@/components/ui/icons';
+import { Button } from '@/components/ui/button';
+import { PlusIcon, CreditCardIcon, ClipboardIcon } from '@/components/ui/icons';
 import Link from 'next/link';
+import { useState } from 'react';
 
 export default function TransactionsPage() {
+  const [showCopyPaste, setShowCopyPaste] = useState(false);
+  
+  const handleTransactionsAdded = () => {
+    // Refresh the transactions list (or trigger a re-fetch)
+    window.location.reload(); // Simple approach for now
+  };
   return (
     <div className="container max-w-6xl mx-auto py-8">
       <div className="space-y-6">
@@ -23,6 +33,14 @@ export default function TransactionsPage() {
                 <PlusIcon className="w-4 h-4 mr-1.5" />
                 New Transaction
               </Link>
+              <Button
+                onClick={() => setShowCopyPaste(!showCopyPaste)}
+                variant={showCopyPaste ? "primary" : "outline"}
+                className="px-4 py-2 text-sm font-medium inline-flex items-center"
+              >
+                <ClipboardIcon className="w-4 h-4 mr-1.5" />
+                Copy & Paste
+              </Button>
               <Link 
                 href="/budget" 
                 className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium inline-flex items-center hover:bg-blue-100 transition-colors"
@@ -33,6 +51,12 @@ export default function TransactionsPage() {
             </div>
           </div>
         </div>
+        
+        {showCopyPaste && (
+          <div className="mb-6">
+            <CopyPasteTransactions onTransactionsAdded={handleTransactionsAdded} />
+          </div>
+        )}
         
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <TransactionsList />
