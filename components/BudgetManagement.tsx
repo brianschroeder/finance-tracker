@@ -9,6 +9,7 @@ interface BudgetCategory {
   allocatedAmount: number;
   color: string;
   isActive: boolean;
+  isBudgetCategory?: boolean;
   createdAt?: string;
 }
 
@@ -23,7 +24,8 @@ export default function BudgetManagement() {
     name: '',
     allocatedAmount: 0,
     color: '#3B82F6',
-    isActive: true
+    isActive: true,
+    isBudgetCategory: true
   });
   
   const [editingCategory, setEditingCategory] = useState<BudgetCategory | null>(null);
@@ -47,8 +49,12 @@ export default function BudgetManagement() {
       }
       
       const data = await response.json();
-      setCategories(data.categories || []);
-      setTotalAllocated(data.totalAllocated || 0);
+      // Only show actual budget categories (filter out big purchase categories)
+      const budgetCategories = (data.categories || []).filter((cat: any) => cat.isBudgetCategory !== false);
+      setCategories(budgetCategories);
+      // Calculate total allocated from budget categories only
+      const budgetTotal = budgetCategories.reduce((sum: number, cat: any) => sum + (cat.allocatedAmount || 0), 0);
+      setTotalAllocated(budgetTotal);
     } catch (err) {
       console.error('Error fetching budget categories:', err);
       setError('Failed to load budget categories. Please try again.');
@@ -242,6 +248,9 @@ export default function BudgetManagement() {
                   <p className="text-2xl font-bold text-blue-700">
                     {formatCurrency(totalAllocated)}
                   </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Budget categories only
+                  </p>
                 </div>
                 <div className="bg-gradient-to-br from-green-50 to-green-100 p-5 rounded-xl border border-green-100 shadow-sm">
                   <h3 className="text-sm font-medium text-gray-700 mb-1">Biweekly Budget</h3>
@@ -254,78 +263,104 @@ export default function BudgetManagement() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {categories.map(category => (
-                  <div key={category.id} className="bg-white rounded-lg shadow-md p-5 border border-gray-100 hover:shadow-lg transition-shadow duration-300">
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-center">
-                        <div 
-                          className="w-10 h-10 rounded-full flex items-center justify-center mr-3"
-                          style={{ backgroundColor: `${category.color}20` }}  
-                        >
-                          <span 
-                            className="inline-block w-5 h-5 rounded-full" 
-                            style={{ backgroundColor: category.color }}
-                          ></span>
+              {/* Budget Categories Section */}
+              {categories.filter(cat => cat.isBudgetCategory !== false).length > 0 && (
+                <div className="mb-8">
+                                     <div className="flex items-center mb-4">
+                     <h3 className="text-lg font-semibold text-gray-800">Budget Categories</h3>
+                     <div className="ml-auto px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                       Budget
+                     </div>
+                   </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {categories
+                      .filter(cat => cat.isBudgetCategory !== false)
+                      .map(category => (
+                        <div key={category.id} className="bg-white rounded-lg shadow-md p-5 border border-gray-100 hover:shadow-lg transition-shadow duration-300">
+                          <div className="flex justify-between items-start">
+                            <div className="flex items-center">
+                              <div 
+                                className="w-10 h-10 rounded-full flex items-center justify-center mr-3"
+                                style={{ backgroundColor: `${category.color}20` }}  
+                              >
+                                <span 
+                                  className="inline-block w-5 h-5 rounded-full" 
+                                  style={{ backgroundColor: category.color }}
+                                ></span>
+                              </div>
+                              <div>
+                                <h3 className="font-medium text-gray-800">{category.name}</h3>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {calculatePercentage(category.allocatedAmount).toFixed(1)}% of budget
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex space-x-1">
+                              <button
+                                onClick={() => handleEdit(category)}
+                                className="text-blue-600 hover:text-blue-800 p-2 rounded-lg hover:bg-blue-50 transition-colors"
+                                aria-label="Edit category"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => handleDelete(category.id!)}
+                                className="text-gray-700 hover:text-gray-900 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                                aria-label="Delete category"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4 mt-4 mb-3">
+                            <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                              <p className="text-xs text-gray-500 mb-1">Monthly</p>
+                              <p className="text-xl font-bold text-gray-900">
+                                {formatCurrency(category.allocatedAmount)}
+                              </p>
+                            </div>
+                            <div className="bg-green-50 p-3 rounded-lg border border-green-100">
+                              <p className="text-xs text-gray-500 mb-1">Biweekly</p>
+                              <p className="text-xl font-bold text-green-600">
+                                {formatCurrency(calculateBiweeklyAmount(category.allocatedAmount))}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                              <div 
+                                className="h-2 rounded-full" 
+                                style={{ 
+                                  width: `${calculatePercentage(category.allocatedAmount)}%`,
+                                  backgroundColor: category.color 
+                                }}
+                              ></div>
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="font-medium text-gray-800">{category.name}</h3>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {calculatePercentage(category.allocatedAmount).toFixed(1)}% of budget
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex space-x-1">
-                        <button
-                          onClick={() => handleEdit(category)}
-                          className="text-blue-600 hover:text-blue-800 p-2 rounded-lg hover:bg-blue-50 transition-colors"
-                          aria-label="Edit category"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleDelete(category.id!)}
-                          className="text-gray-700 hover:text-gray-900 p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                          aria-label="Delete category"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4 mt-4 mb-3">
-                      <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                        <p className="text-xs text-gray-500 mb-1">Monthly</p>
-                        <p className="text-xl font-bold text-gray-900">
-                          {formatCurrency(category.allocatedAmount)}
-                        </p>
-                      </div>
-                      <div className="bg-green-50 p-3 rounded-lg border border-green-100">
-                        <p className="text-xs text-gray-500 mb-1">Biweekly</p>
-                        <p className="text-xl font-bold text-green-600">
-                          {formatCurrency(calculateBiweeklyAmount(category.allocatedAmount))}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                        <div 
-                          className="h-2 rounded-full" 
-                          style={{ 
-                            width: `${calculatePercentage(category.allocatedAmount)}%`,
-                            backgroundColor: category.color 
-                          }}
-                        ></div>
-                      </div>
-                    </div>
+                      ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
+
+              {/* Empty State */}
+              {categories.length === 0 && (
+                <div className="text-center py-12">
+                  <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Categories Yet</h3>
+                  <p className="text-gray-500 mb-4">Create your first budget category to get started.</p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -380,6 +415,8 @@ export default function BudgetManagement() {
                 </div>
               )}
             </div>
+            
+
             
             <div>
               <label htmlFor="color" className="block text-sm font-medium text-gray-700 mb-1.5">

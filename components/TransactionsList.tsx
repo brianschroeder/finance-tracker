@@ -270,7 +270,7 @@ export default function TransactionsList() {
   
   async function fetchCategories() {
     try {
-      const response = await fetch('/api/budget-categories');
+      const response = await fetch('/api/budget-categories?allActive=true');
       
       if (!response.ok) {
         throw new Error('Failed to fetch categories');

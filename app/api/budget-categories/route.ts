@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { 
   getAllBudgetCategories, 
   getActiveBudgetCategories, 
+  getAllActiveCategories,
   getBudgetCategoryById, 
   createBudgetCategory, 
   updateBudgetCategory, 
@@ -15,6 +16,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     const onlyActive = searchParams.get('active') === 'true';
+    const allActiveCategories = searchParams.get('allActive') === 'true';
 
     if (id) {
       // Get a specific category by ID
@@ -31,8 +33,15 @@ export async function GET(request: Request) {
       return NextResponse.json(category);
     }
     
-    // Get all categories or only active ones
-    const categories = onlyActive ? getActiveBudgetCategories() : getAllBudgetCategories();
+    // Get all categories, only active budget categories, or all active categories (including tracking)
+    let categories;
+    if (allActiveCategories) {
+      categories = getAllActiveCategories();
+    } else if (onlyActive) {
+      categories = getActiveBudgetCategories();
+    } else {
+      categories = getAllBudgetCategories();
+    }
     const totalAllocated = getTotalBudgetAllocated();
     
     return NextResponse.json({ categories, totalAllocated });
@@ -70,7 +79,8 @@ export async function POST(request: Request) {
       name: data.name,
       allocatedAmount: parseFloat(data.allocatedAmount),
       color: data.color || '#3B82F6', // Default blue color
-      isActive: data.isActive !== undefined ? data.isActive : true
+      isActive: data.isActive !== undefined ? data.isActive : true,
+      isBudgetCategory: data.isBudgetCategory !== undefined ? data.isBudgetCategory : true
     };
     
     const id = createBudgetCategory(category);
@@ -118,7 +128,8 @@ export async function PUT(request: Request) {
       name: data.name,
       allocatedAmount: parseFloat(data.allocatedAmount),
       color: data.color || '#3B82F6',
-      isActive: data.isActive !== undefined ? data.isActive : true
+      isActive: data.isActive !== undefined ? data.isActive : true,
+      isBudgetCategory: data.isBudgetCategory !== undefined ? data.isBudgetCategory : true
     };
     
     const result = updateBudgetCategory(category);

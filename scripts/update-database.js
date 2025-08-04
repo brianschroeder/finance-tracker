@@ -39,6 +39,25 @@ try {
   } else {
     console.log('PendingTipAmount column already exists in transactions table.');
   }
+
+  // Check if the isBudgetCategory column exists in the budget_categories table
+  const isBudgetCategoryColumnExists = db.prepare(`
+    PRAGMA table_info(budget_categories)
+  `).all().some(column => column.name === 'isBudgetCategory');
+
+  // If the isBudgetCategory column doesn't exist, add it
+  if (!isBudgetCategoryColumnExists) {
+    console.log('Adding isBudgetCategory column to budget_categories table...');
+    
+    db.prepare(`
+      ALTER TABLE budget_categories 
+      ADD COLUMN isBudgetCategory INTEGER NOT NULL DEFAULT 1
+    `).run();
+    
+    console.log('isBudgetCategory column added successfully.');
+  } else {
+    console.log('isBudgetCategory column already exists in budget_categories table.');
+  }
 } catch (error) {
   console.error('Error updating database schema:', error);
 } finally {

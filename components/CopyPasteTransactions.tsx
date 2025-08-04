@@ -54,7 +54,7 @@ export default function CopyPasteTransactions({ onTransactionsAdded }: { onTrans
 
   async function fetchCategories() {
     try {
-      const response = await fetch('/api/budget-categories');
+      const response = await fetch('/api/budget-categories?allActive=true');
       if (response.ok) {
         const data = await response.json();
         setCategories(data.categories || []);
@@ -314,7 +314,8 @@ export default function CopyPasteTransactions({ onTransactionsAdded }: { onTrans
           name: newCategoryForm.name.trim(),
           color: newCategoryForm.color,
           allocatedAmount: newCategoryForm.allocatedAmount,
-          isActive: true
+          isActive: true,
+          isBudgetCategory: newCategoryForm.allocatedAmount > 0
         }),
       });
 

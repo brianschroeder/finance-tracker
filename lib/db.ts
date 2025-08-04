@@ -1067,6 +1067,7 @@ export interface BudgetCategory {
   allocatedAmount: number;
   color: string;
   isActive?: boolean;
+  isBudgetCategory?: boolean;
   createdAt?: string;
 }
 
@@ -1079,11 +1080,26 @@ export function getAllBudgetCategories() {
   
   return categories.map((category: any) => ({
     ...category,
-    isActive: !!category.isActive
+    isActive: !!category.isActive,
+    isBudgetCategory: !!category.isBudgetCategory
   }));
 }
 
 export function getActiveBudgetCategories() {
+  const db = getDb();
+  
+  const categories = db.prepare(`
+    SELECT * FROM budget_categories WHERE isActive = 1 AND isBudgetCategory = 1 ORDER BY name ASC
+  `).all();
+  
+  return categories.map((category: any) => ({
+    ...category,
+    isActive: true,
+    isBudgetCategory: true
+  }));
+}
+
+export function getAllActiveCategories() {
   const db = getDb();
   
   const categories = db.prepare(`
@@ -1092,7 +1108,8 @@ export function getActiveBudgetCategories() {
   
   return categories.map((category: any) => ({
     ...category,
-    isActive: true
+    isActive: true,
+    isBudgetCategory: !!category.isBudgetCategory
   }));
 }
 
@@ -1106,7 +1123,8 @@ export function getBudgetCategoryById(id: number) {
   if (category) {
     return {
       ...category as Record<string, any>,
-      isActive: !!(category as Record<string, any>).isActive
+      isActive: !!(category as Record<string, any>).isActive,
+      isBudgetCategory: !!(category as Record<string, any>).isBudgetCategory
     };
   }
   
@@ -1121,15 +1139,17 @@ export function createBudgetCategory(category: BudgetCategory) {
       name,
       allocatedAmount,
       color,
-      isActive
-    ) VALUES (?, ?, ?, ?)
+      isActive,
+      isBudgetCategory
+    ) VALUES (?, ?, ?, ?, ?)
   `);
   
   const result = stmt.run(
     category.name,
     category.allocatedAmount,
     category.color,
-    category.isActive ? 1 : 0
+    category.isActive ? 1 : 0,
+    category.isBudgetCategory !== undefined ? (category.isBudgetCategory ? 1 : 0) : 1
   );
   
   return result.lastInsertRowid;
@@ -1144,7 +1164,7 @@ export function updateBudgetCategory(category: BudgetCategory) {
   
   const stmt = db.prepare(`
     UPDATE budget_categories
-    SET name = ?, allocatedAmount = ?, color = ?, isActive = ?
+    SET name = ?, allocatedAmount = ?, color = ?, isActive = ?, isBudgetCategory = ?
     WHERE id = ?
   `);
   
@@ -1153,6 +1173,7 @@ export function updateBudgetCategory(category: BudgetCategory) {
     category.allocatedAmount,
     category.color,
     category.isActive ? 1 : 0,
+    category.isBudgetCategory !== undefined ? (category.isBudgetCategory ? 1 : 0) : 1,
     category.id
   );
   

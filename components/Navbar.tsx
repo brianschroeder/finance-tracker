@@ -23,6 +23,7 @@ export default function Navbar() {
     { href: '/pending-transactions', label: 'Pending' },
     { href: '/recurring-transactions', label: 'Recurring' },
     { href: '/budget', label: 'Budget' },
+    { href: '/big-purchases', label: 'Big Purchases' },
     { href: '/savings-plan', label: 'Savings' },
     { href: '/stocks', label: 'Stocks' },
     { href: '/investments', label: 'Investments' },

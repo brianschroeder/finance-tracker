@@ -19,6 +19,8 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const id = searchParams.get('id');
+    const categoryId = searchParams.get('categoryId');
+    const limit = searchParams.get('limit');
     
     // Get single transaction by ID
     if (id) {
@@ -44,8 +46,20 @@ export async function GET(request: NextRequest) {
     
     // Get all transactions
     console.log('Fetching all transactions');
-    const transactions = getAllTransactions();
+    let transactions = getAllTransactions();
     console.log(`Found ${transactions.length} transactions`);
+    
+    // Filter by categoryId if provided
+    if (categoryId) {
+      transactions = transactions.filter(t => t.categoryId === Number(categoryId));
+      console.log(`Filtered to ${transactions.length} transactions for category ${categoryId}`);
+    }
+    
+    // Apply limit if provided
+    if (limit) {
+      transactions = transactions.slice(0, Number(limit));
+      console.log(`Limited to ${transactions.length} transactions`);
+    }
     
     // Debug: Print a sample of transactions if any exist
     if (transactions.length > 0) {
