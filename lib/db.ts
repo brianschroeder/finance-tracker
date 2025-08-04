@@ -411,6 +411,30 @@ function initDb() {
     `).run();
   }
 
+  // Check if manual_pending_transactions table exists
+  const manualPendingTransactionsTableExists = db.prepare(`
+    SELECT name FROM sqlite_master WHERE type='table' AND name='manual_pending_transactions'
+  `).get();
+  
+  if (!manualPendingTransactionsTableExists) {
+    // Create manual pending transactions table
+    db.prepare(`
+      CREATE TABLE manual_pending_transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        amount REAL NOT NULL,
+        dueDate TEXT NOT NULL, /* YYYY-MM-DD format */
+        categoryId INTEGER,
+        notes TEXT,
+        payPeriodStart TEXT NOT NULL,
+        payPeriodEnd TEXT NOT NULL,
+        isCompleted INTEGER NOT NULL DEFAULT 0,
+        createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (categoryId) REFERENCES recurring_categories(id) ON DELETE SET NULL
+      )
+    `).run();
+  }
+
   // Check if investments table has the symbol column
   const investmentsColumns = db.prepare(`PRAGMA table_info(investments)`).all() as ColumnInfo[];
   const columnNames = investmentsColumns.map(col => col.name);
@@ -1011,8 +1035,8 @@ export function getPendingTransactions() {
     return false;
   });
   
-  // Check completed status for each transaction
-  return pendingTransactions.map(transaction => {
+  // Check completed status for each recurring transaction
+  const processedRecurringTransactions = pendingTransactions.map(transaction => {
     // Determine which month's due date to use
     const daysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     const adjustedDueDate = Math.min(transaction.dueDate, daysInCurrentMonth);
@@ -1054,9 +1078,35 @@ export function getPendingTransactions() {
       daysUntilDue: daysUntilDue,
       payPeriodStart: payPeriodStart,
       payPeriodEnd: payPeriodEnd,
-      isCompleted: isCompleted
+      isCompleted: isCompleted,
+      isManual: false // Flag to distinguish from manual transactions
     };
-  }).sort((a, b) => a.daysUntilDue - b.daysUntilDue);
+  });
+
+  // Get manual pending transactions for this pay period
+  const manualTransactions = getManualPendingTransactionsByPayPeriod(payPeriodStart, payPeriodEnd);
+  
+  // Process manual transactions
+  const processedManualTransactions = manualTransactions.map(transaction => {
+    // Parse the due date
+    const dueDate = new Date(transaction.dueDate);
+    dueDate.setHours(0, 0, 0, 0);
+    
+    // Calculate days until due
+    const daysUntilDue = Math.max(0, Math.ceil((dueDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24)));
+    
+    return {
+      ...transaction,
+      formattedDate: transaction.dueDate,
+      daysUntilDue: daysUntilDue,
+      payPeriodStart: payPeriodStart,
+      payPeriodEnd: payPeriodEnd,
+      isManual: true // Flag to distinguish from recurring transactions
+    };
+  });
+
+  // Combine both types of transactions and sort by days until due
+  return [...processedRecurringTransactions, ...processedManualTransactions].sort((a, b) => a.daysUntilDue - b.daysUntilDue);
 }
 
 // Budget Categories
@@ -2183,6 +2233,174 @@ export function getTotalIncomeForDateRange(startDate: string, endDate: string): 
     console.error('Error calculating total income for date range:', error);
     return 0;
   }
+}
+
+// Manual Pending Transactions
+export interface ManualPendingTransaction {
+  id?: number;
+  name: string;
+  amount: number;
+  dueDate: string; // YYYY-MM-DD format
+  categoryId?: number | null;
+  notes?: string;
+  payPeriodStart: string;
+  payPeriodEnd: string;
+  isCompleted: boolean;
+  createdAt?: string;
+  category?: RecurringCategory; // Optional joined category data
+  // Additional fields for display purposes
+  formattedDate?: string;
+  daysUntilDue?: number;
+}
+
+export function getAllManualPendingTransactions() {
+  const db = getDb();
+  
+  const transactions = db.prepare(`
+    SELECT t.*, c.name as categoryName, c.color as categoryColor 
+    FROM manual_pending_transactions t
+    LEFT JOIN recurring_categories c ON t.categoryId = c.id
+    ORDER BY t.dueDate ASC
+  `).all();
+  
+  // Convert isCompleted from 0/1 to boolean and format category data
+  return transactions.map((transaction: any) => {
+    const result: ManualPendingTransaction = {
+      ...transaction,
+      isCompleted: !!transaction.isCompleted
+    };
+    
+    // Add category object if available
+    if (transaction.categoryName) {
+      result.category = {
+        id: transaction.categoryId,
+        name: transaction.categoryName,
+        color: transaction.categoryColor,
+        isActive: true
+      } as RecurringCategory;
+    }
+    
+    return result;
+  });
+}
+
+export function getManualPendingTransactionsByPayPeriod(payPeriodStart: string, payPeriodEnd: string) {
+  const db = getDb();
+  
+  const transactions = db.prepare(`
+    SELECT t.*, c.name as categoryName, c.color as categoryColor 
+    FROM manual_pending_transactions t
+    LEFT JOIN recurring_categories c ON t.categoryId = c.id
+    WHERE t.payPeriodStart = ? AND t.payPeriodEnd = ?
+    ORDER BY t.dueDate ASC
+  `).all(payPeriodStart, payPeriodEnd);
+  
+  // Convert isCompleted from 0/1 to boolean and format category data
+  return transactions.map((transaction: any) => {
+    const result: ManualPendingTransaction = {
+      ...transaction,
+      isCompleted: !!transaction.isCompleted
+    };
+    
+    // Add category object if available
+    if (transaction.categoryName) {
+      result.category = {
+        id: transaction.categoryId,
+        name: transaction.categoryName,
+        color: transaction.categoryColor,
+        isActive: true
+      } as RecurringCategory;
+    }
+    
+    return result;
+  });
+}
+
+export function createManualPendingTransaction(transaction: ManualPendingTransaction) {
+  const db = getDb();
+  
+  // Validate the categoryId to ensure it exists
+  const categoryIdToUse = validateRecurringCategoryId(transaction.categoryId || null);
+  
+  const stmt = db.prepare(`
+    INSERT INTO manual_pending_transactions (
+      name,
+      amount,
+      dueDate,
+      categoryId,
+      notes,
+      payPeriodStart,
+      payPeriodEnd,
+      isCompleted
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  
+  const result = stmt.run(
+    transaction.name,
+    transaction.amount,
+    transaction.dueDate,
+    categoryIdToUse,
+    transaction.notes || null,
+    transaction.payPeriodStart,
+    transaction.payPeriodEnd,
+    transaction.isCompleted ? 1 : 0
+  );
+  
+  return result.lastInsertRowid;
+}
+
+export function updateManualPendingTransaction(transaction: ManualPendingTransaction) {
+  const db = getDb();
+  
+  // Validate the categoryId to ensure it exists
+  const categoryIdToUse = validateRecurringCategoryId(transaction.categoryId || null);
+  
+  const stmt = db.prepare(`
+    UPDATE manual_pending_transactions
+    SET name = ?, amount = ?, dueDate = ?, categoryId = ?, notes = ?, 
+        payPeriodStart = ?, payPeriodEnd = ?, isCompleted = ?
+    WHERE id = ?
+  `);
+  
+  const result = stmt.run(
+    transaction.name,
+    transaction.amount,
+    transaction.dueDate,
+    categoryIdToUse,
+    transaction.notes || null,
+    transaction.payPeriodStart,
+    transaction.payPeriodEnd,
+    transaction.isCompleted ? 1 : 0,
+    transaction.id
+  );
+  
+  return result.changes;
+}
+
+export function deleteManualPendingTransaction(id: number) {
+  const db = getDb();
+  
+  const stmt = db.prepare(`
+    DELETE FROM manual_pending_transactions WHERE id = ?
+  `);
+  
+  const result = stmt.run(id);
+  
+  return result.changes;
+}
+
+export function markManualPendingTransactionCompleted(id: number, isCompleted: boolean) {
+  const db = getDb();
+  
+  const stmt = db.prepare(`
+    UPDATE manual_pending_transactions
+    SET isCompleted = ?
+    WHERE id = ?
+  `);
+  
+  const result = stmt.run(isCompleted ? 1 : 0, id);
+  
+  return result.changes;
 }
 
 // Recurring Transaction Categories

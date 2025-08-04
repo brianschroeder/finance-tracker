@@ -10,13 +10,21 @@ interface PendingTransaction {
   name: string;
   amount: number;
   dueDate: number;
-  isEssential: boolean;
+  isEssential?: boolean;
   formattedDate: string;
   daysUntilDue: number;
   payPeriodStart: string;
   payPeriodEnd: string;
-  recurringTransactionId: number;
+  recurringTransactionId?: number;
   isCompleted: boolean;
+  isManual?: boolean;
+  notes?: string;
+  categoryId?: number | null;
+  category?: {
+    id: number;
+    name: string;
+    color: string;
+  };
 }
 
 interface PaySettings {
@@ -36,10 +44,22 @@ export default function PendingTransactionsList() {
   const [submitting, setSubmitting] = useState<number | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<{ id: number, amount: string } | null>(null);
   const [updatingAmount, setUpdatingAmount] = useState<number | null>(null);
+  
+  // Manual transaction form state
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newTransaction, setNewTransaction] = useState({
+    name: '',
+    amount: '',
+    dueDate: '',
+    notes: ''
+  });
+  const [addingTransaction, setAddingTransaction] = useState(false);
+  const [categories, setCategories] = useState<Array<{id: number, name: string, color: string}>>([]);
 
-  // Fetch pending transactions
+  // Fetch pending transactions and categories
   useEffect(() => {
     fetchPendingTransactions();
+    fetchCategories();
   }, []);
 
   // Update total amounts whenever transactions change
@@ -61,6 +81,18 @@ export default function PendingTransactionsList() {
     setTotalCompletedAmount(completedAmount);
   }
 
+  async function fetchCategories() {
+    try {
+      const response = await fetch('/api/recurring-categories');
+      if (response.ok) {
+        const data = await response.json();
+        setCategories(data.categories || []);
+      }
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+    }
+  }
+
   async function fetchPendingTransactions() {
     try {
       setLoading(true);
@@ -78,7 +110,7 @@ export default function PendingTransactionsList() {
       
       const data = await response.json();
       if (data) {
-        // Get all transactions
+        // Get all transactions (both recurring and manual)
         const allTransactions = data.transactions || [];
         
         setTransactions(allTransactions);
@@ -102,13 +134,57 @@ export default function PendingTransactionsList() {
     setSubmitting(transaction.id);
     
     try {
-      if (transaction.isCompleted) {
-        await handleMarkAsIncomplete(transaction);
+      if (transaction.isManual) {
+        // Handle manual transaction completion
+        await handleManualTransactionToggle(transaction);
       } else {
-        await handleMarkAsComplete(transaction);
+        // Handle recurring transaction completion
+        if (transaction.isCompleted) {
+          await handleMarkAsIncomplete(transaction);
+        } else {
+          await handleMarkAsComplete(transaction);
+        }
       }
     } finally {
       setSubmitting(null);
+    }
+  };
+
+  const handleManualTransactionToggle = async (transaction: PendingTransaction) => {
+    try {
+      const response = await fetch('/api/manual-pending-transactions', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: transaction.id,
+          isCompleted: !transaction.isCompleted
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update manual transaction status');
+      }
+      
+      // Update local state
+      setTransactions(prev => 
+        prev.map(t => 
+          t.id === transaction.id && t.isManual ? { ...t, isCompleted: !t.isCompleted } : t
+        )
+      );
+      
+      toast({
+        title: transaction.isCompleted ? "Transaction marked as pending" : "Transaction marked as complete",
+        description: `${transaction.name} has been updated.`,
+      });
+    } catch (err) {
+      console.error('Error updating manual transaction status:', err);
+      toast({
+        title: "Error",
+        description: "Failed to update transaction status. Please try again.",
+        variant: "error",
+      });
     }
   };
 
@@ -267,6 +343,113 @@ export default function PendingTransactionsList() {
     }
   };
 
+  // Add manual transaction functions
+  const handleAddManualTransaction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newTransaction.name || !newTransaction.amount || !newTransaction.dueDate) {
+      toast({
+        title: "Missing fields",
+        description: "Please fill in all required fields.",
+        variant: "error"
+      });
+      return;
+    }
+
+    if (!payPeriodStart || !payPeriodEnd) {
+      toast({
+        title: "No pay period",
+        description: "Pay period information is not available.",
+        variant: "error"
+      });
+      return;
+    }
+
+    setAddingTransaction(true);
+
+    try {
+      const response = await fetch('/api/manual-pending-transactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newTransaction.name,
+          amount: parseFloat(newTransaction.amount),
+          dueDate: newTransaction.dueDate,
+          notes: newTransaction.notes,
+          payPeriodStart,
+          payPeriodEnd,
+          isCompleted: false
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create manual transaction');
+      }
+
+      // Refresh transactions
+      await fetchPendingTransactions();
+
+      // Reset form
+      setNewTransaction({
+        name: '',
+        amount: '',
+        dueDate: '',
+        notes: ''
+      });
+      setShowAddForm(false);
+
+      toast({
+        title: "Transaction added",
+        description: "Manual pending transaction has been created successfully.",
+      });
+    } catch (err) {
+      console.error('Error creating manual transaction:', err);
+      toast({
+        title: "Error",
+        description: "Failed to create manual transaction. Please try again.",
+        variant: "error",
+      });
+    } finally {
+      setAddingTransaction(false);
+    }
+  };
+
+  const handleDeleteManualTransaction = async (transaction: PendingTransaction) => {
+    if (!transaction.isManual) return;
+    
+    if (!confirm(`Are you sure you want to delete "${transaction.name}"?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/manual-pending-transactions?id=${transaction.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete manual transaction');
+      }
+
+      // Remove from local state
+      setTransactions(prev => prev.filter(t => !(t.id === transaction.id && t.isManual)));
+
+      toast({
+        title: "Transaction deleted",
+        description: `${transaction.name} has been deleted.`,
+      });
+    } catch (err) {
+      console.error('Error deleting manual transaction:', err);
+      toast({
+        title: "Error",
+        description: "Failed to delete manual transaction. Please try again.",
+        variant: "error",
+      });
+    }
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -315,7 +498,105 @@ export default function PendingTransactionsList() {
         </div>
       )}
       
-      <div className="p-6">
+              <div className="p-6">
+        {/* Add Manual Transaction Button and Form */}
+        <div className="mb-6">
+          {!showAddForm ? (
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Add Manual Transaction
+            </button>
+          ) : (
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="text-lg font-medium mb-4">Add Manual Transaction</h3>
+              <form onSubmit={handleAddManualTransaction} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                      Transaction Name *
+                    </label>
+                    <input
+                      type="text"
+                      id="name"
+                      value={newTransaction.name}
+                      onChange={(e) => setNewTransaction({...newTransaction, name: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., Car Registration"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
+                      Amount *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      id="amount"
+                      value={newTransaction.amount}
+                      onChange={(e) => setNewTransaction({...newTransaction, amount: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 mb-1">
+                      Due Date *
+                    </label>
+                    <input
+                      type="date"
+                      id="dueDate"
+                      value={newTransaction.dueDate}
+                      onChange={(e) => setNewTransaction({...newTransaction, dueDate: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      min={payPeriodStart || undefined}
+                      max={payPeriodEnd || undefined}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
+                      Notes
+                    </label>
+                    <input
+                      type="text"
+                      id="notes"
+                      value={newTransaction.notes}
+                      onChange={(e) => setNewTransaction({...newTransaction, notes: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Optional notes"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={addingTransaction}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                    {addingTransaction ? 'Adding...' : 'Add Transaction'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddForm(false);
+                      setNewTransaction({name: '', amount: '', dueDate: '', notes: ''});
+                    }}
+                    className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+        </div>
+
         {transactions.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-500 mb-4">
@@ -351,6 +632,9 @@ export default function PendingTransactionsList() {
                     </th>
                     <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Type
+                    </th>
+                    <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
                     </th>
                   </tr>
                 </thead>
@@ -433,12 +717,30 @@ export default function PendingTransactionsList() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          transaction.isEssential 
-                            ? 'bg-blue-100 text-blue-800' 
-                            : 'bg-gray-100 text-gray-800'
+                          transaction.isManual
+                            ? 'bg-purple-100 text-purple-800'
+                            : transaction.isEssential 
+                              ? 'bg-blue-100 text-blue-800' 
+                              : 'bg-gray-100 text-gray-800'
                         }`}>
-                          {transaction.isEssential ? 'Essential' : 'Optional'}
+                          {transaction.isManual 
+                            ? 'Manual' 
+                            : transaction.isEssential 
+                              ? 'Essential' 
+                              : 'Optional'
+                          }
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {transaction.isManual && (
+                          <button
+                            onClick={() => handleDeleteManualTransaction(transaction)}
+                            className="text-red-600 hover:text-red-800 ml-2"
+                            title="Delete manual transaction"
+                          >
+                            Delete
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -477,8 +779,24 @@ export default function PendingTransactionsList() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800`}>
-                          {transaction.isEssential ? 'Essential' : 'Optional'}
+                          {transaction.isManual 
+                            ? 'Manual' 
+                            : transaction.isEssential 
+                              ? 'Essential' 
+                              : 'Optional'
+                          }
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {transaction.isManual && (
+                          <button
+                            onClick={() => handleDeleteManualTransaction(transaction)}
+                            className="text-red-600 hover:text-red-800 ml-2"
+                            title="Delete manual transaction"
+                          >
+                            Delete
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
