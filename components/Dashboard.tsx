@@ -369,25 +369,34 @@ export default function Dashboard() {
   async function fetchRecentTransactions() {
     try {
       setLoadingTransactions(true);
-      const response = await fetch('/api/transactions?limit=5');
       
-      if (!response.ok) {
+      // Fetch recent transactions for display (limited to 5)
+      const recentResponse = await fetch('/api/transactions?limit=5');
+      if (!recentResponse.ok) {
         throw new Error('Failed to fetch recent transactions');
       }
+      const recentData = await recentResponse.json();
       
-      const data = await response.json();
+      if (recentData.transactions) {
+        setRecentTransactions(recentData.transactions);
+      }
+
+      // Fetch ALL transactions for accurate pending calculations
+      const allResponse = await fetch('/api/transactions');
+      if (!allResponse.ok) {
+        throw new Error('Failed to fetch all transactions');
+      }
+      const allData = await allResponse.json();
       
-      if (data.transactions) {
-        setRecentTransactions(data.transactions);
-        
+      if (allData.transactions) {
         // Calculate only pending tip amounts from regular transactions
-        const pendingTips = data.transactions
+        const pendingTips = allData.transactions
           .filter((transaction: Transaction) => transaction.pending)
           .reduce((sum: number, transaction: Transaction) => 
             sum + (transaction.pendingTipAmount || 0), 0);
         
         // Calculate pending cashback amounts (cashback that has not been posted yet)
-        const pendingCashback = data.transactions
+        const pendingCashback = allData.transactions
           .filter((transaction: Transaction) => 
             (transaction.cashBack || 0) > 0 && transaction.cashbackPosted === false)
           .reduce((sum: number, transaction: Transaction) => 
