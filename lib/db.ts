@@ -1609,6 +1609,116 @@ export function updatePendingTransactionAmount(transactionId: number, amount: nu
   }
 }
 
+// Overspending Analysis Functions
+
+export interface OverspendingAnalysis {
+  periodStart: string;
+  periodEnd: string;
+  totalBudget: number;
+  totalSpent: number;
+  overspent: number;
+  categories: CategoryOverspending[];
+}
+
+export interface CategoryOverspending {
+  id: number;
+  name: string;
+  color: string;
+  budgetAmount: number;
+  spent: number;
+  overspent: number;
+  transactions: Transaction[];
+}
+
+export function getTransactionsWithCategories(startDate: string, endDate: string): (Transaction & { category?: BudgetCategory })[] {
+  const db = getDb();
+  
+  const transactions = db.prepare(`
+    SELECT 
+      t.*,
+      c.name as categoryName,
+      c.color as categoryColor,
+      c.allocatedAmount as categoryBudget
+    FROM transactions t
+    LEFT JOIN budget_categories c ON t.categoryId = c.id
+    WHERE t.date >= ? AND t.date <= ?
+    ORDER BY ABS(t.amount) DESC, t.date DESC
+  `).all(startDate, endDate);
+  
+  return transactions.map((row: any) => ({
+    id: row.id,
+    date: row.date,
+    categoryId: row.categoryId,
+    name: row.name,
+    amount: row.amount,
+    cashBack: row.cashBack,
+    cashbackPosted: row.cashbackPosted,
+    notes: row.notes,
+    pending: row.pending,
+    pendingTipAmount: row.pendingTipAmount,
+    sortOrder: row.sortOrder,
+    createdAt: row.createdAt,
+    category: row.categoryName ? {
+      id: row.categoryId,
+      name: row.categoryName,
+      color: row.categoryColor,
+      allocatedAmount: row.categoryBudget,
+      isActive: true
+    } : undefined
+  }));
+}
+
+export function getOverspendingByCategory(startDate: string, endDate: string, daysInPeriod: number): CategoryOverspending[] {
+  const db = getDb();
+  
+  // Get all active budget categories
+  const categories = getActiveBudgetCategories();
+  const overspendingCategories: CategoryOverspending[] = [];
+  
+  for (const category of categories) {
+    // Calculate pro-rated budget for this period
+    const monthlyBudget = category.allocatedAmount || 0;
+    const periodBudget = (monthlyBudget / 30) * daysInPeriod;
+    
+    // Get transactions for this category in the period
+    const transactions = getTransactionsByCategoryIdAndDateRange(category.id!, startDate, endDate);
+    
+    // Calculate total spent (use absolute values since expenses are typically negative)
+    const totalSpent = transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    
+    // Calculate overspending
+    const overspent = Math.max(0, totalSpent - periodBudget);
+    
+    if (overspent > 0) {
+      overspendingCategories.push({
+        id: category.id!,
+        name: category.name,
+        color: category.color,
+        budgetAmount: periodBudget,
+        spent: totalSpent,
+        overspent,
+        transactions: transactions as Transaction[]
+      });
+    }
+  }
+  
+  // Sort by overspent amount (highest first)
+  return overspendingCategories.sort((a, b) => b.overspent - a.overspent);
+}
+
+export function getLargestTransactions(startDate: string, endDate: string, limit: number = 10): Transaction[] {
+  const db = getDb();
+  
+  const transactions = db.prepare(`
+    SELECT * FROM transactions 
+    WHERE date >= ? AND date <= ?
+    ORDER BY ABS(amount) DESC
+    LIMIT ?
+  `).all(startDate, endDate, limit);
+  
+  return transactions;
+}
+
 // Investments
 
 export interface Investment {
