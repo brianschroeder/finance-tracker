@@ -12,6 +12,10 @@ interface Transaction {
   cashBack?: number;
   notes?: string;
   pending?: boolean;
+  pendingTipAmount?: number;
+  creditCardPending?: boolean;
+  cashbackPosted?: boolean;
+  createdAt?: string;
 }
 
 interface BigPurchaseCategory {
@@ -32,6 +36,14 @@ export default function BigPurchasesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set());
+  
+  // Transaction drill-down state
+  const [selectedCategory, setSelectedCategory] = useState<BigPurchaseCategory | null>(null);
+  const [showTransactionDetails, setShowTransactionDetails] = useState(false);
+  const [sortField, setSortField] = useState<'date' | 'amount' | 'name'>('date');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [filterAmount, setFilterAmount] = useState<{min: number, max: number}>({min: 0, max: Infinity});
+  const [filterDateRange, setFilterDateRange] = useState<{start: string, end: string}>({start: '', end: ''});
   
   // Form state
   const [newCategory, setNewCategory] = useState<BigPurchaseCategory>({
@@ -244,6 +256,77 @@ export default function BigPurchasesPage() {
     setExpandedCategories(newExpanded);
   };
 
+  // Handle drill-down into transaction details
+  const handleDrillDown = (category: BigPurchaseCategory) => {
+    setSelectedCategory(category);
+    setShowTransactionDetails(true);
+  };
+
+  // Handle closing transaction details
+  const handleCloseDetails = () => {
+    setShowTransactionDetails(false);
+    setSelectedCategory(null);
+  };
+
+  // Sort transactions based on current sort settings
+  const getSortedTransactions = (transactions: Transaction[]) => {
+    return [...transactions].sort((a, b) => {
+      let comparison = 0;
+      
+      if (sortField === 'date') {
+        comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
+      } else if (sortField === 'amount') {
+        comparison = Math.abs(a.amount) - Math.abs(b.amount);
+      } else if (sortField === 'name') {
+        comparison = a.name.localeCompare(b.name);
+      }
+      
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  };
+
+  // Filter transactions based on current filter settings
+  const getFilteredTransactions = (transactions: Transaction[]) => {
+    return transactions.filter(transaction => {
+      // Amount filter
+      const amount = Math.abs(transaction.amount);
+      if (amount < filterAmount.min || amount > filterAmount.max) {
+        return false;
+      }
+      
+      // Date range filter
+      if (filterDateRange.start && transaction.date < filterDateRange.start) {
+        return false;
+      }
+      if (filterDateRange.end && transaction.date > filterDateRange.end) {
+        return false;
+      }
+      
+      return true;
+    });
+  };
+
+  // Handle sort change
+  const handleSort = (field: 'date' | 'amount' | 'name') => {
+    if (field === sortField) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
+
+  // Sort arrow indicator component
+  const SortArrow = ({ field }: { field: 'date' | 'amount' | 'name' }) => {
+    if (field !== sortField) return null;
+    
+    return (
+      <span className="ml-1 text-xs">
+        {sortDirection === 'asc' ? '↑' : '↓'}
+      </span>
+    );
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -385,12 +468,20 @@ export default function BigPurchasesPage() {
                         </div>
                         
                         {transactions.length > 0 && (
-                          <button
-                            onClick={() => toggleTransactions(category.id!)}
-                            className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-                          >
-                            {isExpanded ? 'Hide transactions' : 'View transactions'}
-                          </button>
+                          <div className="flex items-center space-x-3">
+                            <button
+                              onClick={() => toggleTransactions(category.id!)}
+                              className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                            >
+                              {isExpanded ? 'Hide transactions' : 'View transactions'}
+                            </button>
+                            <button
+                              onClick={() => handleDrillDown(category)}
+                              className="text-sm text-blue-600 hover:text-blue-700 transition-colors font-medium"
+                            >
+                              Drill down
+                            </button>
+                          </div>
                         )}
                       </div>
                       
@@ -403,9 +494,16 @@ export default function BigPurchasesPage() {
                                 <div className="flex-1">
                                   <div className="flex items-center justify-between">
                                     <h4 className="text-sm font-medium text-gray-900">{transaction.name}</h4>
-                                    <span className="text-sm font-medium text-gray-900">
-                                      ${transaction.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </span>
+                                    <div className="text-right">
+                                      <div className="text-sm font-medium text-gray-900">
+                                        {formatCurrency(Math.abs(transaction.amount))}
+                                      </div>
+                                      {transaction.cashBack && transaction.cashBack > 0 && (
+                                        <div className="text-xs text-green-600 font-medium">
+                                          +{formatCurrency(transaction.cashBack)} cashback
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                   <p className="text-xs text-gray-500 mt-1">{formatDate(transaction.date)}</p>
                                   {transaction.notes && (
@@ -498,6 +596,205 @@ export default function BigPurchasesPage() {
           </div>
         </div>
       </div>
+
+      {/* Transaction Details Modal */}
+      {showTransactionDetails && selectedCategory && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div className="flex items-center space-x-4">
+                <div 
+                  className="w-4 h-4 rounded-full" 
+                  style={{ backgroundColor: selectedCategory.color }}
+                ></div>
+                <div>
+                  <h2 className="text-2xl font-light text-gray-900">{selectedCategory.name} Transactions</h2>
+                  <p className="text-gray-500">
+                    {selectedCategory.transactions?.length || 0} transactions • 
+                    Total: {formatCurrency(selectedCategory.totalSpent || 0)}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleCloseDetails}
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Filters and Sorting */}
+            <div className="p-6 border-b border-gray-200 bg-gray-50">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-4">
+                {/* Sort Controls */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Sort by</label>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleSort('date')}
+                      className={`px-3 py-2 text-sm rounded-lg transition-colors ${
+                        sortField === 'date' 
+                          ? 'bg-blue-100 text-blue-700' 
+                          : 'bg-white text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      Date<SortArrow field="date" />
+                    </button>
+                    <button
+                      onClick={() => handleSort('amount')}
+                      className={`px-3 py-2 text-sm rounded-lg transition-colors ${
+                        sortField === 'amount' 
+                          ? 'bg-blue-100 text-blue-700' 
+                          : 'bg-white text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      Amount<SortArrow field="amount" />
+                    </button>
+                    <button
+                      onClick={() => handleSort('name')}
+                      className={`px-3 py-2 text-sm rounded-lg transition-colors ${
+                        sortField === 'name' 
+                          ? 'bg-blue-100 text-blue-700' 
+                          : 'bg-white text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      Name<SortArrow field="name" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Amount Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Amount Range</label>
+                  <div className="flex space-x-2">
+                    <input
+                      type="number"
+                      placeholder="Min"
+                      value={filterAmount.min || ''}
+                      onChange={(e) => setFilterAmount(prev => ({ ...prev, min: parseFloat(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Max"
+                      value={filterAmount.max === Infinity ? '' : filterAmount.max}
+                      onChange={(e) => setFilterAmount(prev => ({ ...prev, max: parseFloat(e.target.value) || Infinity }))}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Date Range Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
+                  <div className="flex space-x-2">
+                    <input
+                      type="date"
+                      value={filterDateRange.start}
+                      onChange={(e) => setFilterDateRange(prev => ({ ...prev, start: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <input
+                      type="date"
+                      value={filterDateRange.end}
+                      onChange={(e) => setFilterDateRange(prev => ({ ...prev, end: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Clear Filters */}
+                <div className="flex items-end">
+                  <button
+                    onClick={() => {
+                      setFilterAmount({min: 0, max: Infinity});
+                      setFilterDateRange({start: '', end: ''});
+                    }}
+                    className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Transactions List */}
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              {(() => {
+                const transactions = selectedCategory.transactions || [];
+                const filtered = getFilteredTransactions(transactions);
+                const sorted = getSortedTransactions(filtered);
+                
+                return (
+                  <div className="space-y-4">
+                    {sorted.length === 0 ? (
+                      <div className="text-center py-12 text-gray-500">
+                        <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No transactions found</h3>
+                        <p className="text-gray-500">Try adjusting your filters to see more results</p>
+                      </div>
+                    ) : (
+                      sorted.map(transaction => (
+                        <div key={transaction.id} className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all duration-200">
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="font-medium text-gray-900 text-lg">{transaction.name}</h4>
+                              <div className="text-right">
+                                <div className="font-semibold text-gray-900 text-lg">
+                                  {formatCurrency(Math.abs(transaction.amount))}
+                                </div>
+                                {transaction.cashBack && transaction.cashBack > 0 && (
+                                  <div className="text-sm text-green-600 font-medium">
+                                    +{formatCurrency(transaction.cashBack)} cashback
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center justify-between text-sm text-gray-500">
+                              <div className="flex items-center space-x-3">
+                                <span className="font-medium">{formatDate(transaction.date)}</span>
+                                {transaction.pending && (
+                                  <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
+                                    Pending
+                                  </span>
+                                )}
+                                {transaction.creditCardPending && (
+                                  <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                                    Credit Card Pending
+                                  </span>
+                                )}
+                                {transaction.pendingTipAmount && transaction.pendingTipAmount > 0 && (
+                                  <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-medium">
+                                    Tip: {formatCurrency(transaction.pendingTipAmount)}
+                                  </span>
+                                )}
+                              </div>
+                              
+                              {transaction.notes && (
+                                <div className="text-xs text-gray-400 max-w-xs truncate italic">
+                                  {transaction.notes}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

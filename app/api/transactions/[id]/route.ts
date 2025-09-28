@@ -129,7 +129,8 @@ export async function PUT(
       cashbackPosted: data.cashbackPosted !== undefined ? cashbackPosted : (existingTransaction.cashbackPosted || false),
       notes: data.notes !== undefined ? data.notes : existingTransaction.notes,
       pending: data.pending !== undefined ? pending : (existingTransaction.pending || false),
-      pendingTipAmount: data.pendingTipAmount !== undefined ? Number(data.pendingTipAmount) : (existingTransaction.pendingTipAmount || 0)
+      pendingTipAmount: data.pendingTipAmount !== undefined ? Number(data.pendingTipAmount) : (existingTransaction.pendingTipAmount || 0),
+      creditCardPending: data.creditCardPending !== undefined ? (data.creditCardPending === 'true' || data.creditCardPending === true || data.creditCardPending === 1) : (existingTransaction.creditCardPending || false)
     };
     
     console.log('Updating transaction:', JSON.stringify(transaction));

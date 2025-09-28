@@ -64,7 +64,8 @@ export async function POST(request: NextRequest) {
           cashbackPosted: transactionData.cashbackPosted !== undefined ? transactionData.cashbackPosted : true,
           notes: transactionData.notes || null,
           pending: transactionData.pending !== undefined ? transactionData.pending : false,
-          pendingTipAmount: transactionData.pendingTipAmount || 0
+          pendingTipAmount: transactionData.pendingTipAmount || 0,
+          creditCardPending: transactionData.creditCardPending || false
         };
         
         // Create the transaction in the database

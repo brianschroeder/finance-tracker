@@ -285,6 +285,15 @@ function initDb() {
         WHERE sortOrder = 0
       `).run();
     }
+    
+    // Check if the creditCardPending column exists, add it if not
+    if (!columnNames.includes('creditCardPending')) {
+      // Add the creditCardPending column to track credit card transactions not yet paid from checking
+      db.prepare(`
+        ALTER TABLE transactions
+        ADD COLUMN creditCardPending INTEGER DEFAULT 0
+      `).run();
+    }
   }
 
   // Check if investments table exists
@@ -1265,6 +1274,7 @@ export interface Transaction {
   notes?: string;
   pending?: boolean;
   pendingTipAmount?: number;
+  creditCardPending?: boolean;
   sortOrder?: number;
   createdAt?: string;
   category?: BudgetCategory; // Optional joined category data
@@ -1293,6 +1303,7 @@ export function getAllTransactions() {
       notes: row.notes,
       pending: row.pending === 1,
       pendingTipAmount: row.pendingTipAmount || 0,
+      creditCardPending: row.creditCardPending === 1,
       createdAt: row.createdAt
     };
     
@@ -1370,8 +1381,9 @@ export function createTransaction(transaction: Transaction) {
       notes,
       pending,
       pendingTipAmount,
+      creditCardPending,
       sortOrder
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   const result = stmt.run(
@@ -1384,6 +1396,7 @@ export function createTransaction(transaction: Transaction) {
     transaction.notes || null,
     transaction.pending ? 1 : 0,
     transaction.pendingTipAmount || 0,
+    transaction.creditCardPending ? 1 : 0,
     transaction.sortOrder || nextSortOrder
   );
   
@@ -1399,7 +1412,7 @@ export function updateTransaction(transaction: Transaction) {
   
   const stmt = db.prepare(`
     UPDATE transactions
-    SET date = ?, categoryId = ?, name = ?, amount = ?, cashBack = ?, cashbackPosted = ?, notes = ?, pending = ?, pendingTipAmount = ?, sortOrder = ?
+    SET date = ?, categoryId = ?, name = ?, amount = ?, cashBack = ?, cashbackPosted = ?, notes = ?, pending = ?, pendingTipAmount = ?, creditCardPending = ?, sortOrder = ?
     WHERE id = ?
   `);
   
@@ -1413,6 +1426,7 @@ export function updateTransaction(transaction: Transaction) {
     transaction.notes || null,
     transaction.pending ? 1 : 0,
     transaction.pendingTipAmount || 0,
+    transaction.creditCardPending ? 1 : 0,
     transaction.sortOrder || 0,
     transaction.id
   );
@@ -1473,6 +1487,7 @@ export function getTransactionsByDateRange(startDate: string, endDate: string) {
       notes: row.notes,
       pending: row.pending === 1,
       pendingTipAmount: row.pendingTipAmount || 0,
+      creditCardPending: row.creditCardPending === 1,
       createdAt: row.createdAt
     };
     
@@ -1543,7 +1558,7 @@ export function getCategorySpending(startDate: string, endDate: string) {
   query += `
     FROM budget_categories c
     LEFT JOIN transactions t ON c.id = t.categoryId AND t.date >= ? AND t.date <= ?
-    WHERE c.isActive = 1
+    WHERE c.isActive = 1 AND c.isBudgetCategory = 1
     GROUP BY c.id
     ORDER BY c.name
   `;
@@ -1559,6 +1574,51 @@ export function getCategorySpending(startDate: string, endDate: string) {
     cashBack: row.cashBack || 0,
     rawSpent: row.spent || 0
   }));
+}
+
+export function getBigPurchaseSpending(startDate: string, endDate: string) {
+  const db = getDb();
+  
+  // First check if the cashBack column exists in the transactions table
+  const columns = db.prepare(`PRAGMA table_info(transactions)`).all() as ColumnInfo[];
+  const columnNames = columns.map(col => col.name);
+  const hasCashBackColumn = columnNames.includes('cashBack');
+  const hasCreditCardPendingColumn = columnNames.includes('creditCardPending');
+  
+  // Get spending for big purchase categories (isBudgetCategory = 0)
+  let query = `
+    SELECT 
+      SUM(t.amount) as totalSpent
+  `;
+  
+  // Only include cashBack in the query if the column exists
+  if (hasCashBackColumn) {
+    query += `, SUM(IFNULL(t.cashBack, 0)) as totalCashBack`;
+  } else {
+    query += `, 0 as totalCashBack`;
+  }
+  
+  // Include credit card pending amounts if the column exists
+  if (hasCreditCardPendingColumn) {
+    query += `, SUM(CASE WHEN t.creditCardPending = 1 THEN t.amount ELSE 0 END) as totalCreditCardPending`;
+  } else {
+    query += `, 0 as totalCreditCardPending`;
+  }
+  
+  query += `
+    FROM budget_categories c
+    INNER JOIN transactions t ON c.id = t.categoryId AND t.date >= ? AND t.date <= ?
+    WHERE c.isActive = 1 AND c.isBudgetCategory = 0
+  `;
+  
+  const result = db.prepare(query).get(startDate, endDate) as any;
+  
+  return {
+    totalSpent: (result?.totalSpent || 0) - (result?.totalCashBack || 0) + (result?.totalCreditCardPending || 0),
+    totalCashBack: result?.totalCashBack || 0,
+    totalRawSpent: result?.totalSpent || 0,
+    totalCreditCardPending: result?.totalCreditCardPending || 0
+  };
 }
 
 // Update only a pending transaction amount for current period without affecting the base recurring transaction
@@ -1656,6 +1716,7 @@ export function getTransactionsWithCategories(startDate: string, endDate: string
     notes: row.notes,
     pending: row.pending,
     pendingTipAmount: row.pendingTipAmount,
+    creditCardPending: row.creditCardPending,
     sortOrder: row.sortOrder,
     createdAt: row.createdAt,
     category: row.categoryName ? {

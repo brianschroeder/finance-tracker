@@ -35,6 +35,7 @@ interface Transaction {
   notes?: string;
   pending?: boolean;
   pendingTipAmount?: number;
+  creditCardPending?: boolean;
   createdAt?: string;
   category?: {
     id: number;
@@ -120,6 +121,11 @@ function SortableTransactionItem({
               {transaction.pending && (
                 <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-200">
                   Pending
+                </span>
+              )}
+              {transaction.creditCardPending && (
+                <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800 border border-orange-200">
+                  Credit Card
                 </span>
               )}
               {transaction.pending && transaction.pendingTipAmount && transaction.pendingTipAmount > 0 && (
@@ -221,7 +227,8 @@ export default function TransactionsList() {
     cashbackPosted: true,
     notes: '',
     pending: false,
-    pendingTipAmount: 0
+    pendingTipAmount: 0,
+    creditCardPending: false
   });
 
   // Tab state
@@ -359,7 +366,8 @@ export default function TransactionsList() {
       cashbackPosted: true,
       notes: '',
       pending: false,
-      pendingTipAmount: 0
+      pendingTipAmount: 0,
+      creditCardPending: false
     });
     setEditingTransaction(null);
     setSelectedTransaction(null);
@@ -467,7 +475,8 @@ export default function TransactionsList() {
       cashbackPosted: transaction.cashbackPosted !== undefined ? transaction.cashbackPosted : true,
       notes: transaction.notes || '',
       pending: transaction.pending || false,
-      pendingTipAmount: transaction.pendingTipAmount || 0
+      pendingTipAmount: transaction.pendingTipAmount || 0,
+      creditCardPending: transaction.creditCardPending || false
     });
     setShowForm(true);
   };
@@ -694,18 +703,33 @@ export default function TransactionsList() {
                   )}
                 </div>
                 
-                <div className="flex items-center mb-4">
-                  <input
-                    type="checkbox"
-                    id="pending"
-                    name="pending"
-                    checked={formData.pending || false}
-                    onChange={(e) => setFormData(prev => ({ ...prev, pending: e.target.checked }))}
-                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <label htmlFor="pending" className="ml-2 block text-sm text-gray-700">
-                    Mark as pending (not yet cleared by bank)
-                  </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="pending"
+                      name="pending"
+                      checked={formData.pending || false}
+                      onChange={(e) => setFormData(prev => ({ ...prev, pending: e.target.checked }))}
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="pending" className="ml-2 block text-sm text-gray-700">
+                      Mark as pending (not yet cleared by bank)
+                    </label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="creditCardPending"
+                      name="creditCardPending"
+                      checked={formData.creditCardPending || false}
+                      onChange={(e) => setFormData(prev => ({ ...prev, creditCardPending: e.target.checked }))}
+                      className="h-4 w-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                    />
+                    <label htmlFor="creditCardPending" className="ml-2 block text-sm text-gray-700">
+                      Credit card (not yet paid from checking)
+                    </label>
+                  </div>
                 </div>
                 
                 {formData.pending && (

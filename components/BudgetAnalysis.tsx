@@ -15,7 +15,8 @@ interface BudgetCategory {
   rawSpent: number;
   pendingTipAmount?: number;
   pendingCashbackAmount?: number;
-  adjustedSpent?: number; // Spent including pending tips, minus pending cashback
+  creditCardPendingAmount?: number;
+  adjustedSpent?: number; // Spent including pending tips, credit card pending, minus pending cashback
   remaining: number;
   daysInPeriod: number;
 }
@@ -30,6 +31,7 @@ interface BudgetSummary {
   totalRemaining: number;
   totalPendingTipAmount?: number;
   totalPendingCashbackAmount?: number;
+  totalCreditCardPendingAmount?: number;
   startDate: string;
   endDate: string;
   daysInPeriod: number;

@@ -46,6 +46,7 @@ export default function CopyPasteTransactions({ onTransactionsAdded }: { onTrans
     allocatedAmount: 0
   });
   const [creatingCategory, setCreatingCategory] = useState(false);
+  const [markAsCreditCardPending, setMarkAsCreditCardPending] = useState(false);
 
   // Fetch categories for dropdown
   useEffect(() => {
@@ -396,7 +397,8 @@ export default function CopyPasteTransactions({ onTransactionsAdded }: { onTrans
             amount: t.amount,
             categoryId: t.categoryId,
             notes: t.notes,
-            pending: false // Always save as final transactions
+            pending: false, // Always save as final transactions
+            creditCardPending: markAsCreditCardPending
           }))
         }),
       });
@@ -633,14 +635,28 @@ export default function CopyPasteTransactions({ onTransactionsAdded }: { onTrans
               ))}
             </div>
             
-            <div className="flex gap-2 pt-4 border-t border-gray-200">
-              <Button 
-                onClick={saveTransactions} 
-                disabled={parsedTransactions.length === 0 || isLoading}
-                className="flex-1"
-              >
-                {isLoading ? 'Saving...' : `Add ${parsedTransactions.length} Transaction${parsedTransactions.length === 1 ? '' : 's'}`}
-              </Button>
+            <div className="pt-4 border-t border-gray-200 space-y-3">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="creditCardPending"
+                  checked={markAsCreditCardPending}
+                  onChange={(e) => setMarkAsCreditCardPending(e.target.checked)}
+                  className="h-4 w-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                />
+                <label htmlFor="creditCardPending" className="ml-2 block text-sm text-gray-700">
+                  Mark all as credit card transactions (not yet paid from checking)
+                </label>
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={saveTransactions} 
+                  disabled={parsedTransactions.length === 0 || isLoading}
+                  className="flex-1"
+                >
+                  {isLoading ? 'Saving...' : `Add ${parsedTransactions.length} Transaction${parsedTransactions.length === 1 ? '' : 's'}`}
+                </Button>
+              </div>
             </div>
           </div>
         )}

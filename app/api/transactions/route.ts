@@ -134,7 +134,8 @@ export async function POST(request: NextRequest) {
       cashbackPosted: data.cashbackPosted !== undefined ? data.cashbackPosted : true,
       notes: data.notes || null,
       pending: data.pending || false,
-      pendingTipAmount: data.pendingTipAmount || 0
+      pendingTipAmount: data.pendingTipAmount || 0,
+      creditCardPending: data.creditCardPending || false
     };
     
     const id = createTransaction(transaction);
@@ -217,6 +218,10 @@ export async function PUT(request: NextRequest) {
       ? data.pending
       : data.pending === 'true' || data.pending === true || data.pending === 1;
     
+    const creditCardPending = typeof data.creditCardPending === 'boolean'
+      ? data.creditCardPending
+      : data.creditCardPending === 'true' || data.creditCardPending === true || data.creditCardPending === 1;
+    
     // Update the transaction
     const transaction: Transaction = {
       id: data.id,
@@ -228,7 +233,8 @@ export async function PUT(request: NextRequest) {
       cashbackPosted: cashbackPosted,
       notes: data.notes || null,
       pending: pending,
-      pendingTipAmount: data.pendingTipAmount !== undefined ? Number(data.pendingTipAmount) : 0
+      pendingTipAmount: data.pendingTipAmount !== undefined ? Number(data.pendingTipAmount) : 0,
+      creditCardPending: creditCardPending
     };
     
     console.log('Updating transaction with data:', JSON.stringify(transaction));
