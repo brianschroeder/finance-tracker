@@ -130,9 +130,14 @@ export default function RecurringBillsChart({ transactions, onTransactionsUpdate
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-semibold">Bills Breakdown</h3>
-        <span className="text-sm text-gray-500">
-          {formatCurrency(totalAmount)}/month total
-        </span>
+        <div className="text-right">
+          <div className="text-sm font-medium text-gray-900">
+            {formatCurrency(totalAmount)}/month
+          </div>
+          <div className="text-xs text-gray-500">
+            {formatCurrency(totalAmount * 12)}/year total
+          </div>
+        </div>
       </div>
       
       <div className="flex items-start gap-8">
@@ -206,9 +211,14 @@ export default function RecurringBillsChart({ transactions, onTransactionsUpdate
                     <span className="text-sm font-medium text-gray-900 truncate">
                       {segment.name}
                     </span>
-                    <span className="text-sm font-semibold text-gray-900 ml-2">
-                      {formatCurrency(segment.amount)}
-                    </span>
+                    <div className="flex flex-col items-end">
+                      <span className="text-sm font-semibold text-gray-900">
+                        {formatCurrency(segment.amount)}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {formatCurrency(segment.amount * 12)}/year
+                      </span>
+                    </div>
                   </div>
                   <div className="text-xs text-gray-500">
                     {Math.round(segment.percentage)}% of top bills
@@ -252,9 +262,14 @@ export default function RecurringBillsChart({ transactions, onTransactionsUpdate
                         {transaction.name}
                       </span>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-600">
-                          {formatCurrency(transaction.amount)}
-                        </span>
+                        <div className="flex flex-col items-end">
+                          <span className="text-xs text-gray-600">
+                            {formatCurrency(transaction.amount)}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {formatCurrency(transaction.amount * 12)}/year
+                          </span>
+                        </div>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();

@@ -19,7 +19,7 @@ export default function RecurringTransactionList({
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<RecurringTransaction | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<number | null>(null);
-  const [sortField, setSortField] = useState<'name' | 'amount' | 'dueDate' | 'category' | 'type'>('category');
+    const [sortField, setSortField] = useState<'name' | 'amount' | 'dueDate' | 'category'>('category');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
   // Update local state when initialTransactions prop changes
@@ -219,21 +219,13 @@ export default function RecurringTransactionList({
           ? categoryA.localeCompare(categoryB)
           : categoryB.localeCompare(categoryA);
       }
-      else if (sortField === 'type') {
-        // Sort by isEssential (true/false)
-        if (a.isEssential === b.isEssential) return 0;
-        if (sortDirection === 'asc') {
-          return a.isEssential ? -1 : 1;
-        } else {
-          return a.isEssential ? 1 : -1;
-        }
-      }
+
       return 0;
     });
   };
 
   // Handle sort change
-  const handleSort = (field: 'name' | 'amount' | 'dueDate' | 'category' | 'type') => {
+    const handleSort = (field: 'name' | 'amount' | 'dueDate' | 'category') => {
     if (field === sortField) {
       // Toggle direction if same field
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -245,7 +237,7 @@ export default function RecurringTransactionList({
   };
 
   // Sort arrow indicator component
-  const SortArrow = ({ field }: { field: 'name' | 'amount' | 'dueDate' | 'category' | 'type' }) => {
+    const SortArrow = ({ field }: { field: 'name' | 'amount' | 'dueDate' | 'category' }) => {
     if (field !== sortField) return null;
     
     return (
@@ -311,10 +303,14 @@ export default function RecurringTransactionList({
       
       {/* Transactions Summary */}
       <div className="p-6 border-b border-gray-200 bg-gray-50">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <span className="text-sm text-gray-500">Total Monthly Recurring:</span>
             <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalAmount)}</p>
+          </div>
+          <div>
+            <span className="text-sm text-gray-500">Total Yearly Recurring:</span>
+            <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalAmount * 12)}</p>
           </div>
           <div>
             <span className="text-sm text-gray-500">Essential Expenses:</span>
@@ -350,8 +346,11 @@ export default function RecurringTransactionList({
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                   onClick={() => handleSort('amount')}
                 >
-                  Amount
+                  Monthly Amount
                   <SortArrow field="amount" />
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Yearly Total
                 </th>
                 <th 
                   scope="col" 
@@ -369,14 +368,6 @@ export default function RecurringTransactionList({
                   Category
                   <SortArrow field="category" />
                 </th>
-                <th 
-                  scope="col" 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                  onClick={() => handleSort('type')}
-                >
-                  Type
-                  <SortArrow field="type" />
-                </th>
                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
@@ -390,6 +381,9 @@ export default function RecurringTransactionList({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{formatCurrency(transaction.amount)}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">{formatCurrency(transaction.amount * 12)}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">Day {transaction.dueDate}</div>
@@ -406,15 +400,6 @@ export default function RecurringTransactionList({
                     ) : (
                       <span className="text-sm text-gray-500">No Category</span>
                     )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      transaction.isEssential
-                        ? 'bg-gray-100 text-gray-800'
-                        : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {transaction.isEssential ? 'Essential' : 'Non-Essential'}
-                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <a

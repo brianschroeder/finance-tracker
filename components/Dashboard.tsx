@@ -751,9 +751,10 @@ export default function Dashboard() {
 
   // Calculate daily budget remaining until next pay date
   const calculateDailyBudgetRemaining = () => {
-    if (!budgetSummary || !daysRemaining || daysRemaining <= 0) return 0;
-    // Use the budget without pending cashback adjustments
-    return calculateBudgetWithoutPendingCashback() / daysRemaining;
+    if (!budgetSummary || daysRemaining === null || daysRemaining < 0) return 0;
+    // Use the total budget including additional budget items
+    // Formula: total budget remaining / (days until next pay day + 1)
+    return calculateTotalBudgetWithAdditional() / (daysRemaining + 1);
   };
 
   // Helper function to format dates consistently in YYYY-MM-DD format
@@ -1287,6 +1288,21 @@ export default function Dashboard() {
                 <p className="text-xs text-gray-500 mt-2">
                   {`${formatCurrency(budgetSummary.totalSpent + (budgetSummary.totalPendingTipAmount || 0))} / ${formatCurrency(budgetSummary.totalAllocated)} spent`}
                 </p>
+              )}
+              
+              {/* Daily Budget Display */}
+              {budgetSummary && daysRemaining !== null && daysRemaining >= 0 && (
+                <div className="mt-3 p-2 bg-blue-50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-blue-700">Daily Budget:</span>
+                    <span className={`text-sm font-bold ${calculateDailyBudgetRemaining() >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                      {formatCurrency(calculateDailyBudgetRemaining())}
+                    </span>
+                  </div>
+                  <p className="text-xs text-blue-600 mt-1">
+                    {daysRemaining + 1} {daysRemaining + 1 === 1 ? 'day' : 'days'} until next pay
+                  </p>
+                </div>
               )}
               
               {/* Additional Budget Section */}
