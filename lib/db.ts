@@ -984,9 +984,14 @@ export function getPendingTransactions() {
     }
   }
   
-  // Set the current pay period to be from last pay date to next pay date
-  // This is the key change - we always use the exact dates from settings
-  let currentPeriodStart = new Date(lastPayDate);
+  // Calculate the current pay period start based on the next pay date
+  // by subtracting the pay period length
+  let currentPeriodStart = new Date(nextPayDate);
+  if (paySettings.frequency === 'weekly') {
+    currentPeriodStart.setDate(nextPayDate.getDate() - 7);
+  } else { // biweekly
+    currentPeriodStart.setDate(nextPayDate.getDate() - 14);
+  }
   let currentPeriodEnd = new Date(nextPayDate);
   
   // Helper function to format dates consistently in YYYY-MM-DD format (timezone neutral)
@@ -996,14 +1001,6 @@ export function getPendingTransactions() {
   
   const payPeriodStart = formatDateToYYYYMMDD(currentPeriodStart);
   const payPeriodEnd = formatDateToYYYYMMDD(currentPeriodEnd);
-  
-  // Get the current month details for calculating due dates
-  const currentMonth = currentDate.getMonth();
-  const currentYear = currentDate.getFullYear();
-  
-  // Next month calculation
-  const nextMonth = (currentMonth + 1) % 12;
-  const nextMonthYear = nextMonth === 0 ? currentYear + 1 : currentYear;
   
   // Get all pending transaction overrides for this pay period
   const overrides = db.prepare(`
@@ -1019,50 +1016,77 @@ export function getPendingTransactions() {
   
   // Filter transactions that fall within the current pay period
   const pendingTransactions = recurringTransactions.filter(transaction => {
-    // Calculate due dates for the current month
-    const daysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    const adjustedDueDate = Math.min(transaction.dueDate, daysInCurrentMonth);
-    const currentMonthDueDate = new Date(currentYear, currentMonth, adjustedDueDate);
-    currentMonthDueDate.setHours(0, 0, 0, 0);
+    // Get the month/year of the pay period start and end
+    const startMonth = currentPeriodStart.getMonth();
+    const startYear = currentPeriodStart.getFullYear();
+    const endMonth = currentPeriodEnd.getMonth();
+    const endYear = currentPeriodEnd.getFullYear();
     
-    // Calculate due dates for the next month (for transactions that might cross month boundaries)
-    const daysInNextMonth = new Date(nextMonthYear, nextMonth + 1, 0).getDate();
-    const nextMonthAdjustedDueDate = Math.min(transaction.dueDate, daysInNextMonth);
-    const nextMonthDueDate = new Date(nextMonthYear, nextMonth, nextMonthAdjustedDueDate);
-    nextMonthDueDate.setHours(0, 0, 0, 0);
+    // Check all months that the pay period spans
+    // We need to check if the transaction's due day falls within the period
+    // in any of the months that the pay period covers
     
-    // Choose the relevant due date for comparison
-    // If current month due date falls within the pay period, use it
-    if (currentMonthDueDate >= currentPeriodStart && currentMonthDueDate <= currentPeriodEnd) {
-      return true;
+    // Generate list of months to check (typically 1-2 months)
+    const monthsToCheck = [];
+    
+    // Add the start month
+    monthsToCheck.push({ month: startMonth, year: startYear });
+    
+    // Add the end month if different from start month
+    if (startMonth !== endMonth || startYear !== endYear) {
+      monthsToCheck.push({ month: endMonth, year: endYear });
     }
-    // If next month due date falls within the pay period, use it
-    else if (nextMonthDueDate >= currentPeriodStart && nextMonthDueDate <= currentPeriodEnd) {
-      return true;
+    
+    // Check if transaction's due date falls within the pay period in any of these months
+    for (const { month, year } of monthsToCheck) {
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const adjustedDueDate = Math.min(transaction.dueDate, daysInMonth);
+      const dueDate = new Date(year, month, adjustedDueDate);
+      dueDate.setHours(0, 0, 0, 0);
+      
+      // Check if this date falls within the pay period
+      if (dueDate >= currentPeriodStart && dueDate <= currentPeriodEnd) {
+        return true;
+      }
     }
-    // Not in the current pay period
+    
     return false;
   });
   
   // Check completed status for each recurring transaction
   const processedRecurringTransactions = pendingTransactions.map(transaction => {
-    // Determine which month's due date to use
-    const daysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    const adjustedDueDate = Math.min(transaction.dueDate, daysInCurrentMonth);
-    const currentMonthDueDate = new Date(currentYear, currentMonth, adjustedDueDate);
-    currentMonthDueDate.setHours(0, 0, 0, 0);
+    // Determine which month's due date to use by checking all months in the pay period
+    const startMonth = currentPeriodStart.getMonth();
+    const startYear = currentPeriodStart.getFullYear();
+    const endMonth = currentPeriodEnd.getMonth();
+    const endYear = currentPeriodEnd.getFullYear();
     
-    const daysInNextMonth = new Date(nextMonthYear, nextMonth + 1, 0).getDate();
-    const nextMonthAdjustedDueDate = Math.min(transaction.dueDate, daysInNextMonth);
-    const nextMonthDueDate = new Date(nextMonthYear, nextMonth, nextMonthAdjustedDueDate);
-    nextMonthDueDate.setHours(0, 0, 0, 0);
+    // Generate list of months to check
+    const monthsToCheck = [];
+    monthsToCheck.push({ month: startMonth, year: startYear });
+    if (startMonth !== endMonth || startYear !== endYear) {
+      monthsToCheck.push({ month: endMonth, year: endYear });
+    }
     
-    // Choose the due date that falls within the pay period
-    let dueDate;
-    if (currentMonthDueDate >= currentPeriodStart && currentMonthDueDate <= currentPeriodEnd) {
-      dueDate = currentMonthDueDate;
-    } else {
-      dueDate = nextMonthDueDate;
+    // Find the due date that falls within the pay period
+    let dueDate: Date | null = null;
+    for (const { month, year } of monthsToCheck) {
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const adjustedDueDate = Math.min(transaction.dueDate, daysInMonth);
+      const candidateDate = new Date(year, month, adjustedDueDate);
+      candidateDate.setHours(0, 0, 0, 0);
+      
+      // Check if this date falls within the pay period
+      if (candidateDate >= currentPeriodStart && candidateDate <= currentPeriodEnd) {
+        dueDate = candidateDate;
+        break; // Use the first matching date
+      }
+    }
+    
+    // Fallback (should not happen if filtering worked correctly)
+    if (!dueDate) {
+      dueDate = new Date(startYear, startMonth, Math.min(transaction.dueDate, new Date(startYear, startMonth + 1, 0).getDate()));
+      dueDate.setHours(0, 0, 0, 0);
     }
     
     // Calculate days until due
