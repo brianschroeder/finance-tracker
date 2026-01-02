@@ -27,12 +27,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-gray-50`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-[#FAFAFA]`}
       >
         <ToastProvider>
-          <div className="flex h-screen bg-gray-100 overflow-hidden">
+          <div className="flex h-screen bg-[#FAFAFA] overflow-hidden">
             <Sidebar />
-            <main className="flex-1 overflow-y-auto p-6 md:pl-8 md:pr-8 md:py-8 md:ml-64 transition-all duration-300">
+            <main className="flex-1 overflow-y-auto p-4 md:p-8 md:ml-64 transition-all duration-300">
               <div className="max-w-7xl mx-auto pb-12">
                 {children}
               </div>

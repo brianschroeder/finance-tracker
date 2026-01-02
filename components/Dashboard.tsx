@@ -1242,9 +1242,9 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex justify-between">
-        <h2 className="text-xl font-bold">Dashboard</h2>
+    <div className="flex flex-col gap-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
         <div className="flex flex-row gap-2">
           <Button
             size="sm"
@@ -1259,24 +1259,116 @@ export default function Dashboard() {
         </div>
       </div>
       
+      {/* Quick Financial Snapshot */}
+      <div className="p-6 bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-200/60">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <div className="p-2 rounded-full bg-blue-50">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+          Financial Snapshot
+        </h2>
+        
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {/* Budget */}
+          <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Budget</div>
+            {loadingBudget ? (
+              <div className="animate-pulse h-7 bg-gray-200 rounded-lg w-20"></div>
+            ) : budgetSummary ? (
+              <div className="text-xl font-bold text-blue-600">
+                {formatCurrency(calculateTotalBudgetWithAdditional())}
+              </div>
+            ) : (
+              <div className="text-xl font-bold text-gray-300">$0.00</div>
+            )}
+            <div className="text-xs text-gray-400 mt-1">Biweekly</div>
+          </div>
+
+          {/* Savings (Stocks + Cash) */}
+          <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Savings</div>
+            {loading || loadingInvestments ? (
+              <div className="animate-pulse h-7 bg-gray-200 rounded-lg w-20"></div>
+            ) : assetData ? (
+              <>
+                <div className="text-xl font-bold text-green-600">
+                  {formatCurrency(assetData.cash + (loadingInvestments ? 0 : investmentData.totalValue) + assetData.interest)}
+                </div>
+                <div className="flex gap-2 text-xs text-gray-400 mt-1">
+                  <span>Stocks: {formatCurrency(investmentData.totalValue)}</span>
+                  <span className="text-gray-300">|</span>
+                  <span>Cash: {formatCurrency(assetData.cash + assetData.interest)}</span>
+                </div>
+              </>
+            ) : (
+              <div className="text-xl font-bold text-gray-300">$0.00</div>
+            )}
+          </div>
+
+          {/* 401k */}
+          <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">401k</div>
+            {loading ? (
+              <div className="animate-pulse h-7 bg-gray-200 rounded-lg w-20"></div>
+            ) : assetData ? (
+              <div className="text-xl font-bold text-indigo-600">
+                {formatCurrency(assetData.retirement401k)}
+              </div>
+            ) : (
+              <div className="text-xl font-bold text-gray-300">$0.00</div>
+            )}
+            <div className="text-xs text-gray-400 mt-1">Retirement</div>
+          </div>
+
+          {/* Debt */}
+          <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Debt</div>
+            {loadingCreditCards ? (
+              <div className="animate-pulse h-7 bg-gray-200 rounded-lg w-20"></div>
+            ) : (
+              <div className="text-xl font-bold text-purple-600">
+                {formatCurrency(calculateTotalCreditCardDebt())}
+              </div>
+            )}
+            <div className="text-xs text-gray-400 mt-1">Credit Cards</div>
+          </div>
+
+          {/* Net Worth */}
+          <div className="bg-gradient-to-br from-blue-50 to-blue-50/50 rounded-2xl p-4 border-2 border-blue-200/60">
+            <div className="text-xs font-medium text-blue-700 uppercase tracking-wide mb-2">Net Worth</div>
+            {loading || loadingInvestments ? (
+              <div className="animate-pulse h-7 bg-blue-100 rounded-lg w-20"></div>
+            ) : assetData ? (
+              <div className="text-xl font-bold text-blue-700">
+                {formatCurrency(calculateNetWorth())}
+              </div>
+            ) : (
+              <div className="text-xl font-bold text-gray-300">$0.00</div>
+            )}
+            <div className="text-xs text-blue-600 mt-1">Cash + Investments</div>
+          </div>
+        </div>
+      </div>
+      
       {/* Financial Overview Section */}
-      <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Financial Overview</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="p-6 bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-200/60">
+        <h2 className="text-lg font-semibold text-gray-900 mb-5">Financial Overview</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
           {/* Biweekly Budget Status */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="h-2 bg-gradient-to-r from-blue-500 to-blue-400"></div>
+          <div className="bg-gray-50 rounded-2xl border border-gray-200/60 overflow-hidden">
             <div className="p-5">
               <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-blue-50 text-blue-600 rounded-full">
+                <div className="p-2.5 bg-blue-100 text-blue-600 rounded-full">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <span className="font-medium text-gray-800">Biweekly Budget</span>
+                <span className="font-semibold text-gray-900">Biweekly Budget</span>
               </div>
               {loadingBudget ? (
-                <div className="animate-pulse h-8 bg-gray-100 rounded w-3/4"></div>
+                <div className="animate-pulse h-8 bg-gray-200 rounded-lg w-3/4"></div>
               ) : budgetSummary ? (
                 <p className={`text-2xl font-bold ${calculateBudgetWithoutPendingCashback() >= 0 ? 'text-blue-600' : 'text-gray-600'}`}>
                   {calculateBudgetWithoutPendingCashback() >= 0 ? '' : '-'}{formatCurrency(Math.abs(calculateBudgetWithoutPendingCashback()))}
@@ -1285,7 +1377,7 @@ export default function Dashboard() {
                 <p className="text-2xl font-bold text-gray-300">No data</p>
               )}
               {budgetSummary && (
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-gray-400 mt-2">
                   {`${formatCurrency(budgetSummary.totalSpent + (budgetSummary.totalPendingTipAmount || 0))} / ${formatCurrency(budgetSummary.totalAllocated)} spent`}
                 </p>
               )}
@@ -1411,19 +1503,18 @@ export default function Dashboard() {
           </div>
           
           {/* Checking Balance */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="h-2 bg-gradient-to-r from-blue-600 to-blue-500"></div>
+          <div className="bg-gray-50 rounded-2xl border border-gray-200/60 overflow-hidden">
             <div className="p-5">
               <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-blue-50 text-blue-700 rounded-full">
+                <div className="p-2.5 bg-blue-100 text-blue-700 rounded-full">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                   </svg>
                 </div>
-                <span className="font-medium text-gray-800">Checking Balance</span>
+                <span className="font-semibold text-gray-900">Checking Balance</span>
               </div>
               {loadingAccounts ? (
-                <div className="animate-pulse h-8 bg-gray-100 rounded w-3/4"></div>
+                <div className="animate-pulse h-8 bg-gray-200 rounded-lg w-3/4"></div>
               ) : checkingBalance !== undefined ? (
                 <>
                   <p className="text-2xl font-bold text-blue-700">{formatCurrency(checkingBalance)}</p>
@@ -1466,19 +1557,18 @@ export default function Dashboard() {
           </div>
           
           {/* Net Worth Card */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="h-2 bg-gradient-to-r from-blue-700 to-blue-600"></div>
+          <div className="bg-gray-50 rounded-2xl border border-gray-200/60 overflow-hidden">
             <div className="p-5">
               <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-blue-50 text-blue-800 rounded-full">
+                <div className="p-2.5 bg-blue-100 text-blue-800 rounded-full">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <span className="font-medium text-gray-800">Total Savings </span>
+                <span className="font-semibold text-gray-900">Total Savings </span>
               </div>
               {loading || loadingInvestments || loadingCreditCards ? (
-                <div className="animate-pulse h-8 bg-gray-100 rounded w-3/4"></div>
+                <div className="animate-pulse h-8 bg-gray-200 rounded-lg w-3/4"></div>
               ) : assetData ? (
                 <>
                   <p className={`text-2xl font-bold mb-1 ${calculateNetWorthWithDebt().netWorth >= 0 ? 'text-blue-800' : 'text-purple-600'}`}>
@@ -1513,22 +1603,21 @@ export default function Dashboard() {
       </div>
       
       {/* Investment Portfolio Section */}
-      <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Investment Portfolio</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="h-2 bg-gradient-to-r from-green-600 to-green-500"></div>
+      <div className="p-6 bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-200/60">
+        <h2 className="text-lg font-semibold text-gray-900 mb-5">Investment Portfolio</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="bg-gray-50 rounded-2xl border border-gray-200/60 overflow-hidden">
             <div className="p-5">
               <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-50 text-green-700 rounded-full">
+                  <div className="p-2.5 bg-green-100 text-green-700 rounded-full">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                     </svg>
                   </div>
-                  <span className="font-medium text-gray-800">Portfolio Value</span>
+                  <span className="font-semibold text-gray-900">Portfolio Value</span>
                 </div>
-                <span className={`text-sm font-semibold px-2 py-1 rounded-full ${
+                <span className={`text-sm font-semibold px-2.5 py-1 rounded-full ${
                   investmentData.totalGainLossPercent >= 0 
                     ? 'bg-green-100 text-green-700' 
                     : 'bg-red-100 text-red-700'
@@ -1538,7 +1627,7 @@ export default function Dashboard() {
                 </span>
               </div>
               {loadingInvestments ? (
-                <div className="animate-pulse h-8 bg-gray-200 rounded w-3/4"></div>
+                <div className="animate-pulse h-8 bg-gray-200 rounded-lg w-3/4"></div>
               ) : (
                 <p className="text-2xl font-bold text-green-700 mb-3">
                   {formatCurrency(investmentData.totalValue)}
@@ -1571,45 +1660,43 @@ export default function Dashboard() {
           </div>
           
           {/* Investing Funds Card */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="h-2 bg-gradient-to-r from-green-500 to-green-400"></div>
+          <div className="bg-gray-50 rounded-2xl border border-gray-200/60 overflow-hidden">
             <div className="p-5">
               <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-green-50 text-green-600 rounded-full">
+                <div className="p-2.5 bg-green-100 text-green-600 rounded-full">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <span className="font-medium text-gray-800">Investing Funds</span>
+                <span className="font-semibold text-gray-900">Investing Funds</span>
               </div>
               
               {loading || loadingFundAccounts ? (
-                <div className="animate-pulse h-8 bg-gray-200 rounded w-3/4"></div>
+                <div className="animate-pulse h-8 bg-gray-200 rounded-lg w-3/4"></div>
               ) : (
                 <p className="text-2xl font-bold text-green-600 mb-3">
                   {formatCurrency(calculateInvestmentFundsRemaining())}
                 </p>
               )}
               
-              <p className="text-xs text-gray-500 mt-2">Available funds for investing</p>
+              <p className="text-xs text-gray-400 mt-2">Available funds for investing</p>
             </div>
           </div>
           
           {/* Next Pay Day Info */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="h-2 bg-gradient-to-r from-green-400 to-green-300"></div>
+          <div className="bg-gray-50 rounded-2xl border border-gray-200/60 overflow-hidden">
             <div className="p-5">
               <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-50 text-green-500 rounded-full">
+                  <div className="p-2.5 bg-green-100 text-green-500 rounded-full">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                   </div>
-                  <span className="font-medium text-gray-800">Next Pay Day</span>
+                  <span className="font-semibold text-gray-900">Next Pay Day</span>
                 </div>
                 {nextPayDate && daysRemaining !== null && (
-                  <div className="text-sm font-medium px-2 py-1 bg-green-100 text-green-700 rounded-full">
+                  <div className="text-sm font-medium px-2.5 py-1 bg-green-100 text-green-700 rounded-full">
                     {format(nextPayDate, 'MMM d')} 
                     <span className="text-xs ml-1">
                       ({daysRemaining} {daysRemaining === 1 ? 'day' : 'days'})
@@ -1619,13 +1706,13 @@ export default function Dashboard() {
               </div>
               
               {loading || loadingInvestments || loadingIncome || loadingBudget || loadingNextPayPeriodTransactions ? (
-                <div className="animate-pulse h-8 bg-gray-200 rounded w-3/4 mb-3"></div>
+                <div className="animate-pulse h-8 bg-gray-200 rounded-lg w-3/4 mb-3"></div>
               ) : (
                 <>
                   <p className={`text-2xl font-bold ${calculateProjectedTotalSavings() >= 0 ? 'text-green-500' : 'text-gray-600'} mb-3`}>
                     {formatCurrency(calculateProjectedTotalSavings())}
                   </p>
-                  <p className="text-xs text-gray-500 mb-3">Projected total after next pay</p>
+                  <p className="text-xs text-gray-400 mb-3">Projected total after next pay</p>
                   
                   <div className="flex justify-between items-center pt-2 border-t border-gray-200">
                     <span className="text-sm text-gray-600">Next Pay Savings:</span>
@@ -1641,9 +1728,9 @@ export default function Dashboard() {
       </div>
       
       {/* Account Summaries Section */}
-      <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold text-gray-800">Account Totals</h2>
+      <div className="p-6 bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-200/60">
+        <div className="flex justify-between items-center mb-5">
+          <h2 className="text-lg font-semibold text-gray-900">Account Totals</h2>
         </div>
         
         {loading ? (
@@ -1654,28 +1741,28 @@ export default function Dashboard() {
         ) : assetData ? (
           <div className="space-y-5">
             {/* Net Worth Card */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl border border-gray-200/60 p-6">
               <div className="space-y-1 mb-4">
                 <h3 className="text-sm font-medium text-gray-500">Net Worth</h3>
                 {loading || loadingInvestments ? (
-                  <div className="animate-pulse h-8 bg-gray-100 rounded w-40"></div>
+                  <div className="animate-pulse h-9 bg-gray-200 rounded-lg w-40"></div>
                 ) : (
                   <div className="flex items-baseline gap-2">
                     <span className="text-3xl font-bold text-gray-900">
                       {formatCurrency(calculateNetWorth())}
                     </span>
-                    <span className="text-sm text-gray-500">total</span>
+                    <span className="text-sm text-gray-400">total</span>
                   </div>
                 )}
               </div>
               
               <div className="flex items-center gap-4 text-sm">
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                  <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
                   <span className="text-gray-600">Cash & Interest</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                  <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
                   <span className="text-gray-600">401k & Investments</span>
                 </div>
               </div>
@@ -1693,7 +1780,7 @@ export default function Dashboard() {
                   ),
                   amount: loadingInvestments ? 0 : investmentData.totalValue,
                   color: 'from-blue-500 to-blue-400',
-                  bgLight: 'bg-blue-100',
+                  bgLight: 'bg-blue-50',
                   textColor: 'text-blue-600',
                   loading: loadingInvestments
                 },
@@ -1706,7 +1793,7 @@ export default function Dashboard() {
                   ),
                   amount: assetData.cash,
                   color: 'from-green-500 to-green-400',
-                  bgLight: 'bg-green-100',
+                  bgLight: 'bg-green-50',
                   textColor: 'text-green-600',
                   loading: false
                 },
@@ -1719,7 +1806,7 @@ export default function Dashboard() {
                   ),
                   amount: assetData.retirement401k,
                   color: 'from-indigo-500 to-indigo-400',
-                  bgLight: 'bg-indigo-100',
+                  bgLight: 'bg-indigo-50',
                   textColor: 'text-indigo-600',
                   loading: false
                 },
@@ -1732,38 +1819,37 @@ export default function Dashboard() {
                   ),
                   amount: assetData.interest,
                   color: 'from-purple-500 to-purple-400',
-                  bgLight: 'bg-purple-100', 
+                  bgLight: 'bg-purple-50', 
                   textColor: 'text-purple-600',
                   loading: false
                 }
               ]
                 .sort((a, b) => b.amount - a.amount)
                 .map((account) => (
-                  <div key={account.name} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                    <div className={`h-2 bg-gradient-to-r ${account.color}`}></div>
-                    <div className="p-4">
+                  <div key={account.name} className="bg-gray-50 rounded-2xl border border-gray-200/60 overflow-hidden">
+                    <div className="p-5">
                       <div className="flex items-center gap-3 mb-3">
-                        <div className={`p-2 rounded-full ${account.bgLight} ${account.textColor}`}>
+                        <div className={`p-2.5 rounded-full ${account.bgLight} ${account.textColor}`}>
                           {account.icon}
                         </div>
-                        <span className="text-sm font-medium text-gray-700">{account.name}</span>
+                        <span className="text-sm font-semibold text-gray-900">{account.name}</span>
                       </div>
                       
                       {account.loading ? (
-                        <div className="animate-pulse h-7 bg-gray-200 rounded w-28"></div>
+                        <div className="animate-pulse h-8 bg-gray-200 rounded-lg w-28"></div>
                       ) : (
                         <span className={`text-2xl font-bold block ${account.textColor}`}>
                           {formatCurrency(account.amount)}
                         </span>
                       )}
                       
-                      <div className="mt-4 pt-2 border-t border-gray-100 flex justify-between items-center">
-                        <span className="text-xs text-gray-500">
+                      <div className="mt-4 pt-3 border-t border-gray-200 flex justify-between items-center">
+                        <span className="text-xs text-gray-500 font-medium">
                           {calculateNetWorth() > 0 
                             ? `${(account.amount / calculateNetWorth() * 100).toFixed(1)}%` 
                             : '0%'}
                         </span>
-                        <div className="w-24 bg-gray-100 rounded-full h-1.5">
+                        <div className="w-24 bg-gray-200 rounded-full h-1.5">
                           <div 
                             className={`h-1.5 rounded-full bg-gradient-to-r ${account.color}`} 
                             style={{ width: `${Math.min(100, (account.amount / calculateNetWorth() * 100))}%` }}
@@ -1784,12 +1870,12 @@ export default function Dashboard() {
       {/* Credit Card & Funds Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Credit Card Summary */}
-        <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Credit Card Debt</h2>
+        <div className="p-6 bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-200/60">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Credit Card Debt</h2>
           {loadingCreditCards ? (
-            <div className="animate-pulse h-8 bg-gray-200 rounded w-3/4"></div>
+            <div className="animate-pulse h-8 bg-gray-200 rounded-lg w-3/4"></div>
           ) : (
-            <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
+            <div className="bg-gray-50 p-5 rounded-2xl border border-gray-200/60">
               <p className="text-2xl font-bold text-blue-600 mb-3">
                 {formatCurrency(calculateTotalCreditCardDebt())}
               </p>
@@ -1809,12 +1895,12 @@ export default function Dashboard() {
         </div>
         
         {/* Fund Accounts */}
-        <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+        <div className="p-6 bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-200/60">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-800">Fund Accounts</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Fund Accounts</h2>
             <Link 
               href="/fund-accounts" 
-              className="px-3 py-1.5 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors font-medium"
+              className="px-3 py-2 bg-blue-500 text-white text-xs rounded-xl hover:bg-blue-600 transition-colors font-medium shadow-[0_2px_6px_rgba(59,130,246,0.15)]"
             >
               Manage Funds
             </Link>
@@ -1825,20 +1911,20 @@ export default function Dashboard() {
       </div>
       
       {/* Spending by Vendor - Keep as is */}
-      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 mb-6 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-6 border border-gray-200/60 mb-6 overflow-hidden">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-lg font-semibold text-gray-800">Spending By Vendor</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Spending By Vendor</h2>
         </div>
         <GroupedTransactions />
       </div>
       
       {/* Recent Transactions - Keep as is */}
-      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 mb-6 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-6 border border-gray-200/60 mb-6 overflow-hidden">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-lg font-semibold text-gray-800">Recent Transactions</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Recent Transactions</h2>
           <Link 
             href="/transactions" 
-            className="px-3 py-1.5 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors font-medium"
+            className="px-3 py-2 bg-blue-500 text-white text-xs rounded-xl hover:bg-blue-600 transition-colors font-medium shadow-[0_2px_6px_rgba(59,130,246,0.15)]"
           >
             View All
           </Link>
@@ -1846,12 +1932,12 @@ export default function Dashboard() {
         
         {loadingTransactions ? (
           <div className="space-y-3">
-            <div className="animate-pulse h-12 bg-gray-100 rounded-lg w-full"></div>
-            <div className="animate-pulse h-12 bg-gray-100 rounded-lg w-full"></div>
-            <div className="animate-pulse h-12 bg-gray-100 rounded-lg w-full"></div>
+            <div className="animate-pulse h-14 bg-gray-100 rounded-2xl w-full"></div>
+            <div className="animate-pulse h-14 bg-gray-100 rounded-2xl w-full"></div>
+            <div className="animate-pulse h-14 bg-gray-100 rounded-2xl w-full"></div>
           </div>
         ) : recentTransactions.length === 0 ? (
-          <div className="text-center py-8 bg-gray-50 rounded-xl">
+          <div className="text-center py-8 bg-gray-50 rounded-2xl">
             <p className="text-sm text-gray-600 mb-2">No recent transactions found</p>
             <Link href="/transactions/new" className="text-sm text-blue-600 hover:text-blue-800 font-medium inline-flex items-center gap-1">
               Record a Transaction
@@ -1864,22 +1950,22 @@ export default function Dashboard() {
         ) : (
           <div className="grid grid-cols-1 gap-3">
             {recentTransactions.map(transaction => (
-              <div key={transaction.id} className="bg-white rounded-lg shadow-sm p-4 border border-gray-100 hover:shadow-md transition-shadow">
+              <div key={transaction.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-200/60 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <div 
-                      className="w-8 h-8 rounded-full flex items-center justify-center mr-3"
-                      style={{ backgroundColor: transaction.category ? `${transaction.category.color}20` : '#CBD5E020' }}  
+                      className="w-10 h-10 rounded-full flex items-center justify-center mr-3"
+                      style={{ backgroundColor: transaction.category ? `${transaction.category.color}20` : '#E5E7EB' }}  
                     >
                       <span 
-                        className="inline-block w-4 h-4 rounded-full" 
+                        className="inline-block w-5 h-5 rounded-full" 
                         style={{ 
-                          backgroundColor: transaction.category ? transaction.category.color : '#CBD5E0' 
+                          backgroundColor: transaction.category ? transaction.category.color : '#9CA3AF' 
                         }}
                       ></span>
                     </div>
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700">{transaction.name}</h3>
+                      <h3 className="text-sm font-semibold text-gray-900">{transaction.name}</h3>
                       <p className="text-xs text-gray-500">{formatTransactionDate(transaction.date)}</p>
                     </div>
                   </div>
@@ -1903,49 +1989,49 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mt-3 mb-6">
         <Link 
           href="/assets" 
-          className="flex items-center justify-center px-4 py-2.5 border border-gray-200 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-100 hover:shadow-sm"
+          className="flex items-center justify-center px-4 py-3 border border-gray-200 text-sm font-medium rounded-2xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
         >
           Update Assets
         </Link>
         <Link 
           href="/fund-accounts" 
-          className="flex items-center justify-center px-4 py-2.5 border border-gray-200 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-100 hover:shadow-sm"
+          className="flex items-center justify-center px-4 py-3 border border-gray-200 text-sm font-medium rounded-2xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
         >
           Fund Accounts
         </Link>
         <Link 
           href="/pay-settings" 
-          className="flex items-center justify-center px-4 py-2.5 border border-gray-200 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-100 hover:shadow-sm"
+          className="flex items-center justify-center px-4 py-3 border border-gray-200 text-sm font-medium rounded-2xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
         >
           Pay Schedule
         </Link>
         <Link 
           href="/budget" 
-          className="flex items-center justify-center px-4 py-2.5 border border-gray-200 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-100 hover:shadow-sm"
+          className="flex items-center justify-center px-4 py-3 border border-gray-200 text-sm font-medium rounded-2xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
         >
           Budget Categories
         </Link>
         <Link 
           href="/big-purchases" 
-          className="flex items-center justify-center px-4 py-2.5 border border-gray-200 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 hover:text-purple-600 transition-all duration-200 hover:border-purple-100 hover:shadow-sm"
+          className="flex items-center justify-center px-4 py-3 border border-gray-200 text-sm font-medium rounded-2xl text-gray-700 bg-white hover:bg-gray-50 hover:text-purple-600 transition-all duration-200 hover:border-purple-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
         >
           Big Purchases
         </Link>
         <Link 
           href="/transactions" 
-          className="flex items-center justify-center px-4 py-2.5 border border-gray-200 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-100 hover:shadow-sm"
+          className="flex items-center justify-center px-4 py-3 border border-gray-200 text-sm font-medium rounded-2xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
         >
           Transactions
         </Link>
         <Link 
           href="/credit-cards" 
-          className="flex items-center justify-center px-4 py-2.5 border border-gray-200 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-100 hover:shadow-sm"
+          className="flex items-center justify-center px-4 py-3 border border-gray-200 text-sm font-medium rounded-2xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
         >
           Credit Cards
         </Link>
         <Link 
           href="/savings-plan" 
-          className="flex items-center justify-center px-4 py-2.5 border border-gray-200 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-100 hover:shadow-sm"
+          className="flex items-center justify-center px-4 py-3 border border-gray-200 text-sm font-medium rounded-2xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
         >
           Savings Plan
         </Link>

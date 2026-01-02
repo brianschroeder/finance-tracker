@@ -38,6 +38,15 @@ export default function Sidebar() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
           )
+        },
+        { 
+          href: '/snapshot', 
+          label: 'Financial Snapshot',
+          icon: (
+            <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          )
         }
       ]
     },
@@ -183,12 +192,12 @@ export default function Sidebar() {
       <div className="md:hidden fixed top-4 left-4 z-50">
         <button
           onClick={() => setIsMobileOpen(!isMobileOpen)}
-          className="p-2 rounded-md text-gray-400 bg-gray-800 hover:text-white hover:bg-gray-700 focus:outline-none shadow-lg backdrop-blur-md"
+          className="p-2.5 rounded-xl text-gray-600 bg-white hover:text-gray-900 hover:bg-gray-50 focus:outline-none shadow-[0_2px_8px_rgba(0,0,0,0.08)] border border-gray-200"
           aria-expanded={isMobileOpen}
         >
           <span className="sr-only">Open sidebar menu</span>
           <svg
-            className={`${isMobileOpen ? 'hidden' : 'block'} h-6 w-6`}
+            className={`${isMobileOpen ? 'hidden' : 'block'} h-5 w-5`}
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -197,7 +206,7 @@ export default function Sidebar() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
           <svg
-            className={`${isMobileOpen ? 'block' : 'hidden'} h-6 w-6`}
+            className={`${isMobileOpen ? 'block' : 'hidden'} h-5 w-5`}
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -209,43 +218,43 @@ export default function Sidebar() {
       </div>
 
       {/* Sidebar */}
-      <aside className={`${isMobileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed inset-y-0 left-0 w-64 bg-gradient-to-br from-gray-900 to-gray-800 text-white shadow-xl transition-transform duration-300 ease-in-out z-40`}>
-        <div className="p-5 border-b border-gray-700/50">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="p-1.5 rounded-md bg-blue-500/20">
-              <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <aside className={`${isMobileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 text-gray-800 shadow-[2px_0_8px_rgba(0,0,0,0.04)] transition-transform duration-300 ease-in-out z-40`}>
+        <div className="p-6 border-b border-gray-200">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="p-2 rounded-full bg-blue-500">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <span className="text-xl font-bold text-white">Finance Tracker</span>
+            <span className="text-lg font-semibold text-gray-900">Finance Tracker</span>
           </Link>
         </div>
-        <div className="px-3 py-4">
+        <div className="px-4 py-4">
           <div className="pt-1 pb-2 px-2">
             <UserGreetingClient initialName="" />
-            <p className="text-xs text-gray-500">{new Date().toLocaleDateString()}</p>
+            <p className="text-xs text-gray-400">{new Date().toLocaleDateString()}</p>
           </div>
         </div>
         
         {/* Main Navigation */}
-        <nav className="mt-1 px-3 overflow-y-auto flex flex-col h-[calc(100vh-12rem)]">
+        <nav className="mt-1 px-4 overflow-y-auto flex flex-col h-[calc(100vh-12rem)]">
           {/* Regular Menu Categories */}
           <div className="flex-grow">
             {navCategories.map((category, idx) => (
               <div key={idx} className="mb-6">
-                <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                <h3 className="px-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
                   {category.name}
                 </h3>
-                <div className="mt-2 space-y-1">
+                <div className="space-y-0.5">
                   {category.items.map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
                       className={`${
                         isActiveLink(item.href)
-                          ? 'bg-blue-900/50 text-blue-300 border-l-2 border-blue-400'
-                          : 'text-gray-300 hover:bg-gray-700/50 hover:text-white border-l-2 border-transparent'
-                      } group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-all duration-200`}
+                          ? 'bg-blue-50 text-blue-600 font-medium'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      } group flex items-center px-3 py-2.5 text-sm rounded-xl transition-all duration-200`}
                     >
                       {item.icon}
                       {item.label}
@@ -257,14 +266,14 @@ export default function Sidebar() {
           </div>
 
           {/* Settings at the bottom */}
-          <div className="mt-auto mb-8 border-t border-gray-700/30 pt-4">
+          <div className="mt-auto mb-8 border-t border-gray-200 pt-4">
             <Link
               href={settingsNavItem.href}
               className={`${
                 isActiveLink(settingsNavItem.href)
-                  ? 'bg-blue-900/50 text-blue-300 border-l-2 border-blue-400'
-                  : 'text-gray-300 hover:bg-gray-700/50 hover:text-white border-l-2 border-transparent'
-              } group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-all duration-200`}
+                  ? 'bg-blue-50 text-blue-600 font-medium'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              } group flex items-center px-3 py-2.5 text-sm rounded-xl transition-all duration-200`}
             >
               {settingsNavItem.icon}
               {settingsNavItem.label}
@@ -276,7 +285,7 @@ export default function Sidebar() {
       {/* Mobile backdrop */}
       {isMobileOpen && (
         <div 
-          className="md:hidden fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm z-30"
+          className="md:hidden fixed inset-0 bg-gray-900/20 backdrop-blur-sm z-30"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
