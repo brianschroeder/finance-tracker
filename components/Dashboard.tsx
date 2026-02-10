@@ -1021,11 +1021,8 @@ export default function Dashboard() {
       });
       setLoadingInvestments(false);
       
-      toast({
-        title: 'Error',
-        description: 'Failed to load investment data. You may need to setup your investments.',
-        variant: 'default'
-      });
+      // Silently log error - don't show toast for price fetch failures
+      console.log('Investment data could not be loaded. This may be due to market hours or API availability.');
     }
   }
   
@@ -1061,13 +1058,17 @@ export default function Dashboard() {
                 totalDailyChangePercent += weightedPercent;
               }
             }
+          } else {
+            // API call failed, log but continue
+            console.log(`Failed to fetch day change for ${investment.symbol}, status: ${response.status}`);
           }
         } catch (error) {
-          console.error(`Error fetching price for ${investment.symbol}:`, error);
+          // Silently log and continue with next investment
+          console.log(`Error fetching price for ${investment.symbol}:`, error);
         }
       }
     } catch (error) {
-      console.error('Error calculating today\'s change:', error);
+      console.log('Error calculating today\'s change:', error);
     }
     
     return { dayChange: totalDailyChange, dayChangePercent: totalDailyChangePercent };
@@ -1091,29 +1092,35 @@ export default function Dashboard() {
           // Get the current price from the stock API
           const currentPrice = await getStockPriceOnly(investment.symbol);
           
-          if (currentPrice === null) continue;
-          
-          // Update the price in the database
-          await fetch('/api/investments', {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              id: investment.id,
-              currentPrice: currentPrice,
-              updatePriceOnly: true
-            })
-          });
-          
-          // Update the investment in our local state
-          investment.currentPrice = currentPrice;
+          // If fetch fails, keep using the existing price
+          if (currentPrice === null) {
+            console.log(`Using existing price for ${investment.symbol}: ${investment.currentPrice}`);
+            // Use the existing currentPrice, don't skip
+          } else {
+            // Update the price in the database only if we got a valid price
+            await fetch('/api/investments', {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                id: investment.id,
+                currentPrice: currentPrice,
+                updatePriceOnly: true
+              })
+            });
+            
+            // Update the investment in our local state
+            investment.currentPrice = currentPrice;
+          }
         } catch (err) {
-          console.error(`Error updating price for ${investment.symbol}:`, err);
+          // If there's an error, fall back to existing price
+          console.log(`Error fetching price for ${investment.symbol}, using existing price:`, err);
+          // Don't skip, continue with existing price
         }
         
-        // Calculate values for this investment
-        const investmentValue = investment.shares * investment.currentPrice;
+        // Calculate values for this investment using currentPrice (existing or updated)
+        const investmentValue = investment.shares * (investment.currentPrice || investment.avgPrice);
         const investmentCost = investment.shares * investment.avgPrice;
         
         totalValue += investmentValue;

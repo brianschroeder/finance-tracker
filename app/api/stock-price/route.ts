@@ -22,19 +22,32 @@ export async function GET(request: NextRequest) {
     
     // Check for errors
     if (result.error || !result.price) {
-      console.error(`[Stock API] No data for symbol: ${symbol} - ${result.error || 'No price available'}`);
-      return NextResponse.json(
-        { error: result.error || 'Invalid stock symbol or no data available' },
-        { status: 404 }
-      );
+      // Log the error but don't make it a 404 - return the result anyway
+      // so clients can decide how to handle it
+      console.log(`[Stock API] No data for symbol: ${symbol} - ${result.error || 'No price available'}`);
+      
+      // Return the result with error info instead of 404
+      // This allows clients to handle the error gracefully
+      return NextResponse.json({
+        ...result,
+        price: null,
+        error: result.error || 'No price data available'
+      }, { status: 200 }); // Changed from 404 to 200 to not trigger error handlers
     }
 
     return NextResponse.json(result);
   } catch (error) {
     console.error(`[Stock API] Error fetching stock price:`, error);
-    return NextResponse.json(
-      { error: 'Failed to fetch stock price' },
-      { status: 500 }
-    );
+    
+    // Return a structured error response instead of throwing
+    return NextResponse.json({
+      price: null,
+      previousClose: null,
+      change: null,
+      changePercent: null,
+      currency: null,
+      lastUpdated: new Date().toISOString(),
+      error: error instanceof Error ? error.message : 'Failed to fetch stock price'
+    }, { status: 200 }); // Changed from 500 to 200 to not trigger error handlers
   }
 } 

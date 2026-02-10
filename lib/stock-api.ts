@@ -25,29 +25,46 @@ export async function getStockPrice(symbol: string): Promise<{
     }
 
     // Use our server-side API route to fetch the stock price
-    const response = await fetch(`/api/stock-price?symbol=${encodeURIComponent(symbol)}`);
+    const response = await fetch(`/api/stock-price?symbol=${encodeURIComponent(symbol)}`, {
+      // Add timeout and cache control
+      signal: AbortSignal.timeout(10000), // 10 second timeout
+    });
     
     if (!response.ok) {
-      if (response.status === 404) {
-        console.warn(`No price data found for ${symbol}`);
-        return { price: null, error: 'No price data found' };
+      // Try to get error details from response
+      try {
+        const errorData = await response.json();
+        console.log(`Price fetch issue for ${symbol}:`, errorData.error || response.statusText);
+        return { 
+          price: null, 
+          error: errorData.error || response.statusText 
+        };
+      } catch {
+        console.log(`Error fetching stock price for ${symbol}: ${response.statusText}`);
+        return { price: null, error: response.statusText };
       }
-      
-      // Handle other errors
-      console.error(`Error fetching stock price for ${symbol}: ${response.statusText}`);
-      return { price: null, error: response.statusText };
     }
     
     const data = await response.json();
     
-    if (data.price !== undefined) {
-      return data;
+    // Even if there's an error in the data, return it
+    // Let the caller decide how to handle it
+    if (data.error && !data.price) {
+      console.log(`Price data unavailable for ${symbol}:`, data.error);
     }
     
-    console.error(`Unexpected API response format:`, data);
-    return { price: null, error: 'Invalid response format' };
+    return data;
   } catch (error) {
-    console.error(`Error fetching stock price for ${symbol}:`, error);
+    // Handle timeout and network errors gracefully
+    if (error instanceof Error) {
+      if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+        console.log(`Timeout fetching price for ${symbol}`);
+        return { price: null, error: 'Request timeout' };
+      }
+      console.log(`Error fetching stock price for ${symbol}:`, error.message);
+      return { price: null, error: error.message };
+    }
+    console.log(`Unknown error fetching stock price for ${symbol}:`, error);
     return { price: null, error: 'Failed to fetch stock price' };
   }
 }

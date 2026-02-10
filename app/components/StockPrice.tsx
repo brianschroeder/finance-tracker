@@ -64,22 +64,35 @@ export default function StockPrice({ symbol, compact = false, dailyChangeOnly = 
         // Handle HTTP error responses
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          console.error(`Error response from stock API:`, errorData);
+          console.log(`Error response from stock API:`, errorData);
           throw new Error(errorData.error || `Error: ${response.status} ${response.statusText}`);
         }
         
         // Parse the JSON response
         const stockData = await response.json();
         
+        // Check if API returned an error in the data (even with 200 status)
+        if (stockData.error && !stockData.price) {
+          // Don't throw error, just log it and show N/A
+          console.log(`No price data available for ${symbol}:`, stockData.error);
+          setError(null); // Don't set error state, just show N/A
+          setData(null);
+          return;
+        }
+        
         if (!stockData.price) {
-          throw new Error('No price data in the response');
+          console.log(`No price data in response for ${symbol}`);
+          setError(null); // Don't set error state, just show N/A
+          setData(null);
+          return;
         }
         
         setData(stockData);
         setRelativeTime(formatRelativeTime(stockData.lastUpdated));
       } catch (err) {
-        console.error(`Error in stock price component:`, err);
-        setError(err instanceof Error ? err.message : 'An unknown error occurred');
+        console.log(`Error in stock price component for ${symbol}:`, err);
+        // Don't set error state, just set data to null to show N/A
+        setError(null);
         setData(null);
       } finally {
         setLoading(false);
