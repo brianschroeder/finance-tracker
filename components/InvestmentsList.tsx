@@ -7,6 +7,7 @@ import { EditIcon, TrashIcon, RefreshIcon } from '@/components/ui/icons';
 import Link from 'next/link';
 import { getStockPriceOnly } from '@/lib/stock-api';
 import StockPrice from '@/app/components/StockPrice';
+import InvestmentTransactionsModal from '@/components/InvestmentTransactionsModal';
 import { 
   Chart as ChartJS,
   CategoryScale,
@@ -84,6 +85,8 @@ export default function InvestmentsList() {
   const [showForm, setShowForm] = useState(false);
   const [editingInvestment, setEditingInvestment] = useState<Investment | null>(null);
   const [refreshingPrices, setRefreshingPrices] = useState(false);
+  const [showTransactionsModal, setShowTransactionsModal] = useState(false);
+  const [selectedInvestment, setSelectedInvestment] = useState<Investment | null>(null);
   
   // Form state
   const [formData, setFormData] = useState<Investment>({
@@ -127,12 +130,15 @@ export default function InvestmentsList() {
   }
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target as HTMLInputElement;
+    const { name, value } = e.target as HTMLInputElement;
     
-    if (['shares', 'avgPrice', 'currentPrice'].includes(name) && value && !isNaN(parseFloat(value))) {
+    // For numeric fields, allow the raw value (including partial decimals like "0.")
+    // The number validation will happen on submit
+    if (['shares', 'avgPrice', 'currentPrice'].includes(name)) {
+      // Allow empty string or valid number-like input (including partial decimals)
       setFormData(prev => ({
         ...prev,
-        [name]: parseFloat(value)
+        [name]: value === '' ? 0 : value
       }));
     } else {
       setFormData(prev => ({
@@ -158,8 +164,13 @@ export default function InvestmentsList() {
     e.preventDefault();
     
     try {
+      // Convert string values to numbers
+      const shares = typeof formData.shares === 'string' ? parseFloat(formData.shares) : formData.shares;
+      const avgPrice = typeof formData.avgPrice === 'string' ? parseFloat(formData.avgPrice) : formData.avgPrice;
+      const currentPrice = typeof formData.currentPrice === 'string' ? parseFloat(formData.currentPrice) : formData.currentPrice;
+      
       // Validate form
-      if (!formData.symbol || !formData.name || formData.shares <= 0 || formData.avgPrice <= 0) {
+      if (!formData.symbol || !formData.name || isNaN(shares) || shares <= 0 || isNaN(avgPrice) || avgPrice <= 0) {
         toast({
           title: 'Validation Error',
           description: 'Please fill all required fields and ensure shares and average price are greater than 0',
@@ -170,7 +181,16 @@ export default function InvestmentsList() {
       
       const method = editingInvestment ? 'PUT' : 'POST';
       const url = '/api/investments';
-      const payload = editingInvestment ? { ...formData, id: editingInvestment.id } : formData;
+      
+      // Create submission data with properly typed numbers
+      const submissionData = {
+        ...formData,
+        shares,
+        avgPrice,
+        currentPrice: currentPrice || 0
+      };
+      
+      const payload = editingInvestment ? { ...submissionData, id: editingInvestment.id } : submissionData;
       
       const response = await fetch(url, {
         method,
@@ -237,6 +257,21 @@ export default function InvestmentsList() {
         variant: 'error'
       });
     }
+  };
+
+  const handleOpenTransactions = (investment: Investment) => {
+    setSelectedInvestment(investment);
+    setShowTransactionsModal(true);
+  };
+
+  const handleCloseTransactions = () => {
+    setShowTransactionsModal(false);
+    setSelectedInvestment(null);
+  };
+
+  const handleTransactionsUpdated = () => {
+    // Refresh the investments list to show updated totals
+    fetchInvestments();
   };
   
   const formatCurrency = (amount: number) => {
@@ -655,7 +690,7 @@ export default function InvestmentsList() {
       <div className="p-6 bg-white border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-xl font-semibold text-gray-800">Investment Portfolio</h2>
-          <p className="text-sm text-gray-500">Track and manage your stock investments</p>
+          <p className="text-sm text-gray-500">Track and manage your stocks, crypto, and other investments</p>
         </div>
         {!loading && getMostRecentUpdate() && (
           <span className="text-xs text-gray-500" title={getMostRecentUpdate() ? new Date(getMostRecentUpdate()!).toLocaleString() : ''}>
@@ -816,13 +851,14 @@ export default function InvestmentsList() {
                   <tr>
                     <th className="px-4 py-3 text-left">Symbol</th>
                     <th className="px-4 py-3 text-left">Name</th>
-                    <th className="px-4 py-3 text-right">Shares</th>
+                    <th className="px-4 py-3 text-right">Quantity</th>
                     <th className="px-4 py-3 text-right">Avg. Price</th>
                     <th className="px-4 py-3 text-right">Current Price</th>
                     <th className="px-4 py-3 text-right">Daily Change</th>
                     <th className="px-4 py-3 text-right">Total Value</th>
                     <th className="px-4 py-3 text-right">Gain/Loss</th>
                     <th className="px-4 py-3 text-right">%</th>
+                    <th className="px-4 py-3 text-center">Transactions</th>
                     <th className="px-4 py-3 text-center">Actions</th>
                   </tr>
                 </thead>
@@ -859,6 +895,14 @@ export default function InvestmentsList() {
                           {isPositive ? '+' : ''}{formatPercentage(gainLossPercentage)}
                         </td>
                         <td className="px-4 py-4 text-center">
+                          <button
+                            onClick={() => handleOpenTransactions(investment)}
+                            className="text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                          >
+                            View
+                          </button>
+                        </td>
+                        <td className="px-4 py-4 text-center">
                           <div className="flex justify-center gap-1">
                             <Link 
                               href={`/investments/edit/${investment.id}`}
@@ -884,6 +928,18 @@ export default function InvestmentsList() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Transactions Modal */}
+      {selectedInvestment && (
+        <InvestmentTransactionsModal
+          investmentId={selectedInvestment.id!}
+          investmentSymbol={selectedInvestment.symbol}
+          investmentName={selectedInvestment.name}
+          isOpen={showTransactionsModal}
+          onClose={handleCloseTransactions}
+          onTransactionsUpdated={handleTransactionsUpdated}
+        />
       )}
     </div>
   );

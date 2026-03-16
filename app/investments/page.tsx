@@ -10,7 +10,7 @@ export default function InvestmentsPage() {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Investments</h1>
-              <p className="text-gray-500 mt-1.5">Track your stock investments and returns</p>
+              <p className="text-gray-500 mt-1.5">Track your stocks, crypto, and other investments</p>
             </div>
             <div className="flex gap-2">
               <Link 

@@ -12,9 +12,9 @@ interface InvestmentFormData {
   id?: number;
   symbol: string;
   name: string;
-  shares: number;
-  avgPrice: number;
-  currentPrice?: number;
+  shares: number | string;
+  avgPrice: number | string;
+  currentPrice?: number | string;
 }
 
 interface EditInvestmentPageProps {
@@ -84,12 +84,15 @@ export default function EditInvestmentPage({ params }: EditInvestmentPageProps) 
   }, [id, router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
+    const { name, value } = e.target;
     
-    if (['shares', 'avgPrice', 'currentPrice'].includes(name) && value && !isNaN(parseFloat(value))) {
+    // For numeric fields, allow the raw value (including partial decimals like "0.")
+    // The number validation will happen on submit
+    if (['shares', 'avgPrice', 'currentPrice'].includes(name)) {
+      // Allow empty string or valid number-like input (including partial decimals)
       setFormData(prev => ({
         ...prev,
-        [name]: parseFloat(value)
+        [name]: value === '' ? 0 : value
       }));
     } else {
       setFormData(prev => ({
@@ -151,8 +154,13 @@ export default function EditInvestmentPage({ params }: EditInvestmentPageProps) 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Convert string values to numbers
+    const shares = typeof formData.shares === 'string' ? parseFloat(formData.shares) : formData.shares;
+    const avgPrice = typeof formData.avgPrice === 'string' ? parseFloat(formData.avgPrice) : formData.avgPrice;
+    const currentPrice = typeof formData.currentPrice === 'string' ? parseFloat(formData.currentPrice) : formData.currentPrice;
+    
     // Validate form
-    if (!formData.symbol || !formData.name || formData.shares <= 0 || formData.avgPrice <= 0) {
+    if (!formData.symbol || !formData.name || isNaN(shares) || shares <= 0 || isNaN(avgPrice) || avgPrice <= 0) {
       toast({
         title: 'Validation Error',
         description: 'Please fill all required fields and ensure shares and average price are greater than 0',
@@ -164,12 +172,20 @@ export default function EditInvestmentPage({ params }: EditInvestmentPageProps) 
     try {
       setLoading(true);
       
+      // Create submission data with properly typed numbers
+      const submissionData = {
+        ...formData,
+        shares,
+        avgPrice,
+        currentPrice: currentPrice || 0
+      };
+      
       const response = await fetch('/api/investments', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(submissionData)
       });
       
       if (!response.ok) {
@@ -215,6 +231,11 @@ export default function EditInvestmentPage({ params }: EditInvestmentPageProps) 
       </div>
       
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-800">
+            <strong>Note:</strong> Editing these values directly will replace all transaction history. To add multiple purchases at different prices, use the "View Transactions" button on the investments page instead.
+          </p>
+        </div>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
@@ -242,13 +263,13 @@ export default function EditInvestmentPage({ params }: EditInvestmentPageProps) 
                 </button>
               </div>
               <p className="text-xs text-gray-500">
-                Stock ticker symbol (e.g., AAPL for Apple)
+                Stock or crypto ticker (e.g., AAPL, BTC-USD, ETH-USD)
               </p>
             </div>
             
             <div className="space-y-2">
               <label htmlFor="name" className="text-sm font-medium text-gray-700 block">
-                Company Name <span className="text-red-500">*</span>
+                Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -256,7 +277,7 @@ export default function EditInvestmentPage({ params }: EditInvestmentPageProps) 
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
-                placeholder="Apple Inc."
+                placeholder="Apple Inc. or Bitcoin"
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               />
@@ -264,7 +285,7 @@ export default function EditInvestmentPage({ params }: EditInvestmentPageProps) 
             
             <div className="space-y-2">
               <label htmlFor="shares" className="text-sm font-medium text-gray-700 block">
-                Shares <span className="text-red-500">*</span>
+                Quantity (Shares/Coins) <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -272,12 +293,15 @@ export default function EditInvestmentPage({ params }: EditInvestmentPageProps) 
                 name="shares"
                 value={formData.shares || ''}
                 onChange={handleInputChange}
-                placeholder="10"
-                step="0.01"
-                min="0.01"
+                placeholder="10 (e.g., 0.5 for crypto)"
+                step="any"
+                min="0.00000001"
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               />
+              <p className="text-xs text-gray-500">
+                Enter fractional amounts for crypto (e.g., 0.5 BTC)
+              </p>
             </div>
             
             <div className="space-y-2">

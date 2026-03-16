@@ -8,7 +8,9 @@ import {
   deleteInvestment,
   Investment,
   calculateDayChanges,
-  saveDailyInvestmentSnapshot
+  saveDailyInvestmentSnapshot,
+  createInvestmentTransaction,
+  InvestmentTransaction
 } from '@/lib/db';
 
 // GET /api/investments - Get all investments
@@ -96,6 +98,22 @@ export async function POST(request: NextRequest) {
     };
     
     const id = createInvestment(investment);
+    
+    // Create an initial transaction for this investment
+    try {
+      const initialTransaction: InvestmentTransaction = {
+        investmentId: id as number,
+        type: 'buy',
+        quantity: data.shares,
+        pricePerUnit: data.avgPrice,
+        transactionDate: new Date().toISOString().split('T')[0],
+        notes: 'Initial purchase'
+      };
+      createInvestmentTransaction(initialTransaction);
+    } catch (transactionError) {
+      console.error('Error creating initial transaction:', transactionError);
+      // Don't fail the investment creation if transaction creation fails
+    }
     
     return NextResponse.json({ 
       id,
