@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { PageHeader, PagePanel, PageShell } from '@/components/PageShell';
 import { toast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { ArrowLeftIcon } from '@/components/ui/icons';
 import Link from 'next/link';
 import { getStockPriceOnly } from '@/lib/stock-api';
+import { TrendingUp } from 'lucide-react';
 
 interface InvestmentFormData {
   id?: number;
@@ -215,31 +216,48 @@ export default function EditInvestmentPage({ params }: EditInvestmentPageProps) 
 
   if (initialLoading) {
     return (
-      <div className="container max-w-3xl mx-auto py-8 text-center">
-        Loading investment data...
-      </div>
+      <PageShell maxWidth="4xl">
+        <PageHeader
+          eyebrow="Investments"
+          title="Edit Investment"
+          description="Loading investment data."
+          icon={<TrendingUp className="h-5 w-5" />}
+        />
+        <PagePanel>
+          <div className="p-8 text-center text-sm text-slate-500">Loading investment data...</div>
+        </PagePanel>
+      </PageShell>
     );
   }
 
   return (
-    <div className="container max-w-3xl mx-auto py-8">
-      <div className="flex items-center mb-6">
-        <Link href="/investments" className="mr-4 p-2 rounded-full hover:bg-gray-100">
-          <ArrowLeftIcon className="w-5 h-5" />
-        </Link>
-        <h1 className="text-2xl font-bold">Edit Investment</h1>
-      </div>
-      
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-800">
+    <PageShell maxWidth="4xl">
+      <PageHeader
+        eyebrow="Investments"
+        title="Edit Investment"
+        description="Update holding details. Use transaction lots on the portfolio page for multiple purchases."
+        icon={<TrendingUp className="h-5 w-5" />}
+        actions={(
+          <Link
+            href="/investments"
+            className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+          >
+            Back to Investments
+          </Link>
+        )}
+      />
+
+      <PagePanel>
+        <div className="p-5 sm:p-6">
+        <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+          <p className="text-sm text-slate-800">
             <strong>Note:</strong> Editing these values directly will replace all transaction history. To add multiple purchases at different prices, use the "View Transactions" button on the investments page instead.
           </p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label htmlFor="symbol" className="text-sm font-medium text-gray-700 block">
+              <label htmlFor="symbol" className="text-sm font-medium text-slate-700 block">
                 Symbol <span className="text-red-500">*</span>
               </label>
               <div className="flex gap-2">
@@ -250,25 +268,25 @@ export default function EditInvestmentPage({ params }: EditInvestmentPageProps) 
                   value={formData.symbol}
                   onChange={handleInputChange}
                   placeholder="AAPL"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                   required
                 />
                 <button
                   type="button"
                   onClick={fetchStockInfo}
                   disabled={fetchingPrice || !formData.symbol}
-                  className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:bg-blue-300"
+                  className="px-3 py-2 bg-slate-950 text-white rounded-md text-sm font-medium hover:bg-slate-800 transition-colors disabled:bg-slate-300"
                 >
                   {fetchingPrice ? 'Fetching...' : 'Fetch Price'}
                 </button>
               </div>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-slate-500">
                 Stock or crypto ticker (e.g., AAPL, BTC-USD, ETH-USD)
               </p>
             </div>
             
             <div className="space-y-2">
-              <label htmlFor="name" className="text-sm font-medium text-gray-700 block">
+              <label htmlFor="name" className="text-sm font-medium text-slate-700 block">
                 Name <span className="text-red-500">*</span>
               </label>
               <input
@@ -278,13 +296,13 @@ export default function EditInvestmentPage({ params }: EditInvestmentPageProps) 
                 value={formData.name}
                 onChange={handleInputChange}
                 placeholder="Apple Inc. or Bitcoin"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                 required
               />
             </div>
             
             <div className="space-y-2">
-              <label htmlFor="shares" className="text-sm font-medium text-gray-700 block">
+              <label htmlFor="shares" className="text-sm font-medium text-slate-700 block">
                 Quantity (Shares/Coins) <span className="text-red-500">*</span>
               </label>
               <input
@@ -296,16 +314,16 @@ export default function EditInvestmentPage({ params }: EditInvestmentPageProps) 
                 placeholder="10 (e.g., 0.5 for crypto)"
                 step="any"
                 min="0.00000001"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                 required
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-slate-500">
                 Enter fractional amounts for crypto (e.g., 0.5 BTC)
               </p>
             </div>
             
             <div className="space-y-2">
-              <label htmlFor="avgPrice" className="text-sm font-medium text-gray-700 block">
+              <label htmlFor="avgPrice" className="text-sm font-medium text-slate-700 block">
                 Average Price <span className="text-red-500">*</span>
               </label>
               <input
@@ -317,13 +335,13 @@ export default function EditInvestmentPage({ params }: EditInvestmentPageProps) 
                 placeholder="150.00"
                 step="0.01"
                 min="0.01"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                 required
               />
             </div>
             
             <div className="space-y-2">
-              <label htmlFor="currentPrice" className="text-sm font-medium text-gray-700 block">
+              <label htmlFor="currentPrice" className="text-sm font-medium text-slate-700 block">
                 Current Price
               </label>
               <input
@@ -335,9 +353,9 @@ export default function EditInvestmentPage({ params }: EditInvestmentPageProps) 
                 placeholder="Current market price"
                 step="0.01"
                 min="0"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-slate-500">
                 Click "Fetch Price" to get current market price
               </p>
             </div>
@@ -346,20 +364,21 @@ export default function EditInvestmentPage({ params }: EditInvestmentPageProps) 
           <div className="flex justify-end space-x-4 pt-4">
             <Link
               href="/investments"
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
+              className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors"
             >
               Cancel
             </Link>
             <Button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 bg-slate-950 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors"
             >
               {loading ? 'Updating...' : 'Update Investment'}
             </Button>
           </div>
         </form>
-      </div>
-    </div>
+        </div>
+      </PagePanel>
+    </PageShell>
   );
 } 

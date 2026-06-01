@@ -111,6 +111,24 @@ function initDb() {
       `).run();
     }
   }
+
+  // Create additional_budget_items table
+  const additionalBudgetItemsTableExists = db.prepare(`
+    SELECT name FROM sqlite_master WHERE type='table' AND name='additional_budget_items'
+  `).get();
+
+  if (!additionalBudgetItemsTableExists) {
+    db.prepare(`
+      CREATE TABLE additional_budget_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        amount REAL NOT NULL DEFAULT 0,
+        description TEXT NOT NULL DEFAULT 'Additional Budget',
+        isActive INTEGER NOT NULL DEFAULT 1,
+        createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run();
+  }
   
   const recurringTransactionsTableExists = db.prepare(`
     SELECT name FROM sqlite_master WHERE type='table' AND name='recurring_transactions'
@@ -350,12 +368,30 @@ function initDb() {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         payAmount REAL NOT NULL DEFAULT 0,
         payFrequency TEXT NOT NULL DEFAULT 'biweekly',
+        salary REAL NOT NULL DEFAULT 0,
         workHoursPerWeek REAL NOT NULL DEFAULT 40,
         workDaysPerWeek INTEGER NOT NULL DEFAULT 5,
         bonusPercentage REAL NOT NULL DEFAULT 0,
+        yearsOfService REAL NOT NULL DEFAULT 0,
+        service401kRate REAL NOT NULL DEFAULT 1.5,
         createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     `).run();
+  } else {
+    const columns = db.prepare(`PRAGMA table_info(income_data)`).all() as ColumnInfo[];
+    const columnNames = columns.map(col => col.name);
+
+    if (!columnNames.includes('salary')) {
+      db.prepare(`ALTER TABLE income_data ADD COLUMN salary REAL NOT NULL DEFAULT 0`).run();
+    }
+
+    if (!columnNames.includes('yearsOfService')) {
+      db.prepare(`ALTER TABLE income_data ADD COLUMN yearsOfService REAL NOT NULL DEFAULT 0`).run();
+    }
+
+    if (!columnNames.includes('service401kRate')) {
+      db.prepare(`ALTER TABLE income_data ADD COLUMN service401kRate REAL NOT NULL DEFAULT 1.5`).run();
+    }
   }
 
   // Check if savings_plan table exists
@@ -373,10 +409,32 @@ function initDb() {
         currentSavings REAL NOT NULL DEFAULT 0,
         yearlyContribution REAL NOT NULL DEFAULT 0,
         yearlyBonus REAL NOT NULL DEFAULT 0,
+        yearlyBonusPercentage REAL NOT NULL DEFAULT 0,
         annualReturn REAL NOT NULL DEFAULT 7,
         createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     `).run();
+  }
+
+  if (savingsPlanTableExists) {
+    const columns = db.prepare(`PRAGMA table_info(savings_plan)`).all() as ColumnInfo[];
+    const columnNames = columns.map(col => col.name);
+
+    if (!columnNames.includes('yearlyBonusPercentage')) {
+      db.prepare(`ALTER TABLE savings_plan ADD COLUMN yearlyBonusPercentage REAL NOT NULL DEFAULT 0`).run();
+    }
+
+    if (!columnNames.includes('withdrawalRate')) {
+      db.prepare(`ALTER TABLE savings_plan ADD COLUMN withdrawalRate REAL NOT NULL DEFAULT 4`).run();
+    }
+
+    if (!columnNames.includes('retirementMonthlyBudget')) {
+      db.prepare(`ALTER TABLE savings_plan ADD COLUMN retirementMonthlyBudget REAL NOT NULL DEFAULT 0`).run();
+    }
+
+    if (!columnNames.includes('inflationRate')) {
+      db.prepare(`ALTER TABLE savings_plan ADD COLUMN inflationRate REAL NOT NULL DEFAULT 3`).run();
+    }
   }
 
   // Check if credit_cards table exists
@@ -536,11 +594,10 @@ export function saveAssets(assets: {
     cash: assets.cash,
     stocks: assets.stocks,
     interest: assets.interest,
-    checking: assets.checking,
     retirement401k: assets.retirement401k,
     houseFund: assets.houseFund,
     vacationFund: assets.vacationFund,
-    emergencyFund: assets.emergencyFund
+    emergencyFund: assets.emergencyFund,
   }).reduce((sum, value) => sum + value, 0);
   
   const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
@@ -582,10 +639,73 @@ export function getLatestAssets(): AssetRecord | undefined {
   const assets = db.prepare(`
     SELECT * FROM assets ORDER BY id DESC LIMIT 1
   `).get() as AssetRecord | undefined;
-  
-  // No need to check for old field values since this is a fresh deployment
-  
-  return assets;
+
+  if (!assets) return undefined;
+
+  return {
+    ...assets,
+    totalAssets: assets.cash + assets.stocks + assets.interest + assets.retirement401k + assets.houseFund + assets.vacationFund + assets.emergencyFund,
+  };
+}
+
+/**
+ * Number of paychecks per year for a given pay frequency. Keeps annual
+ * conversions honest instead of assuming biweekly everywhere.
+ */
+export function getPayPeriodsPerYear(frequency?: string): number {
+  switch (frequency) {
+    case 'weekly':
+      return 52;
+    case 'semimonthly':
+      return 24;
+    case 'monthly':
+      return 12;
+    case 'biweekly':
+    default:
+      return 26;
+  }
+}
+
+export type NetWorthBreakdown = {
+  liquidCash: number;
+  stocks: number;
+  retirement401k: number;
+  creditCardDebt: number;
+  netWorth: number;
+  checking: number;
+  trackedInvestmentValue: number;
+};
+
+/**
+ * Single source of truth for net worth across the app.
+ *
+ * Model (per account owner): `cash` is the total liquid balance; the named
+ * fund accounts and the house/vacation/emergency sinking funds are simply that
+ * cash divided up, so they are NOT added again here (that would double count).
+ * Checking is a separate live spending balance and is excluded from the
+ * long-term net-worth view. Stocks use the live tracked-portfolio value when
+ * available, otherwise the manually entered stocks asset.
+ */
+export function calculateNetWorth(): NetWorthBreakdown {
+  const assets = getLatestAssets();
+  const investmentSummary = calculateDayChanges();
+  const cards = getAllCreditCards();
+
+  const liquidCash = (assets?.cash || 0) + (assets?.interest || 0);
+  const trackedInvestmentValue = investmentSummary.totalValue || 0;
+  const stocks = trackedInvestmentValue || (assets?.stocks || 0);
+  const retirement401k = assets?.retirement401k || 0;
+  const creditCardDebt = cards.reduce((sum, card) => sum + (card.balance || 0), 0);
+
+  return {
+    liquidCash,
+    stocks,
+    retirement401k,
+    creditCardDebt,
+    netWorth: liquidCash + stocks + retirement401k - creditCardDebt,
+    checking: assets?.checking || 0,
+    trackedInvestmentValue,
+  };
 }
 
 // Fund Accounts Interface and Functions
@@ -700,6 +820,90 @@ export function getTotalInvestingFundAccountsAmount(): number {
   `).get() as { total: number };
   
   return result.total;
+}
+
+// Additional Budget Items Interface and Functions
+export interface AdditionalBudgetItem {
+  id?: number;
+  amount: number;
+  description: string;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export function getAllAdditionalBudgetItems(): AdditionalBudgetItem[] {
+  const db = getDb();
+  const items = db.prepare(`
+    SELECT * FROM additional_budget_items
+    WHERE isActive = 1
+    ORDER BY createdAt ASC, id ASC
+  `).all() as any[];
+
+  return items.map(item => ({
+    ...item,
+    isActive: item.isActive === 1
+  }));
+}
+
+export function getTotalAdditionalBudgetAmount(): number {
+  const db = getDb();
+  const result = db.prepare(`
+    SELECT COALESCE(SUM(amount), 0) as total
+    FROM additional_budget_items
+    WHERE isActive = 1
+  `).get() as { total: number };
+
+  return result.total;
+}
+
+export function createAdditionalBudgetItem(item: Omit<AdditionalBudgetItem, 'id' | 'createdAt' | 'updatedAt'>): number {
+  const db = getDb();
+  const stmt = db.prepare(`
+    INSERT INTO additional_budget_items (amount, description, isActive)
+    VALUES (?, ?, ?)
+  `);
+
+  const result = stmt.run(
+    item.amount || 0,
+    item.description?.trim() || 'Additional Budget',
+    item.isActive !== false ? 1 : 0
+  );
+
+  return result.lastInsertRowid as number;
+}
+
+export function updateAdditionalBudgetItem(id: number, item: Partial<AdditionalBudgetItem>): boolean {
+  const db = getDb();
+  const stmt = db.prepare(`
+    UPDATE additional_budget_items
+    SET amount = COALESCE(?, amount),
+        description = COALESCE(?, description),
+        isActive = COALESCE(?, isActive),
+        updatedAt = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `);
+
+  const result = stmt.run(
+    item.amount !== undefined ? item.amount : null,
+    item.description !== undefined ? item.description.trim() || 'Additional Budget' : null,
+    item.isActive !== undefined ? (item.isActive ? 1 : 0) : null,
+    id
+  );
+
+  return result.changes > 0;
+}
+
+export function deleteAdditionalBudgetItem(id: number): boolean {
+  const db = getDb();
+  const stmt = db.prepare(`
+    UPDATE additional_budget_items
+    SET isActive = 0, updatedAt = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `);
+
+  const result = stmt.run(id);
+  return result.changes > 0;
 }
 
 // Recurring Transactions queries
@@ -1053,6 +1257,14 @@ export function getPendingTransactions() {
     return false;
   });
   
+  const completionStmt = db.prepare(`
+    SELECT completedDate
+    FROM completed_transactions
+    WHERE recurringTransactionId = ? AND payPeriodStart = ? AND payPeriodEnd = ?
+    ORDER BY createdAt DESC
+    LIMIT 1
+  `);
+
   // Check completed status for each recurring transaction
   const processedRecurringTransactions = pendingTransactions.map(transaction => {
     // Determine which month's due date to use by checking all months in the pay period
@@ -1093,11 +1305,12 @@ export function getPendingTransactions() {
     const daysUntilDue = Math.max(0, Math.ceil((dueDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24)));
     
     // Check if the transaction is completed for this pay period
-    const isCompleted = isTransactionCompletedForPayPeriod(
+    const completion = completionStmt.get(
       transaction.id as number,
       payPeriodStart,
       payPeriodEnd
-    );
+    ) as { completedDate: string } | undefined;
+    const isCompleted = !!completion;
     
     // Check for custom amount override for this transaction
     const amount = overrideMap.has(transaction.id as number) 
@@ -1112,6 +1325,7 @@ export function getPendingTransactions() {
       payPeriodStart: payPeriodStart,
       payPeriodEnd: payPeriodEnd,
       isCompleted: isCompleted,
+      completedDate: completion?.completedDate,
       isManual: false // Flag to distinguish from manual transactions
     };
   });
@@ -1328,6 +1542,7 @@ export function getAllTransactions() {
       pending: row.pending === 1,
       pendingTipAmount: row.pendingTipAmount || 0,
       creditCardPending: row.creditCardPending === 1,
+      sortOrder: row.sortOrder,
       createdAt: row.createdAt
     };
     
@@ -1370,6 +1585,8 @@ export function getTransactionById(id: number) {
     notes: transaction.notes,
     pending: transaction.pending === 1,
     pendingTipAmount: transaction.pendingTipAmount || 0,
+    creditCardPending: transaction.creditCardPending === 1,
+    sortOrder: transaction.sortOrder,
     createdAt: transaction.createdAt
   };
   
@@ -1421,7 +1638,7 @@ export function createTransaction(transaction: Transaction) {
     transaction.pending ? 1 : 0,
     transaction.pendingTipAmount || 0,
     transaction.creditCardPending ? 1 : 0,
-    transaction.sortOrder || nextSortOrder
+    transaction.sortOrder ?? nextSortOrder
   );
   
   return result.lastInsertRowid;
@@ -1433,7 +1650,13 @@ export function updateTransaction(transaction: Transaction) {
   }
   
   const db = getDb();
-  
+
+  const existing = db.prepare(`
+    SELECT sortOrder FROM transactions WHERE id = ?
+  `).get(transaction.id) as { sortOrder: number | null } | undefined;
+
+  const nextSortOrder = transaction.sortOrder ?? existing?.sortOrder ?? 0;
+
   const stmt = db.prepare(`
     UPDATE transactions
     SET date = ?, categoryId = ?, name = ?, amount = ?, cashBack = ?, cashbackPosted = ?, notes = ?, pending = ?, pendingTipAmount = ?, creditCardPending = ?, sortOrder = ?
@@ -1451,7 +1674,7 @@ export function updateTransaction(transaction: Transaction) {
     transaction.pending ? 1 : 0,
     transaction.pendingTipAmount || 0,
     transaction.creditCardPending ? 1 : 0,
-    transaction.sortOrder || 0,
+    nextSortOrder,
     transaction.id
   );
   
@@ -1496,7 +1719,7 @@ export function getTransactionsByDateRange(startDate: string, endDate: string) {
     FROM transactions t
     LEFT JOIN budget_categories c ON t.categoryId = c.id
     WHERE t.date >= ? AND t.date <= ?
-    ORDER BY t.date DESC, t.createdAt DESC
+    ORDER BY t.date DESC, t.sortOrder ASC, t.createdAt DESC
   `).all(startDate, endDate);
   
   return transactions.map((row: any) => {
@@ -1512,6 +1735,7 @@ export function getTransactionsByDateRange(startDate: string, endDate: string) {
       pending: row.pending === 1,
       pendingTipAmount: row.pendingTipAmount || 0,
       creditCardPending: row.creditCardPending === 1,
+      sortOrder: row.sortOrder,
       createdAt: row.createdAt
     };
     
@@ -1818,6 +2042,17 @@ export interface Investment {
   prevDayPrice?: number; // Add field for previous day price
 }
 
+export interface InvestmentTransaction {
+  id?: number;
+  investmentId: number;
+  type: 'buy' | 'sell';
+  quantity: number;
+  pricePerUnit: number;
+  transactionDate: string;
+  notes?: string;
+  createdAt?: string;
+}
+
 // Check if investments table exists and has the correct schema
 function ensureInvestmentsTable() {
   const db = getDb();
@@ -1903,6 +2138,158 @@ function ensureInvestmentsTable() {
     
     return false;
   }
+}
+
+function ensureInvestmentTransactionsTable() {
+  const db = getDb();
+  ensureInvestmentsTable();
+
+  const tableExists = db.prepare(`
+    SELECT name FROM sqlite_master WHERE type='table' AND name='investment_transactions'
+  `).get();
+
+  if (!tableExists) {
+    db.prepare(`
+      CREATE TABLE investment_transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        investmentId INTEGER NOT NULL,
+        type TEXT NOT NULL CHECK(type IN ('buy', 'sell')),
+        quantity REAL NOT NULL,
+        pricePerUnit REAL NOT NULL,
+        transactionDate TEXT NOT NULL,
+        notes TEXT,
+        createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (investmentId) REFERENCES investments(id) ON DELETE CASCADE
+      )
+    `).run();
+  }
+}
+
+function recalculateInvestmentFromTransactions(investmentId: number) {
+  const db = getDb();
+  ensureInvestmentTransactionsTable();
+
+  const investment = getInvestmentById(investmentId);
+  if (!investment) return false;
+
+  const transactions = getInvestmentTransactions(investmentId);
+  if (transactions.length === 0) return true;
+
+  const totals = transactions.reduce(
+    (acc, transaction) => {
+      if (transaction.type === 'buy') {
+        acc.shares += transaction.quantity;
+        acc.cost += transaction.quantity * transaction.pricePerUnit;
+      } else {
+        acc.shares -= transaction.quantity;
+      }
+      return acc;
+    },
+    { shares: 0, cost: 0 }
+  );
+
+  const shares = Math.max(totals.shares, 0);
+  const avgPrice = shares > 0 ? totals.cost / shares : investment.avgPrice;
+
+  db.prepare(`
+    UPDATE investments
+    SET shares = ?, avgPrice = ?, lastUpdated = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(shares, avgPrice, investmentId);
+
+  return true;
+}
+
+export function getInvestmentTransactions(investmentId: number): InvestmentTransaction[] {
+  const db = getDb();
+  ensureInvestmentTransactionsTable();
+
+  return db.prepare(`
+    SELECT * FROM investment_transactions
+    WHERE investmentId = ?
+    ORDER BY transactionDate DESC, createdAt DESC
+  `).all(investmentId) as InvestmentTransaction[];
+}
+
+/**
+ * Net cash actually deployed into the brokerage in a calendar year
+ * (buys minus sells), used to track real progress against the savings plan.
+ */
+export function getInvestedThisYear(year?: number): number {
+  const db = getDb();
+  ensureInvestmentTransactionsTable();
+
+  const targetYear = year ?? new Date().getFullYear();
+  const rows = db.prepare(`
+    SELECT type, quantity, pricePerUnit FROM investment_transactions
+    WHERE transactionDate >= ? AND transactionDate <= ?
+  `).all(`${targetYear}-01-01`, `${targetYear}-12-31`) as { type: string; quantity: number; pricePerUnit: number }[];
+
+  return rows.reduce((sum, row) => {
+    const amount = (row.quantity || 0) * (row.pricePerUnit || 0);
+    return sum + (row.type === 'sell' ? -amount : amount);
+  }, 0);
+}
+
+export function createInvestmentTransaction(transaction: InvestmentTransaction): number {
+  const db = getDb();
+  ensureInvestmentTransactionsTable();
+
+  const result = db.prepare(`
+    INSERT INTO investment_transactions (
+      investmentId, type, quantity, pricePerUnit, transactionDate, notes
+    ) VALUES (?, ?, ?, ?, ?, ?)
+  `).run(
+    transaction.investmentId,
+    transaction.type,
+    transaction.quantity,
+    transaction.pricePerUnit,
+    transaction.transactionDate,
+    transaction.notes || null
+  );
+
+  recalculateInvestmentFromTransactions(transaction.investmentId);
+
+  return result.lastInsertRowid as number;
+}
+
+export function updateInvestmentTransaction(transaction: InvestmentTransaction): boolean {
+  if (!transaction.id) return false;
+
+  const db = getDb();
+  ensureInvestmentTransactionsTable();
+
+  const result = db.prepare(`
+    UPDATE investment_transactions
+    SET investmentId = ?, type = ?, quantity = ?, pricePerUnit = ?, transactionDate = ?, notes = ?
+    WHERE id = ?
+  `).run(
+    transaction.investmentId,
+    transaction.type,
+    transaction.quantity,
+    transaction.pricePerUnit,
+    transaction.transactionDate,
+    transaction.notes || null,
+    transaction.id
+  );
+
+  recalculateInvestmentFromTransactions(transaction.investmentId);
+
+  return result.changes > 0;
+}
+
+export function deleteInvestmentTransaction(id: number, investmentId: number): boolean {
+  const db = getDb();
+  ensureInvestmentTransactionsTable();
+
+  const result = db.prepare(`
+    DELETE FROM investment_transactions
+    WHERE id = ? AND investmentId = ?
+  `).run(id, investmentId);
+
+  recalculateInvestmentFromTransactions(investmentId);
+
+  return result.changes > 0;
 }
 
 export function getAllInvestments() {
@@ -1991,18 +2378,33 @@ export function updateInvestment(investment: Investment) {
   }
 }
 
-export function updateInvestmentPrice(id: number, currentPrice: number) {
+export function updateInvestmentPrice(id: number, currentPrice: number, prevDayPrice?: number | null) {
   try {
     const db = getDb();
     
     // Ensure the investments table exists with the correct schema
     ensureInvestmentsTable();
+
+    const existing = db.prepare(`
+      SELECT currentPrice, prevDayPrice
+      FROM investments
+      WHERE id = ?
+    `).get(id) as { currentPrice?: number | null; prevDayPrice?: number | null } | undefined;
+
+    const previousPrice =
+      typeof prevDayPrice === 'number' && prevDayPrice > 0
+        ? prevDayPrice
+        : existing?.prevDayPrice && existing.prevDayPrice > 0
+          ? existing.prevDayPrice
+          : existing?.currentPrice && existing.currentPrice > 0
+            ? existing.currentPrice
+            : currentPrice;
     
     const result = db.prepare(`
       UPDATE investments
-      SET currentPrice = ?, lastUpdated = CURRENT_TIMESTAMP
+      SET currentPrice = ?, prevDayPrice = ?, lastUpdated = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(currentPrice, id);
+    `).run(currentPrice, previousPrice, id);
     
     return result.changes;
   } catch (error) {
@@ -2065,11 +2467,11 @@ export function calculateDayChanges() {
     // Calculate total portfolio value and day change
     let totalValue = 0;
     let totalDayChange = 0;
-    let totalDayChangePercent = 0;
+    let previousTotalValue = 0;
     let totalCost = 0;
     
     for (const investment of investments) {
-      const { id, shares, currentPrice, prevDayPrice, avgPrice } = investment;
+      const { shares, currentPrice, prevDayPrice, avgPrice } = investment;
       
       // Calculate investment value and cost
       const investmentValue = shares * (currentPrice || 0);
@@ -2081,11 +2483,7 @@ export function calculateDayChanges() {
       if (currentPrice !== undefined && prevDayPrice !== undefined && prevDayPrice > 0) {
         const dayChange = (currentPrice - prevDayPrice) * shares;
         totalDayChange += dayChange;
-        
-        // Calculate weighted day change percentage for this investment
-        const dayChangePercent = (currentPrice - prevDayPrice) / prevDayPrice * 100;
-        const weightedPercent = investmentValue / totalValue * dayChangePercent;
-        totalDayChangePercent += weightedPercent;
+        previousTotalValue += prevDayPrice * shares;
       }
     }
     
@@ -2095,7 +2493,7 @@ export function calculateDayChanges() {
       totalGainLoss: totalValue - totalCost,
       totalGainLossPercent: totalCost > 0 ? (totalValue - totalCost) / totalCost * 100 : 0,
       dayChange: totalDayChange,
-      dayChangePercent: totalDayChangePercent,
+      dayChangePercent: previousTotalValue > 0 ? (totalDayChange / previousTotalValue) * 100 : 0,
       lastUpdated: new Date().toISOString()
     };
   } catch (error) {
@@ -2117,9 +2515,12 @@ export interface IncomeData {
   id?: number;
   payAmount: number;
   payFrequency: 'weekly' | 'biweekly' | 'semimonthly' | 'monthly';
+  salary?: number;
   workHoursPerWeek: number;
   workDaysPerWeek: number;
   bonusPercentage: number;
+  yearsOfService?: number;
+  service401kRate?: number;
   createdAt?: string;
 }
 
@@ -2144,16 +2545,22 @@ export function saveIncomeData(data: IncomeData): number {
       UPDATE income_data SET
         payAmount = ?,
         payFrequency = ?,
+        salary = ?,
         workHoursPerWeek = ?,
         workDaysPerWeek = ?,
         bonusPercentage = ?
+        , yearsOfService = ?
+        , service401kRate = ?
       WHERE id = ?
     `).run(
       data.payAmount,
       data.payFrequency,
+      data.salary || 0,
       data.workHoursPerWeek,
       data.workDaysPerWeek,
       data.bonusPercentage,
+      data.yearsOfService || 0,
+      data.service401kRate ?? 1.5,
       existingIncome.id
     );
     
@@ -2164,16 +2571,22 @@ export function saveIncomeData(data: IncomeData): number {
       INSERT INTO income_data (
         payAmount, 
         payFrequency, 
+        salary,
         workHoursPerWeek, 
         workDaysPerWeek, 
-        bonusPercentage
-      ) VALUES (?, ?, ?, ?, ?)
+        bonusPercentage,
+        yearsOfService,
+        service401kRate
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       data.payAmount,
       data.payFrequency,
+      data.salary || 0,
       data.workHoursPerWeek,
       data.workDaysPerWeek,
-      data.bonusPercentage
+      data.bonusPercentage,
+      data.yearsOfService || 0,
+      data.service401kRate ?? 1.5
     );
     
     return result.lastInsertRowid as number;
@@ -2188,7 +2601,11 @@ export interface SavingsPlanData {
   currentSavings: number;
   yearlyContribution: number;
   yearlyBonus: number;
+  yearlyBonusPercentage?: number;
   annualReturn: number;
+  withdrawalRate?: number;
+  retirementMonthlyBudget?: number;
+  inflationRate?: number;
   createdAt?: string;
 }
 
@@ -2216,7 +2633,11 @@ export function saveSavingsPlanData(data: SavingsPlanData): number {
         currentSavings = ?,
         yearlyContribution = ?,
         yearlyBonus = ?,
-        annualReturn = ?
+        yearlyBonusPercentage = ?,
+        annualReturn = ?,
+        withdrawalRate = ?,
+        retirementMonthlyBudget = ?,
+        inflationRate = ?
       WHERE id = ?
     `).run(
       data.currentAge,
@@ -2224,7 +2645,11 @@ export function saveSavingsPlanData(data: SavingsPlanData): number {
       data.currentSavings,
       data.yearlyContribution,
       data.yearlyBonus,
+      data.yearlyBonusPercentage || 0,
       data.annualReturn,
+      data.withdrawalRate ?? 4,
+      data.retirementMonthlyBudget ?? 0,
+      data.inflationRate ?? 3,
       existingSavingsPlan.id
     );
     
@@ -2238,15 +2663,23 @@ export function saveSavingsPlanData(data: SavingsPlanData): number {
         currentSavings,
         yearlyContribution,
         yearlyBonus,
-        annualReturn
-      ) VALUES (?, ?, ?, ?, ?, ?)
+        yearlyBonusPercentage,
+        annualReturn,
+        withdrawalRate,
+        retirementMonthlyBudget,
+        inflationRate
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       data.currentAge,
       data.retirementAge,
       data.currentSavings,
       data.yearlyContribution,
       data.yearlyBonus,
-      data.annualReturn
+      data.yearlyBonusPercentage || 0,
+      data.annualReturn,
+      data.withdrawalRate ?? 4,
+      data.retirementMonthlyBudget ?? 0,
+      data.inflationRate ?? 3
     );
     
     return result.lastInsertRowid as number;

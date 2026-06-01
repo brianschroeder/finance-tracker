@@ -113,8 +113,8 @@ export default function OverspendingAnalysis() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading overspending analysis...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading overspending analysis...</p>
         </div>
       </div>
     );
@@ -140,7 +140,7 @@ export default function OverspendingAnalysis() {
   if (!data) {
     return (
       <div className="text-center py-8">
-        <p className="text-gray-600">No overspending data available.</p>
+        <p className="text-slate-600">No overspending data available.</p>
       </div>
     );
   }
@@ -150,22 +150,22 @@ export default function OverspendingAnalysis() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Overspending Analysis</h1>
-          <p className="text-gray-600">
+          <h1 className="text-2xl font-bold text-slate-950">Overspending Analysis</h1>
+          <p className="text-slate-600">
             Track your overspending patterns across {data.payFrequency} pay periods
           </p>
         </div>
         
         {/* Period Selector */}
         <div className="flex items-center gap-2">
-          <label htmlFor="periods" className="text-sm font-medium text-gray-700">
+          <label htmlFor="periods" className="text-sm font-medium text-slate-700">
             Periods:
           </label>
           <select
             id="periods"
             value={selectedPeriods}
             onChange={(e) => setSelectedPeriods(parseInt(e.target.value))}
-            className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+            className="px-3 py-1 border border-slate-300 rounded-md text-sm"
           >
             <option value={3}>Last 3</option>
             <option value={6}>Last 6</option>
@@ -191,7 +191,7 @@ export default function OverspendingAnalysis() {
                 <div className="text-3xl font-bold text-red-600">
                   {formatCurrency(data.summary.totalOverspent)}
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-slate-600">
                   Across {data.summary.periodsAnalyzed} {data.payFrequency} periods
                 </p>
               </div>
@@ -203,7 +203,7 @@ export default function OverspendingAnalysis() {
                 <div className="text-3xl font-bold text-orange-600">
                   {formatCurrency(data.summary.averageOverspent)}
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-slate-600">
                   Per {data.payFrequency} period
                 </p>
               </div>
@@ -215,7 +215,7 @@ export default function OverspendingAnalysis() {
                 <div className="text-3xl font-bold text-yellow-600">
                   {data.periods.filter(p => p.overspent > 0).length}
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-slate-600">
                   Out of {data.periods.length} periods analyzed
                 </p>
               </div>
@@ -228,7 +228,7 @@ export default function OverspendingAnalysis() {
               <h3 className="text-lg font-semibold mb-4">Most Problematic Categories</h3>
               <div className="space-y-3">
                 {data.summary.problematicCategories.map((category) => (
-                  <div key={category.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div key={category.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                     <div className="flex items-center gap-3">
                       <div
                         className="w-4 h-4 rounded-full"
@@ -236,7 +236,7 @@ export default function OverspendingAnalysis() {
                       ></div>
                       <div>
                         <div className="font-medium">{category.name}</div>
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-slate-600">
                           Overspent in {category.occurrences} period{category.occurrences > 1 ? 's' : ''}
                         </div>
                       </div>
@@ -245,7 +245,7 @@ export default function OverspendingAnalysis() {
                       <div className="font-semibold text-red-600">
                         {formatCurrency(category.totalOverspent)}
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-slate-600">
                         Avg: {formatCurrency(category.averageOverspent)}
                       </div>
                     </div>
@@ -265,7 +265,7 @@ export default function OverspendingAnalysis() {
                     <h3 className="text-lg font-semibold">
                       {formatDateRange(period.startDate, period.endDate)}
                     </h3>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-slate-600">
                       Budget: {formatCurrency(period.totalBudget)} | 
                       Spent: {formatCurrency(period.totalSpent)}
                     </p>
@@ -275,7 +275,7 @@ export default function OverspendingAnalysis() {
                       <div className="text-lg font-bold text-red-600">
                         {formatCurrency(period.overspent)} over
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-slate-600">
                         {((period.overspent / period.totalBudget) * 100).toFixed(1)}% over budget
                       </div>
                     </div>
@@ -304,7 +304,7 @@ export default function OverspendingAnalysis() {
                             </div>
                           ))}
                           {period.categories.length > 3 && (
-                            <div className="text-sm text-gray-600 text-center">
+                            <div className="text-sm text-slate-600 text-center">
                               +{period.categories.length - 3} more categories
                             </div>
                           )}
@@ -318,7 +318,7 @@ export default function OverspendingAnalysis() {
                         <h4 className="font-medium mb-2">Largest Transactions:</h4>
                         <div className="space-y-1">
                           {period.biggestTransactions.slice(0, 5).map((transaction) => (
-                            <div key={transaction.id} className="flex items-center justify-between text-sm p-2 bg-gray-50 rounded">
+                            <div key={transaction.id} className="flex items-center justify-between text-sm p-2 bg-slate-50 rounded">
                               <div className="flex items-center gap-2">
                                 {transaction.category && (
                                   <div
@@ -363,7 +363,7 @@ export default function OverspendingAnalysis() {
                     <div className="text-lg font-bold text-red-600">
                       {formatCurrency(category.totalOverspent)}
                     </div>
-                    <div className="text-sm text-gray-600">Total</div>
+                    <div className="text-sm text-slate-600">Total</div>
                   </div>
                 </div>
 
@@ -386,7 +386,7 @@ export default function OverspendingAnalysis() {
 
                 <Separator className="my-4" />
 
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-slate-600">
                   This category consistently goes over budget. Consider adjusting your budget allocation
                   or reviewing your spending patterns in this area.
                 </div>
@@ -401,8 +401,8 @@ export default function OverspendingAnalysis() {
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Great Job!</h3>
-              <p className="text-gray-600">
+              <h3 className="text-lg font-semibold text-slate-950 mb-2">Great Job!</h3>
+              <p className="text-slate-600">
                 No consistently problematic categories detected in your recent spending patterns.
               </p>
             </Card>

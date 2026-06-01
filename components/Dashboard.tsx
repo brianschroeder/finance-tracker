@@ -38,12 +38,15 @@ interface PendingTransaction {
   id: number;
   name: string;
   amount: number;
-  dueDate: number;
+  dueDate: number | string;
   isEssential: boolean;
   formattedDate: string;
   daysUntilDue: number;
   payPeriodStart: string;
   payPeriodEnd: string;
+  isCompleted?: boolean;
+  isManual?: boolean;
+  completedDate?: string;
 }
 
 interface Transaction {
@@ -121,6 +124,12 @@ interface RecurringTransaction {
   calculatedDueDate?: Date;
 }
 
+interface AdditionalBudgetItem {
+  id: number;
+  amount: number;
+  description: string;
+}
+
 export default function Dashboard() {
   const [assetData, setAssetData] = useState<AssetData | null>(null);
   const [paySettings, setPaySettings] = useState<PaySettings | null>(null);
@@ -138,7 +147,7 @@ export default function Dashboard() {
   const [loadingCreditCards, setLoadingCreditCards] = useState(true);
   const [loadingAccounts, setLoadingAccounts] = useState(true);
   const [checkingBalance, setCheckingBalance] = useState<number | undefined>(undefined);
-  
+
   // Budget category state
   const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>([]);
   const [budgetSummary, setBudgetSummary] = useState<BudgetSummary | null>(null);
@@ -155,15 +164,15 @@ export default function Dashboard() {
   const [loadingNextPayPeriodTransactions, setLoadingNextPayPeriodTransactions] = useState(true);
 
   // Additional budget state - array of budget items
-  const [additionalBudgetItems, setAdditionalBudgetItems] = useState<{id: string, amount: string, description: string}[]>([]);
+  const [additionalBudgetItems, setAdditionalBudgetItems] = useState<AdditionalBudgetItem[]>([]);
   const [newBudgetAmount, setNewBudgetAmount] = useState<string>('');
   const [newBudgetDescription, setNewBudgetDescription] = useState<string>('');
   const [showAdditionalBudget, setShowAdditionalBudget] = useState<boolean>(false);
 
   // Track the individual components for displaying the breakdown
   const [savingsBreakdown, setSavingsBreakdown] = useState({
-    biweeklyPay: 0, 
-    recurringExpenses: 0, 
+    biweeklyPay: 0,
+    recurringExpenses: 0,
     budgetAllocation: 0
   });
 
@@ -197,34 +206,80 @@ export default function Dashboard() {
   const [expenses, setExpenses] = useState([]);
   const [error, setError] = useState<string | null>(null);
   const [accountTotals, setAccountTotals] = useState([]);
-  
+
   // State to track when prices were last fetched
   const [lastFetched, setLastFetched] = useState<Date | null>(null);
 
   // Define variables to track different types of pending amounts
   const [pendingTransactionAmount, setPendingTransactionAmount] = useState(0);
+  const [completedTodayPendingAmount, setCompletedTodayPendingAmount] = useState(0);
   const [pendingTipAmount, setPendingTipAmount] = useState(0);
   const [pendingCashbackAmount, setPendingCashbackAmount] = useState(0);
   const [totalPendingAmount, setTotalPendingAmount] = useState(0);
 
   const router = useRouter();
 
-  // Load additional budget items from localStorage on component mount
-  useEffect(() => {
-    const savedItems = localStorage.getItem('additionalBudgetItems');
-    if (savedItems) {
-      try {
-        setAdditionalBudgetItems(JSON.parse(savedItems));
-      } catch (error) {
-        console.error('Error parsing saved budget items:', error);
+  const fetchAdditionalBudgetItems = useCallback(async () => {
+    try {
+      const response = await fetch('/api/additional-budget', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch additional budget items');
       }
+
+      let data = await response.json();
+      let items: AdditionalBudgetItem[] = data.items || [];
+
+      // One-time migration from the old browser-only storage into SQLite.
+      if (items.length === 0) {
+        const savedItems = window.localStorage.getItem('additionalBudgetItems');
+        if (savedItems) {
+          try {
+            const parsedItems = JSON.parse(savedItems);
+            if (Array.isArray(parsedItems) && parsedItems.length > 0) {
+              for (const item of parsedItems) {
+                const amount = parseFloat(item.amount);
+                if (!isNaN(amount) && amount > 0) {
+                  await fetch('/api/additional-budget', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      amount,
+                      description: item.description || 'Additional Budget'
+                    })
+                  });
+                }
+              }
+
+              window.localStorage.removeItem('additionalBudgetItems');
+
+              const migratedResponse = await fetch('/api/additional-budget', { cache: 'no-store' });
+              if (migratedResponse.ok) {
+                data = await migratedResponse.json();
+                items = data.items || [];
+              }
+            }
+          } catch (error) {
+            console.error('Error migrating additional budget items:', error);
+          }
+        }
+      }
+
+      setAdditionalBudgetItems(items);
+    } catch (error) {
+      console.error('Error fetching additional budget items:', error);
     }
   }, []);
 
-  // Save additional budget items to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem('additionalBudgetItems', JSON.stringify(additionalBudgetItems));
-  }, [additionalBudgetItems]);
+    fetchAdditionalBudgetItems();
+  }, [fetchAdditionalBudgetItems]);
 
   // Add redirect to onboarding if necessary data is missing
   useEffect(() => {
@@ -233,10 +288,10 @@ export default function Dashboard() {
         // Check if we have basic data needed for the dashboard
         const assetResponse = await fetch('/api/assets');
         const assetData = await assetResponse.json();
-        
+
         const paySettingsResponse = await fetch('/api/pay-settings');
         const paySettingsData = await paySettingsResponse.json();
-        
+
         // If we're missing critical data, redirect to onboarding
         if (!assetData?.id || !paySettingsData?.id) {
           router.push('/onboarding');
@@ -246,7 +301,7 @@ export default function Dashboard() {
         router.push('/onboarding');
       }
     }
-    
+
     checkRequiredData();
   }, [router]);
 
@@ -256,25 +311,25 @@ export default function Dashboard() {
       try {
         setLoadingAccounts(true);
         const response = await fetch('/api/assets');
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch latest assets');
         }
-        
+
         const data = await response.json();
-        
+
         // Check if data has an error property
         if (data.error) {
           console.error('API error:', data.error, data.details || '');
           throw new Error(data.error);
         }
-        
+
         // Set asset data even if id is null (empty defaults from API)
         setAssetData(data);
-        
+
         // Calculate checking balance minus all pending amounts
         setCheckingBalance((data.checking || 0) - totalPendingAmount);
-        
+
       } catch (err) {
         console.error('Error fetching assets:', err);
       } finally {
@@ -282,29 +337,30 @@ export default function Dashboard() {
         setLoadingAccounts(false);
       }
     }
-    
+
     fetchLatestAssets();
   }, [totalPendingAmount]);
 
   // Update total pending amount whenever any pending amount changes
   useEffect(() => {
-    // Sum of pending transaction tips and recurring pending transactions, minus pending cashback
-    // because cashback is money coming back to the account
-    const total = pendingTipAmount + pendingTransactionAmount - pendingCashbackAmount;
+    // Robinhood checking is a live balance, so same-day completed card/subscription
+    // charges are already reflected there. Show completedTodayPendingAmount for
+    // visibility, but do not reserve it a second time in adjusted checking.
+    const total = pendingTransactionAmount + pendingTipAmount - pendingCashbackAmount;
     setTotalPendingAmount(total);
     setPendingOnlyAmount(total); // Keep this for backward compatibility
-  }, [pendingTipAmount, pendingTransactionAmount, pendingCashbackAmount]);
-  
+  }, [pendingTransactionAmount, completedTodayPendingAmount, pendingTipAmount, pendingCashbackAmount]);
+
   // Fetch pay settings
   useEffect(() => {
     async function fetchPaySettings() {
       try {
         const response = await fetch('/api/pay-settings');
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch pay settings');
         }
-        
+
         const data = await response.json();
         if (data && data.id) {
           setPaySettings(data);
@@ -313,7 +369,7 @@ export default function Dashboard() {
         console.error('Error fetching pay settings:', err);
       }
     }
-    
+
     fetchPaySettings();
   }, []);
 
@@ -328,24 +384,28 @@ export default function Dashboard() {
             'Pragma': 'no-cache'
           }
         });
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch pending transactions');
         }
-        
+
         const data = await response.json();
         if (data) {
-          // Filter to get only non-completed transactions
           const allTransactions = data.transactions || [];
-          const pendingOnly = allTransactions.filter((t: PendingTransaction & { isCompleted?: boolean }) => !t.isCompleted);
-          
-          // Calculate the pending-only total from recurring transactions
+          const today = format(new Date(), 'yyyy-MM-dd');
+          const pendingOnly = allTransactions.filter((t: PendingTransaction) => !t.isCompleted);
+          const completedToday = allTransactions.filter((t: PendingTransaction) =>
+            !t.isManual && t.isCompleted && t.completedDate === today
+          );
+
           const pendingOnlyTotal = pendingOnly.reduce((sum: number, t: PendingTransaction) => sum + t.amount, 0);
-          
+          const completedTodayTotal = completedToday.reduce((sum: number, t: PendingTransaction) => sum + t.amount, 0);
+
           setPendingTransactions(data.transactions || []);
           setPendingTotal(data.totalAmount || 0);
           setPendingTransactionAmount(pendingOnlyTotal);
-          
+          setCompletedTodayPendingAmount(completedTodayTotal);
+
           // Extract pay period dates from the first transaction (if available)
           if (data.transactions && data.transactions.length > 0) {
             setPayPeriodStart(data.transactions[0].payPeriodStart);
@@ -356,27 +416,27 @@ export default function Dashboard() {
         console.error('Error fetching pending transactions:', err);
       }
     }
-    
+
     fetchPendingTransactions();
   }, []);
-  
+
   // Fetch recent transactions
   useEffect(() => {
     fetchRecentTransactions();
   }, [assetData]);
-  
+
   // Updated function to fetch recent transactions and calculate pending amount
   async function fetchRecentTransactions() {
     try {
       setLoadingTransactions(true);
-      
+
       // Fetch recent transactions for display (limited to 5)
       const recentResponse = await fetch('/api/transactions?limit=5');
       if (!recentResponse.ok) {
         throw new Error('Failed to fetch recent transactions');
       }
       const recentData = await recentResponse.json();
-      
+
       if (recentData.transactions) {
         setRecentTransactions(recentData.transactions);
       }
@@ -387,21 +447,21 @@ export default function Dashboard() {
         throw new Error('Failed to fetch all transactions');
       }
       const allData = await allResponse.json();
-      
+
       if (allData.transactions) {
         // Calculate only pending tip amounts from regular transactions
         const pendingTips = allData.transactions
           .filter((transaction: Transaction) => transaction.pending)
-          .reduce((sum: number, transaction: Transaction) => 
+          .reduce((sum: number, transaction: Transaction) =>
             sum + (transaction.pendingTipAmount || 0), 0);
-        
+
         // Calculate pending cashback amounts (cashback that has not been posted yet)
         const pendingCashback = allData.transactions
-          .filter((transaction: Transaction) => 
+          .filter((transaction: Transaction) =>
             (transaction.cashBack || 0) > 0 && transaction.cashbackPosted === false)
-          .reduce((sum: number, transaction: Transaction) => 
+          .reduce((sum: number, transaction: Transaction) =>
             sum + (transaction.cashBack || 0), 0);
-        
+
         // Update the pending amount states
         setPendingTipAmount(pendingTips);
         setPendingCashbackAmount(pendingCashback);
@@ -412,16 +472,16 @@ export default function Dashboard() {
       setLoadingTransactions(false);
     }
   }
-  
+
   // Calculate next pay date whenever pay settings change
   useEffect(() => {
     if (!paySettings?.lastPayDate) return;
-    
+
     // Parse date string manually to avoid timezone issues
     const [year, month, day] = paySettings.lastPayDate.split('-').map(num => parseInt(num, 10));
     const lastPayDate = new Date(year, month - 1, day); // month is 0-indexed in JS Date
     lastPayDate.setHours(0, 0, 0, 0);
-    
+
     // Calculate next pay date based on frequency
     let nextDate: Date;
     if (paySettings.frequency === 'weekly') {
@@ -429,11 +489,11 @@ export default function Dashboard() {
     } else {
       nextDate = addWeeks(lastPayDate, 2); // biweekly
     }
-    
+
     // If next date is in the past, keep adding until we get a future date
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Normalize to start of day
-    
+
     while (nextDate < today) {
       if (paySettings.frequency === 'weekly') {
         nextDate = addWeeks(nextDate, 1);
@@ -441,7 +501,7 @@ export default function Dashboard() {
         nextDate = addWeeks(nextDate, 2);
       }
     }
-    
+
     setNextPayDate(nextDate);
     setDaysRemaining(differenceInDays(nextDate, today));
   }, [paySettings]);
@@ -451,14 +511,14 @@ export default function Dashboard() {
     async function fetchBudgetData() {
       try {
         setLoadingBudget(true);
-        
+
         // Use biweekly period type
         const response = await fetch(`/api/budget-analysis?periodType=biweekly`);
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch budget analysis');
         }
-        
+
         const data = await response.json();
         setBudgetCategories(data.categories || []);
         setBudgetSummary(data.summary || null);
@@ -485,18 +545,18 @@ export default function Dashboard() {
         setLoadingBudget(false);
       }
     }
-    
+
     // Initial fetch
     fetchBudgetData();
-    
+
     // Set up event listener for transaction updates
     const handleTransactionsChanged = () => {
       fetchBudgetData();
     };
-    
+
     // Add event listener
     window.addEventListener('transactionsChanged', handleTransactionsChanged);
-    
+
     // Clean up the event listener
     return () => {
       window.removeEventListener('transactionsChanged', handleTransactionsChanged);
@@ -508,13 +568,13 @@ export default function Dashboard() {
     async function fetchCreditCards() {
       try {
         setLoadingCreditCards(true);
-        
+
         const response = await fetch('/api/credit-cards');
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch credit cards');
         }
-        
+
         const data = await response.json();
         setCreditCards(data);
       } catch (err) {
@@ -523,7 +583,7 @@ export default function Dashboard() {
         setLoadingCreditCards(false);
       }
     }
-    
+
     fetchCreditCards();
   }, []);
 
@@ -533,11 +593,11 @@ export default function Dashboard() {
       try {
         setLoadingIncome(true);
         const response = await fetch('/api/income');
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch income data');
         }
-        
+
         const data = await response.json();
         if (data) {
           setIncomeData({
@@ -551,7 +611,7 @@ export default function Dashboard() {
         setLoadingIncome(false);
       }
     }
-    
+
     fetchIncomeData();
   }, []);
 
@@ -568,11 +628,11 @@ export default function Dashboard() {
             'Pragma': 'no-cache'
           }
         });
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch recurring transactions');
         }
-        
+
         const data = await response.json();
         if (data && Array.isArray(data)) {
           // Calculate the total monthly recurring payments
@@ -585,18 +645,18 @@ export default function Dashboard() {
         setRecurringTransactionsTotal(0);
       }
     }
-    
+
     // Initial fetch
     fetchRecurringTransactions();
-    
+
     // Set up listener for pay settings changes
     const handlePaySettingsChanged = () => {
       fetchRecurringTransactions();
     };
-    
+
     // Add event listener
     window.addEventListener('paySettingsChanged', handlePaySettingsChanged);
-    
+
     // Clean up the event listener
     return () => {
       window.removeEventListener('paySettingsChanged', handlePaySettingsChanged);
@@ -607,20 +667,20 @@ export default function Dashboard() {
   useEffect(() => {
     // Always calculate even if we're missing some data
     const biweeklyPay = incomeData?.payAmount || 0;
-    
+
     // Calculate the recurring expenses for the next pay period based on actual transactions
     // that fall within the next pay date to next pay date + 14 days range
-    const nextPayPeriodRecurringAmount = nextPayPeriodTransactions.length > 0 
+    const nextPayPeriodRecurringAmount = nextPayPeriodTransactions.length > 0
       ? nextPayPeriodTransactions.reduce((total, transaction) => total + transaction.amount, 0)
       : recurringTransactionsTotal / 2; // Fallback to half the monthly recurring amount if no specific transactions
-    
+
     // Calculate biweekly budget allocation (default to 0 if not available)
     const biweeklyBudget = budgetSummary?.totalAllocated || 0;
-    
+
     // Calculate projected savings
     const projectedSavings = biweeklyPay - nextPayPeriodRecurringAmount - biweeklyBudget;
     setNextSavings(projectedSavings);
-    
+
     // Store breakdown for display
     setSavingsBreakdown({
       biweeklyPay,
@@ -636,20 +696,20 @@ export default function Dashboard() {
         setNextPayPeriodTransactions([]);
         return;
       }
-      
+
       try {
         setLoadingNextPayPeriodTransactions(true);
-        
+
         // Calculate the next pay period window - from next pay date to the pay date after that
         const nextPayPeriodStart = new Date(nextPayDate);
         const nextPayPeriodEnd = new Date(nextPayDate);
-        
+
         if (paySettings.frequency === 'weekly') {
           nextPayPeriodEnd.setDate(nextPayPeriodEnd.getDate() + 7);
         } else {
           nextPayPeriodEnd.setDate(nextPayPeriodEnd.getDate() + 14);
         }
-        
+
         // Call the API to get all recurring transactions with cache busting
         const timestamp = new Date().getTime();
         const response = await fetch(`/api/recurring-transactions?t=${timestamp}`, {
@@ -659,51 +719,51 @@ export default function Dashboard() {
             'Pragma': 'no-cache'
           }
         });
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch recurring transactions');
         }
-        
+
         const allTransactions = await response.json();
-        
+
         // Filter transactions that fall within the next pay period
         const transactionsInPeriod = [];
-        
+
         for (const transaction of allTransactions) {
           // Calculate all potential due dates (current month and next month)
           const currentMonth = nextPayPeriodStart.getMonth();
           const currentYear = nextPayPeriodStart.getFullYear();
           const nextMonth = (currentMonth + 1) % 12;
           const nextMonthYear = nextMonth === 0 ? currentYear + 1 : currentYear;
-          
+
           // Current month due date
           const daysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
           const adjustedDueDate = Math.min(transaction.dueDate, daysInCurrentMonth);
           const currentMonthDueDate = new Date(currentYear, currentMonth, adjustedDueDate);
           currentMonthDueDate.setHours(0, 0, 0, 0);
-          
+
           // Next month due date
           const daysInNextMonth = new Date(nextMonthYear, nextMonth + 1, 0).getDate();
           const nextMonthAdjustedDueDate = Math.min(transaction.dueDate, daysInNextMonth);
           const nextMonthDueDate = new Date(nextMonthYear, nextMonth, nextMonthAdjustedDueDate);
           nextMonthDueDate.setHours(0, 0, 0, 0);
-          
+
           // Check if either date falls within the pay period
           if ((currentMonthDueDate >= nextPayPeriodStart && currentMonthDueDate < nextPayPeriodEnd) ||
               (nextMonthDueDate >= nextPayPeriodStart && nextMonthDueDate < nextPayPeriodEnd)) {
-            
+
             // Add calculated due date to the transaction for display purposes
             const dueDateToUse = currentMonthDueDate >= nextPayPeriodStart && currentMonthDueDate < nextPayPeriodEnd
               ? currentMonthDueDate
               : nextMonthDueDate;
-              
+
             transactionsInPeriod.push({
               ...transaction,
               calculatedDueDate: dueDateToUse
             });
           }
         }
-        
+
         setNextPayPeriodTransactions(transactionsInPeriod);
       } catch (err) {
         setNextPayPeriodTransactions([]);
@@ -711,18 +771,18 @@ export default function Dashboard() {
         setLoadingNextPayPeriodTransactions(false);
       }
     }
-    
+
     // Initial fetch
     fetchNextPayPeriodTransactions();
-    
+
     // Set up listener for pay settings changes
     const handlePaySettingsChanged = () => {
       fetchNextPayPeriodTransactions();
     };
-    
-    // Add event listener 
+
+    // Add event listener
     window.addEventListener('paySettingsChanged', handlePaySettingsChanged);
-    
+
     // Clean up the event listener
     return () => {
       window.removeEventListener('paySettingsChanged', handlePaySettingsChanged);
@@ -765,12 +825,12 @@ export default function Dashboard() {
   // Calculate projected total savings by adding next savings to current assets
   const calculateProjectedTotalSavings = () => {
     if (!assetData) return 0;
-    
+
     const currentSavings = assetData.cash + (loadingInvestments ? 0 : investmentData.totalValue) + assetData.interest;
-    
+
     // If we don't have next savings, just return current
     if (nextSavings === null) return currentSavings;
-    
+
     return currentSavings + nextSavings;
   };
 
@@ -779,7 +839,7 @@ export default function Dashboard() {
     if (value === undefined || value === null || isNaN(value)) {
       return '$0.00';
     }
-    
+
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD'
@@ -826,13 +886,13 @@ export default function Dashboard() {
     if (!assetData) return 0;
     return assetData.retirement401k + (loadingInvestments ? 0 : investmentData.totalValue);
   };
-  
+
   // Calculate total assets
   const calculateActualTotalAssets = () => {
     if (!assetData) return 0;
     return assetData.cash + (loadingInvestments ? 0 : investmentData.totalValue) + assetData.interest;
   };
-  
+
   // Calculate funds (which come from cash)
   const calculateTotalFunds = () => {
     return totalFundAccountsAmount;
@@ -870,11 +930,11 @@ export default function Dashboard() {
 
   // Get credit utilization color
   const getCreditUtilizationColor = (utilizationPercentage: number) => {
-    if (utilizationPercentage < 10) return 'bg-blue-400';
-    if (utilizationPercentage < 30) return 'bg-blue-500';
-    if (utilizationPercentage < 50) return 'bg-blue-600';
-    if (utilizationPercentage < 75) return 'bg-blue-700';
-    return 'bg-blue-800';
+    if (utilizationPercentage < 10) return 'bg-slate-400';
+    if (utilizationPercentage < 30) return 'bg-slate-950';
+    if (utilizationPercentage < 50) return 'bg-slate-950';
+    if (utilizationPercentage < 75) return 'bg-slate-950';
+    return 'bg-slate-900';
   };
 
   // Calculate projected savings for next pay period
@@ -882,7 +942,7 @@ export default function Dashboard() {
     try {
       // Get pay period income based on frequency
       let payPeriodIncome = 0;
-      
+
       if (incomeData.payFrequency === 'biweekly') {
         payPeriodIncome = incomeData.payAmount || 0;
       } else if (incomeData.payFrequency === 'monthly') {
@@ -898,12 +958,12 @@ export default function Dashboard() {
         // Default to using the biweekly pay directly
         payPeriodIncome = incomeData.payAmount || 0;
       }
-      
+
       // Calculate projected savings for next pay period
       const projectedSavings = payPeriodIncome - savingsBreakdown.recurringExpenses - savingsBreakdown.budgetAllocation;
-      
+
       setNextSavings(projectedSavings);
-      
+
       return projectedSavings;
     } catch (error) {
       return 0;
@@ -929,11 +989,11 @@ export default function Dashboard() {
       try {
         setLoadingFundAccounts(true);
         const response = await fetch('/api/fund-accounts');
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch fund accounts');
         }
-        
+
         const data = await response.json();
         setTotalFundAccountsAmount(data.totalAmount || 0);
         setTotalInvestingFundsAmount(data.totalInvestingAmount || 0);
@@ -943,40 +1003,40 @@ export default function Dashboard() {
         setLoadingFundAccounts(false);
       }
     }
-    
+
     fetchFundAccountsData();
   }, []);
 
   async function fetchInvestmentData() {
     try {
       setLoadingInvestments(true);
-      
+
       const response = await fetch('/api/investments');
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch investment data');
       }
-      
+
       const data = await response.json();
       const investments = data.investments || [];
-      
+
       // Calculate initial values from the investments
       let initialTotalValue = 0;
       let initialTotalCost = 0;
-      
+
       for (const investment of investments) {
         // Use current price if available, otherwise use average price
         const currentPrice = investment.currentPrice || investment.avgPrice;
         const investmentValue = investment.shares * currentPrice;
         const investmentCost = investment.shares * investment.avgPrice;
-        
+
         initialTotalValue += investmentValue;
         initialTotalCost += investmentCost;
       }
-      
+
       const initialGainLoss = initialTotalValue - initialTotalCost;
       const initialGainLossPercent = initialTotalCost > 0 ? (initialGainLoss / initialTotalCost) * 100 : 0;
-      
+
       // Set the investment data with calculated values first, including day change from API
       setInvestmentData({
         totalValue: data.totalValue || initialTotalValue,
@@ -988,7 +1048,7 @@ export default function Dashboard() {
         lastUpdated: data.lastUpdated || null,
         investments: investments
       });
-      
+
       // After setting the initial data, update the prices with a delay
       // to prevent conflicts with the initial data loading
       if (investments.length > 0) {
@@ -1020,18 +1080,18 @@ export default function Dashboard() {
         investments: []
       });
       setLoadingInvestments(false);
-      
+
       // Silently log error - don't show toast for price fetch failures
       console.log('Investment data could not be loaded. This may be due to market hours or API availability.');
     }
   }
-  
+
   // Function to calculate today's change using the stock-price API
   async function calculateTodaysChange(investments: any[]) {
     let totalDailyChange = 0;
     let totalDailyChangePercent = 0;
     let totalInvestmentValue = 0;
-    
+
     try {
       // Calculate total investment value first
       for (const investment of investments) {
@@ -1039,7 +1099,7 @@ export default function Dashboard() {
         const investmentValue = investment.shares * currentPrice;
         totalInvestmentValue += investmentValue;
       }
-      
+
       // Fetch the latest daily changes for each investment
       for (const investment of investments) {
         try {
@@ -1050,7 +1110,7 @@ export default function Dashboard() {
               // Calculate the change amount for this holding
               const dailyChangeAmount = data.change * investment.shares;
               totalDailyChange += dailyChangeAmount;
-              
+
               // If we have a percentage, we can use it to calculate a weighted percentage
               if (data.changePercent) {
                 const investmentValue = investment.shares * (investment.currentPrice || investment.avgPrice);
@@ -1070,7 +1130,7 @@ export default function Dashboard() {
     } catch (error) {
       console.log('Error calculating today\'s change:', error);
     }
-    
+
     return { dayChange: totalDailyChange, dayChangePercent: totalDailyChangePercent };
   }
 
@@ -1079,19 +1139,19 @@ export default function Dashboard() {
     try {
       // Import the getStockPriceOnly function which returns just the price
       const { getStockPriceOnly } = await import('@/lib/stock-api');
-      
+
       // Update each investment with current market price
       let updatedInvestments = [...investments];
       let totalValue = 0;
       let totalCost = 0;
-      
+
       for (const investment of updatedInvestments) {
         if (!investment.id || !investment.symbol) continue;
-        
+
         try {
           // Get the current price from the stock API
           const currentPrice = await getStockPriceOnly(investment.symbol);
-          
+
           // If fetch fails, keep using the existing price
           if (currentPrice === null) {
             console.log(`Using existing price for ${investment.symbol}: ${investment.currentPrice}`);
@@ -1109,7 +1169,7 @@ export default function Dashboard() {
                 updatePriceOnly: true
               })
             });
-            
+
             // Update the investment in our local state
             investment.currentPrice = currentPrice;
           }
@@ -1118,22 +1178,22 @@ export default function Dashboard() {
           console.log(`Error fetching price for ${investment.symbol}, using existing price:`, err);
           // Don't skip, continue with existing price
         }
-        
+
         // Calculate values for this investment using currentPrice (existing or updated)
         const investmentValue = investment.shares * (investment.currentPrice || investment.avgPrice);
         const investmentCost = investment.shares * investment.avgPrice;
-        
+
         totalValue += investmentValue;
         totalCost += investmentCost;
       }
-      
+
       // Calculate the portfolio performance
       const totalGainLoss = totalValue - totalCost;
       const totalGainLossPercent = totalCost > 0 ? (totalGainLoss / totalCost) * 100 : 0;
-      
+
       // Get the day change using the stock-price API
       const { dayChange, dayChangePercent } = await calculateTodaysChange(updatedInvestments);
-      
+
       // Update the investment data state with fresh calculations
       setInvestmentData({
         totalValue,
@@ -1145,7 +1205,7 @@ export default function Dashboard() {
         lastUpdated: new Date().toISOString(),
         investments: updatedInvestments
       });
-      
+
       // Update the fetched time
       setLastFetched(new Date());
     } catch (error) {
@@ -1157,7 +1217,7 @@ export default function Dashboard() {
   // Add a helper function to format the last updated time in a relative format
   const formatRelativeTime = (dateString: string | null): string => {
     if (!dateString) return 'Not available';
-    
+
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
@@ -1182,13 +1242,13 @@ export default function Dashboard() {
   // First, add a new function to calculate total net worth (including retirement and stocks)
   const calculateNetWorth = () => {
     if (!assetData) return 0;
-    
+
     // Calculate cash assets (excluding checking)
     const cashAssets = assetData.cash + assetData.interest;
-    
+
     // Calculate investments (retirement + investment portfolio)
     const investmentsTotal = assetData.retirement401k + (loadingInvestments ? 0 : investmentData.totalValue);
-    
+
     // Total net worth is cash + investments (excluding checking)
     return cashAssets + investmentsTotal;
   };
@@ -1208,50 +1268,88 @@ export default function Dashboard() {
   const calculateTotalBudgetWithAdditional = () => {
     const baseBudget = calculateBudgetWithoutPendingCashback();
     const totalAdditional = additionalBudgetItems.reduce((sum, item) => {
-      return sum + (parseFloat(item.amount) || 0);
+      return sum + (item.amount || 0);
     }, 0);
     return baseBudget + totalAdditional;
   };
 
   // Add new budget item
-  const addBudgetItem = () => {
+  const addBudgetItem = async () => {
     if (newBudgetAmount && parseFloat(newBudgetAmount) > 0) {
-      const newItem = {
-        id: Date.now().toString(),
-        amount: newBudgetAmount,
-        description: newBudgetDescription || 'Additional Budget'
-      };
-      setAdditionalBudgetItems([...additionalBudgetItems, newItem]);
-      setNewBudgetAmount('');
-      setNewBudgetDescription('');
+      try {
+        const response = await fetch('/api/additional-budget', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: parseFloat(newBudgetAmount),
+            description: newBudgetDescription || 'Additional Budget'
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to add additional budget item');
+        }
+
+        const data = await response.json();
+        if (data.item) {
+          setAdditionalBudgetItems([...additionalBudgetItems, data.item]);
+        } else {
+          await fetchAdditionalBudgetItems();
+        }
+
+        setNewBudgetAmount('');
+        setNewBudgetDescription('');
+      } catch (error) {
+        console.error('Error adding additional budget item:', error);
+      }
     }
   };
 
   // Remove budget item
-  const removeBudgetItem = (id: string) => {
-    setAdditionalBudgetItems(additionalBudgetItems.filter(item => item.id !== id));
+  const removeBudgetItem = async (id: number) => {
+    try {
+      const response = await fetch(`/api/additional-budget?id=${id}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to remove additional budget item');
+      }
+
+      setAdditionalBudgetItems(additionalBudgetItems.filter(item => item.id !== id));
+    } catch (error) {
+      console.error('Error removing additional budget item:', error);
+    }
   };
 
   // Add a function to calculate net worth (savings minus debt)
   const calculateNetWorthWithDebt = () => {
     if (!assetData) return { netWorth: 0, totalSavings: 0, totalDebt: 0 };
-    
+
     // Calculate total savings (cash + interest + investments)
     const totalSavings = calculateActualTotalAssets();
-    
+
     // Calculate total debt (credit card debt)
     const totalDebt = calculateTotalCreditCardDebt();
-    
+
     // Net worth is savings minus debt
     const netWorth = totalSavings - totalDebt;
-    
+
     return { netWorth, totalSavings, totalDebt };
   };
+
+  const postedCheckingBalance = assetData?.checking ?? 0;
+  const adjustedCheckingBalance = assetData ? postedCheckingBalance - totalPendingAmount : 0;
+  const workingBudgetRemaining = budgetSummary ? calculateTotalBudgetWithAdditional() : 0;
+  const budgetAlignmentAmount = adjustedCheckingBalance - workingBudgetRemaining;
+  const isBudgetAligned = budgetAlignmentAmount >= 0;
+  const pendingAdjustmentLabel = totalPendingAmount >= 0 ? 'Net pending hold' : 'Net pending credit';
+  const checkingAdjustmentDisplay = `${totalPendingAmount >= 0 ? '-' : '+'}${formatCurrency(Math.abs(totalPendingAmount))}`;
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
+        <h1 className="text-2xl font-semibold text-slate-950">Dashboard</h1>
         <div className="flex flex-row gap-2">
           <Button
             size="sm"
@@ -1265,152 +1363,233 @@ export default function Dashboard() {
           </Button>
         </div>
       </div>
-      
+
+      {/* Checking Reality Check */}
+      <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.06)] sm:p-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-2xl">
+            <p className="text-xs font-semibold uppercase text-slate-700">Budget alignment</p>
+            <h2 className="mt-1 text-xl font-semibold text-slate-950">Checking reality check</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              Starts with posted checking, subtracts unpaid bills, bills completed today, and pending tip adjustments, then adds unposted cashback before comparing against the working budget.
+            </p>
+          </div>
+
+          <div className={`rounded-lg border px-4 py-3 text-sm font-semibold ${
+            !assetData || !budgetSummary
+              ? 'border-slate-200 bg-slate-50 text-slate-600'
+              : isBudgetAligned
+                ? 'border-green-200 bg-green-50 text-green-700'
+                : 'border-red-200 bg-red-50 text-red-700'
+          }`}>
+            {!assetData || !budgetSummary
+              ? 'Waiting on account and budget data'
+              : isBudgetAligned
+                ? `${formatCurrency(budgetAlignmentAmount)} above budget`
+                : `${formatCurrency(Math.abs(budgetAlignmentAmount))} short of budget`}
+          </div>
+        </div>
+
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-medium uppercase text-slate-500">Posted checking</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-950">
+              {loadingAccounts ? 'Loading...' : formatCurrency(postedCheckingBalance)}
+            </p>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-medium uppercase text-slate-700">{pendingAdjustmentLabel}</p>
+            <p className={`mt-2 text-2xl font-semibold ${totalPendingAmount >= 0 ? 'text-slate-700' : 'text-green-700'}`}>
+              {loadingAccounts ? 'Loading...' : checkingAdjustmentDisplay}
+            </p>
+          </div>
+          <div className="rounded-lg border border-slate-950 bg-slate-950 p-4">
+            <p className="text-xs font-medium uppercase text-slate-300">Adjusted checking</p>
+            <p className="mt-2 text-2xl font-semibold text-white">
+              {loadingAccounts ? 'Loading...' : formatCurrency(adjustedCheckingBalance)}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-5">
+          <div className="rounded-lg border border-slate-200 bg-white p-3">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="text-slate-500">Unpaid bills</span>
+              <span className="font-semibold text-slate-950">-{formatCurrency(pendingTransactionAmount)}</span>
+            </div>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-white p-3">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="text-slate-500">Completed today</span>
+              <span className="font-semibold text-slate-950">-{formatCurrency(completedTodayPendingAmount)}</span>
+            </div>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-white p-3">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="text-slate-500">Pending tips</span>
+              <span className="font-semibold text-slate-950">-{formatCurrency(pendingTipAmount)}</span>
+            </div>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-white p-3">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="text-slate-500">Pending cashback</span>
+              <span className="font-semibold text-green-700">+{formatCurrency(pendingCashbackAmount)}</span>
+            </div>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-white p-3">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="text-slate-500">Working budget</span>
+              <span className="font-semibold text-slate-950">{formatCurrency(workingBudgetRemaining)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Quick Financial Snapshot */}
-      <div className="p-6 bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-200/60">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <div className="p-2 rounded-full bg-blue-50">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="p-6 bg-white rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-slate-200/60">
+        <h2 className="text-lg font-semibold text-slate-950 mb-4 flex items-center gap-2">
+          <div className="p-2 rounded-full bg-slate-50">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
           </div>
           Financial Snapshot
         </h2>
-        
+
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {/* Budget */}
-          <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
-            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Budget</div>
+          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+            <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Budget</div>
             {loadingBudget ? (
-              <div className="animate-pulse h-7 bg-gray-200 rounded-lg w-20"></div>
+              <div className="animate-pulse h-7 bg-slate-200 rounded-lg w-20"></div>
             ) : budgetSummary ? (
-              <div className="text-xl font-bold text-blue-600">
+              <div className="text-xl font-bold text-slate-700">
                 {formatCurrency(calculateTotalBudgetWithAdditional())}
               </div>
             ) : (
-              <div className="text-xl font-bold text-gray-300">$0.00</div>
+              <div className="text-xl font-bold text-slate-300">$0.00</div>
             )}
-            <div className="text-xs text-gray-400 mt-1">Biweekly</div>
+            <div className="text-xs text-slate-400 mt-1">Biweekly</div>
           </div>
 
           {/* Savings (Stocks + Cash) */}
-          <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
-            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Savings</div>
+          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+            <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Savings</div>
             {loading || loadingInvestments ? (
-              <div className="animate-pulse h-7 bg-gray-200 rounded-lg w-20"></div>
+              <div className="animate-pulse h-7 bg-slate-200 rounded-lg w-20"></div>
             ) : assetData ? (
               <>
                 <div className="text-xl font-bold text-green-600">
                   {formatCurrency(assetData.cash + (loadingInvestments ? 0 : investmentData.totalValue) + assetData.interest)}
                 </div>
-                <div className="flex gap-2 text-xs text-gray-400 mt-1">
+                <div className="flex gap-2 text-xs text-slate-400 mt-1">
                   <span>Stocks: {formatCurrency(investmentData.totalValue)}</span>
-                  <span className="text-gray-300">|</span>
+                  <span className="text-slate-300">|</span>
                   <span>Cash: {formatCurrency(assetData.cash + assetData.interest)}</span>
                 </div>
               </>
             ) : (
-              <div className="text-xl font-bold text-gray-300">$0.00</div>
+              <div className="text-xl font-bold text-slate-300">$0.00</div>
             )}
           </div>
 
           {/* 401k */}
-          <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
-            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">401k</div>
+          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+            <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">401k</div>
             {loading ? (
-              <div className="animate-pulse h-7 bg-gray-200 rounded-lg w-20"></div>
+              <div className="animate-pulse h-7 bg-slate-200 rounded-lg w-20"></div>
             ) : assetData ? (
-              <div className="text-xl font-bold text-indigo-600">
+              <div className="text-xl font-bold text-slate-700">
                 {formatCurrency(assetData.retirement401k)}
               </div>
             ) : (
-              <div className="text-xl font-bold text-gray-300">$0.00</div>
+              <div className="text-xl font-bold text-slate-300">$0.00</div>
             )}
-            <div className="text-xs text-gray-400 mt-1">Retirement</div>
+            <div className="text-xs text-slate-400 mt-1">Retirement</div>
           </div>
 
           {/* Debt */}
-          <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
-            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Debt</div>
+          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+            <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Debt</div>
             {loadingCreditCards ? (
-              <div className="animate-pulse h-7 bg-gray-200 rounded-lg w-20"></div>
+              <div className="animate-pulse h-7 bg-slate-200 rounded-lg w-20"></div>
             ) : (
               <div className="text-xl font-bold text-purple-600">
                 {formatCurrency(calculateTotalCreditCardDebt())}
               </div>
             )}
-            <div className="text-xs text-gray-400 mt-1">Credit Cards</div>
+            <div className="text-xs text-slate-400 mt-1">Credit Cards</div>
           </div>
 
           {/* Net Worth */}
-          <div className="bg-gradient-to-br from-blue-50 to-blue-50/50 rounded-2xl p-4 border-2 border-blue-200/60">
-            <div className="text-xs font-medium text-blue-700 uppercase tracking-wide mb-2">Net Worth</div>
+          <div className="bg-slate-50 rounded-lg p-4 border-2 border-slate-200/60">
+            <div className="text-xs font-medium text-slate-700 uppercase tracking-wide mb-2">Net Worth</div>
             {loading || loadingInvestments ? (
-              <div className="animate-pulse h-7 bg-blue-100 rounded-lg w-20"></div>
+              <div className="animate-pulse h-7 bg-slate-100 rounded-lg w-20"></div>
             ) : assetData ? (
-              <div className="text-xl font-bold text-blue-700">
+              <div className="text-xl font-bold text-slate-700">
                 {formatCurrency(calculateNetWorth())}
               </div>
             ) : (
-              <div className="text-xl font-bold text-gray-300">$0.00</div>
+              <div className="text-xl font-bold text-slate-300">$0.00</div>
             )}
-            <div className="text-xs text-blue-600 mt-1">Cash + Investments</div>
+            <div className="text-xs text-slate-700 mt-1">Cash + Investments</div>
           </div>
         </div>
       </div>
-      
+
       {/* Financial Overview Section */}
-      <div className="p-6 bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-200/60">
-        <h2 className="text-lg font-semibold text-gray-900 mb-5">Financial Overview</h2>
+      <div className="p-6 bg-white rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-slate-200/60">
+        <h2 className="text-lg font-semibold text-slate-950 mb-5">Financial Overview</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
           {/* Biweekly Budget Status */}
-          <div className="bg-gray-50 rounded-2xl border border-gray-200/60 overflow-hidden">
+          <div className="bg-slate-50 rounded-lg border border-slate-200/60 overflow-hidden">
             <div className="p-5">
               <div className="flex items-center gap-3 mb-3">
-                <div className="p-2.5 bg-blue-100 text-blue-600 rounded-full">
+                <div className="p-2.5 bg-slate-100 text-slate-700 rounded-full">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <span className="font-semibold text-gray-900">Biweekly Budget</span>
+                <span className="font-semibold text-slate-950">Biweekly Budget</span>
               </div>
               {loadingBudget ? (
-                <div className="animate-pulse h-8 bg-gray-200 rounded-lg w-3/4"></div>
+                <div className="animate-pulse h-8 bg-slate-200 rounded-lg w-3/4"></div>
               ) : budgetSummary ? (
-                <p className={`text-2xl font-bold ${calculateBudgetWithoutPendingCashback() >= 0 ? 'text-blue-600' : 'text-gray-600'}`}>
+                <p className={`text-2xl font-bold ${calculateBudgetWithoutPendingCashback() >= 0 ? 'text-slate-700' : 'text-slate-600'}`}>
                   {calculateBudgetWithoutPendingCashback() >= 0 ? '' : '-'}{formatCurrency(Math.abs(calculateBudgetWithoutPendingCashback()))}
                 </p>
               ) : (
-                <p className="text-2xl font-bold text-gray-300">No data</p>
+                <p className="text-2xl font-bold text-slate-300">No data</p>
               )}
               {budgetSummary && (
-                <p className="text-xs text-gray-400 mt-2">
+                <p className="text-xs text-slate-400 mt-2">
                   {`${formatCurrency(budgetSummary.totalSpent + (budgetSummary.totalPendingTipAmount || 0))} / ${formatCurrency(budgetSummary.totalAllocated)} spent`}
                 </p>
               )}
-              
+
               {/* Daily Budget Display */}
               {budgetSummary && daysRemaining !== null && daysRemaining >= 0 && (
-                <div className="mt-3 p-2 bg-blue-50 rounded-lg">
+                <div className="mt-3 p-2 bg-slate-50 rounded-lg">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-blue-700">Daily Budget:</span>
-                    <span className={`text-sm font-bold ${calculateDailyBudgetRemaining() >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                    <span className="text-xs font-medium text-slate-700">Daily Budget:</span>
+                    <span className={`text-sm font-bold ${calculateDailyBudgetRemaining() >= 0 ? 'text-slate-700' : 'text-red-600'}`}>
                       {formatCurrency(calculateDailyBudgetRemaining())}
                     </span>
                   </div>
-                  <p className="text-xs text-blue-600 mt-1">
+                  <p className="text-xs text-slate-700 mt-1">
                     {daysRemaining + 1} {daysRemaining + 1 === 1 ? 'day' : 'days'} until next pay
                   </p>
                 </div>
               )}
-              
+
               {/* Additional Budget Section */}
-              <div className="mt-4 pt-3 border-t border-gray-100">
+              <div className="mt-4 pt-3 border-t border-slate-200">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-medium text-gray-600">Additional Budget:</span>
+                  <span className="text-xs font-medium text-slate-600">Additional Budget:</span>
                   <button
                     onClick={() => setShowAdditionalBudget(!showAdditionalBudget)}
-                    className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors"
+                    className="flex items-center gap-1 text-xs text-slate-700 hover:text-slate-800 transition-colors"
                   >
                     {showAdditionalBudget ? (
                       <>
@@ -1429,20 +1608,20 @@ export default function Dashboard() {
                     )}
                   </button>
                 </div>
-                
+
                 {showAdditionalBudget && (
                   <>
                     {/* Add New Budget Item */}
                     <div className="space-y-2 mb-3">
                       <div className="flex items-center gap-2">
                         <div className="relative flex-1">
-                          <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-400">$</span>
+                          <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-xs text-slate-400">$</span>
                           <input
                             type="number"
                             value={newBudgetAmount}
                             onChange={(e) => setNewBudgetAmount(e.target.value)}
                             placeholder="0.00"
-                            className="w-full h-7 pl-5 pr-2 text-xs border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 bg-gray-50"
+                            className="w-full h-7 pl-5 pr-2 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 bg-slate-50"
                             min="0"
                             step="0.01"
                           />
@@ -1450,7 +1629,7 @@ export default function Dashboard() {
                         <button
                           onClick={addBudgetItem}
                           disabled={!newBudgetAmount || parseFloat(newBudgetAmount) <= 0}
-                          className="h-7 px-2 text-xs bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                          className="h-7 px-2 text-xs bg-slate-950 text-white rounded-md hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
                         >
                           Add
                         </button>
@@ -1460,7 +1639,7 @@ export default function Dashboard() {
                         value={newBudgetDescription}
                         onChange={(e) => setNewBudgetDescription(e.target.value)}
                         placeholder="Description (optional)"
-                        className="w-full h-7 px-2 text-xs border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 bg-gray-50"
+                        className="w-full h-7 px-2 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 bg-slate-50"
                       />
                     </div>
 
@@ -1468,12 +1647,12 @@ export default function Dashboard() {
                     {additionalBudgetItems.length > 0 && (
                       <div className="space-y-1 mb-3">
                         {additionalBudgetItems.map((item) => (
-                          <div key={item.id} className="flex items-center justify-between py-1 px-2 bg-blue-50 rounded-md">
+                          <div key={item.id} className="flex items-center justify-between py-1 px-2 bg-slate-50 rounded-md">
                             <div className="flex-1">
-                              <span className="text-xs text-gray-700">{item.description}</span>
+                              <span className="text-xs text-slate-700">{item.description}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-medium text-blue-600">{formatCurrency(parseFloat(item.amount))}</span>
+                              <span className="text-xs font-medium text-slate-700">{formatCurrency(item.amount)}</span>
                               <button
                                 onClick={() => removeBudgetItem(item.id)}
                                 className="text-xs text-red-500 hover:text-red-700 p-1"
@@ -1490,17 +1669,17 @@ export default function Dashboard() {
 
                 {/* Total Budget Calculation - Always Show if There Are Items */}
                 {additionalBudgetItems.length > 0 && (
-                  <div className="mt-2 pt-2 border-t border-gray-200">
+                  <div className="mt-2 pt-2 border-t border-slate-200">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-blue-600 font-medium">Total Budget:</span>
-                      <span className={`font-bold ${calculateTotalBudgetWithAdditional() >= 0 ? 'text-blue-600' : 'text-gray-600'}`}>
+                      <span className="text-slate-700 font-medium">Total Budget:</span>
+                      <span className={`font-bold ${calculateTotalBudgetWithAdditional() >= 0 ? 'text-slate-700' : 'text-slate-600'}`}>
                         {formatCurrency(calculateTotalBudgetWithAdditional())}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-xs mt-1">
-                      <span className="text-gray-500">Additional added:</span>
-                      <span className="text-gray-600">
-                        +{formatCurrency(additionalBudgetItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0))}
+                      <span className="text-slate-500">Additional added:</span>
+                      <span className="text-slate-600">
+                        +{formatCurrency(additionalBudgetItems.reduce((sum, item) => sum + (item.amount || 0), 0))}
                       </span>
                     </div>
                   </div>
@@ -1508,90 +1687,96 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-          
+
           {/* Checking Balance */}
-          <div className="bg-gray-50 rounded-2xl border border-gray-200/60 overflow-hidden">
+          <div className="bg-slate-50 rounded-lg border border-slate-200/60 overflow-hidden">
             <div className="p-5">
               <div className="flex items-center gap-3 mb-3">
-                <div className="p-2.5 bg-blue-100 text-blue-700 rounded-full">
+                <div className="p-2.5 bg-slate-100 text-slate-700 rounded-full">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                   </svg>
                 </div>
-                <span className="font-semibold text-gray-900">Checking Balance</span>
+                <span className="font-semibold text-slate-950">Checking Balance</span>
               </div>
               {loadingAccounts ? (
-                <div className="animate-pulse h-8 bg-gray-200 rounded-lg w-3/4"></div>
+                <div className="animate-pulse h-8 bg-slate-200 rounded-lg w-3/4"></div>
               ) : checkingBalance !== undefined ? (
                 <>
-                  <p className="text-2xl font-bold text-blue-700">{formatCurrency(checkingBalance)}</p>
+                  <p className="text-2xl font-bold text-slate-700">{formatCurrency(checkingBalance)}</p>
                   {totalPendingAmount > 0 && (
                     <div className="mt-2 text-xs space-y-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-blue-600 flex items-center">
-                          <span className="mr-1 w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
-                          Pending total:
+                        <span className="text-slate-700 flex items-center">
+                          <span className="mr-1 w-2 h-2 rounded-full bg-slate-950 inline-block"></span>
+                          Checking adjustment:
                         </span>
-                        <span className="font-medium text-blue-600">{formatCurrency(totalPendingAmount)}</span>
+                        <span className="font-medium text-slate-700">{checkingAdjustmentDisplay}</span>
                       </div>
-                      
+
                       {/* Show the breakdown of pending amounts */}
                       {pendingTransactionAmount > 0 && (
                         <div className="flex items-center justify-between pl-4 mt-1">
-                          <span className="text-gray-600">Recurring pending:</span>
-                          <span className="text-gray-600">{formatCurrency(pendingTransactionAmount)}</span>
+                          <span className="text-slate-600">Unpaid bills:</span>
+                          <span className="text-slate-600">{formatCurrency(pendingTransactionAmount)}</span>
+                        </div>
+                      )}
+                      {completedTodayPendingAmount > 0 && (
+                        <div className="flex items-center justify-between pl-4 mt-1">
+                          <span className="text-slate-600">Completed today:</span>
+                          <span className="text-slate-600">{formatCurrency(completedTodayPendingAmount)}</span>
                         </div>
                       )}
                       {pendingTipAmount > 0 && (
                         <div className="flex items-center justify-between pl-4 mt-1">
-                          <span className="text-gray-600">Checking pending:</span>
-                          <span className="text-gray-600">{formatCurrency(pendingTipAmount)}</span>
+                          <span className="text-slate-600">Pending tips:</span>
+                          <span className="text-slate-600">{formatCurrency(pendingTipAmount)}</span>
                         </div>
                       )}
                       {pendingCashbackAmount > 0 && (
                         <div className="flex items-center justify-between pl-4 mt-1">
-                          <span className="text-gray-600">Pending cashback:</span>
-                          <span className="text-gray-600">+{formatCurrency(pendingCashbackAmount)}</span>
+                          <span className="text-slate-600">Pending cashback:</span>
+                          <span className="text-slate-600">+{formatCurrency(pendingCashbackAmount)}</span>
                         </div>
                       )}
                     </div>
                   )}
                 </>
               ) : (
-                <p className="text-2xl font-bold text-gray-300">No data</p>
+                <p className="text-2xl font-bold text-slate-300">No data</p>
               )}
             </div>
           </div>
-          
+
           {/* Net Worth Card */}
-          <div className="bg-gray-50 rounded-2xl border border-gray-200/60 overflow-hidden">
+          <div className="bg-slate-50 rounded-lg border border-slate-200/60 overflow-hidden">
             <div className="p-5">
               <div className="flex items-center gap-3 mb-3">
-                <div className="p-2.5 bg-blue-100 text-blue-800 rounded-full">
+                <div className="p-2.5 bg-slate-100 text-slate-800 rounded-full">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <span className="font-semibold text-gray-900">Total Savings </span>
+                <span className="font-semibold text-slate-950">Total Savings </span>
               </div>
               {loading || loadingInvestments || loadingCreditCards ? (
-                <div className="animate-pulse h-8 bg-gray-200 rounded-lg w-3/4"></div>
+                <div className="animate-pulse h-8 bg-slate-200 rounded-lg w-3/4"></div>
               ) : assetData ? (
                 <>
-                  <p className={`text-2xl font-bold mb-1 ${calculateNetWorthWithDebt().netWorth >= 0 ? 'text-blue-800' : 'text-purple-600'}`}>
+                  <p className={`text-2xl font-bold mb-1 ${calculateNetWorthWithDebt().netWorth >= 0 ? 'text-slate-800' : 'text-purple-600'}`}>
                     {formatCurrency(calculateNetWorthWithDebt().netWorth)}
                   </p>
-                  
+
                   {/* Breakdown similar to checking balance */}
                   <div className="mt-2 text-xs space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-blue-600 flex items-center">
-                        <span className="mr-1 w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
+                      <span className="text-slate-700 flex items-center">
+                        <span className="mr-1 w-2 h-2 rounded-full bg-slate-950 inline-block"></span>
                         Total Savings:
                       </span>
-                      <span className="font-medium text-blue-600">{formatCurrency(calculateNetWorthWithDebt().totalSavings)}</span>
+                      <span className="font-medium text-slate-700">{formatCurrency(calculateNetWorthWithDebt().totalSavings)}</span>
                     </div>
-                    
+
                     {/* Show debt if it exists */}
                     {calculateNetWorthWithDebt().totalDebt > 0 && (
                       <div className="flex items-center justify-between pl-4 mt-1">
@@ -1602,18 +1787,18 @@ export default function Dashboard() {
                   </div>
                 </>
               ) : (
-                <p className="text-2xl font-bold text-gray-300 mb-1">No data</p>
+                <p className="text-2xl font-bold text-slate-300 mb-1">No data</p>
               )}
             </div>
           </div>
         </div>
       </div>
-      
+
       {/* Investment Portfolio Section */}
-      <div className="p-6 bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-200/60">
-        <h2 className="text-lg font-semibold text-gray-900 mb-5">Investment Portfolio</h2>
+      <div className="p-6 bg-white rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-slate-200/60">
+        <h2 className="text-lg font-semibold text-slate-950 mb-5">Investment Portfolio</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="bg-gray-50 rounded-2xl border border-gray-200/60 overflow-hidden">
+          <div className="bg-slate-50 rounded-lg border border-slate-200/60 overflow-hidden">
             <div className="p-5">
               <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center gap-3">
@@ -1622,11 +1807,11 @@ export default function Dashboard() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                     </svg>
                   </div>
-                  <span className="font-semibold text-gray-900">Portfolio Value</span>
+                  <span className="font-semibold text-slate-950">Portfolio Value</span>
                 </div>
                 <span className={`text-sm font-semibold px-2.5 py-1 rounded-full ${
-                  investmentData.totalGainLossPercent >= 0 
-                    ? 'bg-green-100 text-green-700' 
+                  investmentData.totalGainLossPercent >= 0
+                    ? 'bg-green-100 text-green-700'
                     : 'bg-red-100 text-red-700'
                 }`}>
                   {investmentData.totalGainLossPercent >= 0 ? '+' : ''}
@@ -1634,16 +1819,16 @@ export default function Dashboard() {
                 </span>
               </div>
               {loadingInvestments ? (
-                <div className="animate-pulse h-8 bg-gray-200 rounded-lg w-3/4"></div>
+                <div className="animate-pulse h-8 bg-slate-200 rounded-lg w-3/4"></div>
               ) : (
                 <p className="text-2xl font-bold text-green-700 mb-3">
                   {formatCurrency(investmentData.totalValue)}
                 </p>
               )}
-              
-              <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-gray-200">
+
+              <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-slate-200">
                 <div>
-                  <span className="text-xs text-gray-500 block">Total gain/loss</span>
+                  <span className="text-xs text-slate-500 block">Total gain/loss</span>
                   <span className={`text-base font-semibold ${
                     investmentData.totalGainLoss >= 0 ? 'text-green-600' : 'text-red-600'
                   }`}>
@@ -1651,7 +1836,7 @@ export default function Dashboard() {
                   </span>
                 </div>
                 <div>
-                  <span className="text-xs text-gray-500 block">Today's change</span>
+                  <span className="text-xs text-slate-500 block">Today's change</span>
                   <span className={`text-base font-semibold ${
                     investmentData.dayChange >= 0 ? 'text-green-600' : 'text-red-600'
                   }`}>
@@ -1665,9 +1850,9 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-          
+
           {/* Investing Funds Card */}
-          <div className="bg-gray-50 rounded-2xl border border-gray-200/60 overflow-hidden">
+          <div className="bg-slate-50 rounded-lg border border-slate-200/60 overflow-hidden">
             <div className="p-5">
               <div className="flex items-center gap-3 mb-3">
                 <div className="p-2.5 bg-green-100 text-green-600 rounded-full">
@@ -1675,23 +1860,23 @@ export default function Dashboard() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <span className="font-semibold text-gray-900">Investing Funds</span>
+                <span className="font-semibold text-slate-950">Investing Funds</span>
               </div>
-              
+
               {loading || loadingFundAccounts ? (
-                <div className="animate-pulse h-8 bg-gray-200 rounded-lg w-3/4"></div>
+                <div className="animate-pulse h-8 bg-slate-200 rounded-lg w-3/4"></div>
               ) : (
                 <p className="text-2xl font-bold text-green-600 mb-3">
                   {formatCurrency(calculateInvestmentFundsRemaining())}
                 </p>
               )}
-              
-              <p className="text-xs text-gray-400 mt-2">Available funds for investing</p>
+
+              <p className="text-xs text-slate-400 mt-2">Available funds for investing</p>
             </div>
           </div>
-          
+
           {/* Next Pay Day Info */}
-          <div className="bg-gray-50 rounded-2xl border border-gray-200/60 overflow-hidden">
+          <div className="bg-slate-50 rounded-lg border border-slate-200/60 overflow-hidden">
             <div className="p-5">
               <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center gap-3">
@@ -1700,30 +1885,30 @@ export default function Dashboard() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                   </div>
-                  <span className="font-semibold text-gray-900">Next Pay Day</span>
+                  <span className="font-semibold text-slate-950">Next Pay Day</span>
                 </div>
                 {nextPayDate && daysRemaining !== null && (
                   <div className="text-sm font-medium px-2.5 py-1 bg-green-100 text-green-700 rounded-full">
-                    {format(nextPayDate, 'MMM d')} 
+                    {format(nextPayDate, 'MMM d')}
                     <span className="text-xs ml-1">
                       ({daysRemaining} {daysRemaining === 1 ? 'day' : 'days'})
                     </span>
                   </div>
                 )}
               </div>
-              
+
               {loading || loadingInvestments || loadingIncome || loadingBudget || loadingNextPayPeriodTransactions ? (
-                <div className="animate-pulse h-8 bg-gray-200 rounded-lg w-3/4 mb-3"></div>
+                <div className="animate-pulse h-8 bg-slate-200 rounded-lg w-3/4 mb-3"></div>
               ) : (
                 <>
-                  <p className={`text-2xl font-bold ${calculateProjectedTotalSavings() >= 0 ? 'text-green-500' : 'text-gray-600'} mb-3`}>
+                  <p className={`text-2xl font-bold ${calculateProjectedTotalSavings() >= 0 ? 'text-green-500' : 'text-slate-600'} mb-3`}>
                     {formatCurrency(calculateProjectedTotalSavings())}
                   </p>
-                  <p className="text-xs text-gray-400 mb-3">Projected total after next pay</p>
-                  
-                  <div className="flex justify-between items-center pt-2 border-t border-gray-200">
-                    <span className="text-sm text-gray-600">Next Pay Savings:</span>
-                    <span className={`text-sm font-medium ${nextSavings && nextSavings >= 0 ? 'text-green-500' : 'text-gray-600'}`}>
+                  <p className="text-xs text-slate-400 mb-3">Projected total after next pay</p>
+
+                  <div className="flex justify-between items-center pt-2 border-t border-slate-200">
+                    <span className="text-sm text-slate-600">Next Pay Savings:</span>
+                    <span className={`text-sm font-medium ${nextSavings && nextSavings >= 0 ? 'text-green-500' : 'text-slate-600'}`}>
                       {formatCurrency(nextSavings || 0)}
                     </span>
                   </div>
@@ -1733,48 +1918,48 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-      
+
       {/* Account Summaries Section */}
-      <div className="p-6 bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-200/60">
+      <div className="p-6 bg-white rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-slate-200/60">
         <div className="flex justify-between items-center mb-5">
-          <h2 className="text-lg font-semibold text-gray-900">Account Totals</h2>
+          <h2 className="text-lg font-semibold text-slate-950">Account Totals</h2>
         </div>
-        
+
         {loading ? (
           <div className="space-y-4">
-            <div className="animate-pulse h-6 bg-gray-200 rounded w-3/4"></div>
-            <div className="animate-pulse h-6 bg-gray-200 rounded w-2/3"></div>
+            <div className="animate-pulse h-6 bg-slate-200 rounded w-3/4"></div>
+            <div className="animate-pulse h-6 bg-slate-200 rounded w-2/3"></div>
           </div>
         ) : assetData ? (
           <div className="space-y-5">
             {/* Net Worth Card */}
-            <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl border border-gray-200/60 p-6">
+            <div className="bg-slate-50 rounded-lg border border-slate-200/60 p-6">
               <div className="space-y-1 mb-4">
-                <h3 className="text-sm font-medium text-gray-500">Net Worth</h3>
+                <h3 className="text-sm font-medium text-slate-500">Net Worth</h3>
                 {loading || loadingInvestments ? (
-                  <div className="animate-pulse h-9 bg-gray-200 rounded-lg w-40"></div>
+                  <div className="animate-pulse h-9 bg-slate-200 rounded-lg w-40"></div>
                 ) : (
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-gray-900">
+                    <span className="text-3xl font-bold text-slate-950">
                       {formatCurrency(calculateNetWorth())}
                     </span>
-                    <span className="text-sm text-gray-400">total</span>
+                    <span className="text-sm text-slate-400">total</span>
                   </div>
                 )}
               </div>
-              
+
               <div className="flex items-center gap-4 text-sm">
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
-                  <span className="text-gray-600">Cash & Interest</span>
+                  <div className="w-2.5 h-2.5 rounded-full bg-slate-950"></div>
+                  <span className="text-slate-600">Cash & Interest</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
-                  <span className="text-gray-600">401k & Investments</span>
+                  <span className="text-slate-600">401k & Investments</span>
                 </div>
               </div>
             </div>
-            
+
             {/* Account Cards Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
@@ -1786,9 +1971,9 @@ export default function Dashboard() {
                     </svg>
                   ),
                   amount: loadingInvestments ? 0 : investmentData.totalValue,
-                  color: 'from-blue-500 to-blue-400',
-                  bgLight: 'bg-blue-50',
-                  textColor: 'text-blue-600',
+                  color: 'bg-slate-500',
+                  bgLight: 'bg-slate-50',
+                  textColor: 'text-slate-700',
                   loading: loadingInvestments
                 },
                 {
@@ -1799,7 +1984,7 @@ export default function Dashboard() {
                     </svg>
                   ),
                   amount: assetData.cash,
-                  color: 'from-green-500 to-green-400',
+                  color: 'bg-green-500',
                   bgLight: 'bg-green-50',
                   textColor: 'text-green-600',
                   loading: false
@@ -1812,9 +1997,9 @@ export default function Dashboard() {
                     </svg>
                   ),
                   amount: assetData.retirement401k,
-                  color: 'from-indigo-500 to-indigo-400',
+                  color: 'bg-slate-500',
                   bgLight: 'bg-indigo-50',
-                  textColor: 'text-indigo-600',
+                  textColor: 'text-slate-700',
                   loading: false
                 },
                 {
@@ -1825,40 +2010,40 @@ export default function Dashboard() {
                     </svg>
                   ),
                   amount: assetData.interest,
-                  color: 'from-purple-500 to-purple-400',
-                  bgLight: 'bg-purple-50', 
+                  color: 'bg-purple-500',
+                  bgLight: 'bg-purple-50',
                   textColor: 'text-purple-600',
                   loading: false
                 }
               ]
                 .sort((a, b) => b.amount - a.amount)
                 .map((account) => (
-                  <div key={account.name} className="bg-gray-50 rounded-2xl border border-gray-200/60 overflow-hidden">
+                  <div key={account.name} className="bg-slate-50 rounded-lg border border-slate-200/60 overflow-hidden">
                     <div className="p-5">
                       <div className="flex items-center gap-3 mb-3">
                         <div className={`p-2.5 rounded-full ${account.bgLight} ${account.textColor}`}>
                           {account.icon}
                         </div>
-                        <span className="text-sm font-semibold text-gray-900">{account.name}</span>
+                        <span className="text-sm font-semibold text-slate-950">{account.name}</span>
                       </div>
-                      
+
                       {account.loading ? (
-                        <div className="animate-pulse h-8 bg-gray-200 rounded-lg w-28"></div>
+                        <div className="animate-pulse h-8 bg-slate-200 rounded-lg w-28"></div>
                       ) : (
                         <span className={`text-2xl font-bold block ${account.textColor}`}>
                           {formatCurrency(account.amount)}
                         </span>
                       )}
-                      
-                      <div className="mt-4 pt-3 border-t border-gray-200 flex justify-between items-center">
-                        <span className="text-xs text-gray-500 font-medium">
-                          {calculateNetWorth() > 0 
-                            ? `${(account.amount / calculateNetWorth() * 100).toFixed(1)}%` 
+
+                      <div className="mt-4 pt-3 border-t border-slate-200 flex justify-between items-center">
+                        <span className="text-xs text-slate-500 font-medium">
+                          {calculateNetWorth() > 0
+                            ? `${(account.amount / calculateNetWorth() * 100).toFixed(1)}%`
                             : '0%'}
                         </span>
-                        <div className="w-24 bg-gray-200 rounded-full h-1.5">
-                          <div 
-                            className={`h-1.5 rounded-full bg-gradient-to-r ${account.color}`} 
+                        <div className="w-24 bg-slate-200 rounded-full h-1.5">
+                          <div
+                            className={`h-1.5 rounded-full  ${account.color}`}
                             style={{ width: `${Math.min(100, (account.amount / calculateNetWorth() * 100))}%` }}
                           ></div>
                         </div>
@@ -1870,29 +2055,29 @@ export default function Dashboard() {
             </div>
           </div>
         ) : (
-          <p className="text-base text-gray-400">No asset data available</p>
+          <p className="text-base text-slate-400">No asset data available</p>
         )}
       </div>
-      
+
       {/* Credit Card & Funds Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Credit Card Summary */}
-        <div className="p-6 bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-200/60">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Credit Card Debt</h2>
+        <div className="p-6 bg-white rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-slate-200/60">
+          <h2 className="text-lg font-semibold text-slate-950 mb-4">Credit Card Debt</h2>
           {loadingCreditCards ? (
-            <div className="animate-pulse h-8 bg-gray-200 rounded-lg w-3/4"></div>
+            <div className="animate-pulse h-8 bg-slate-200 rounded-lg w-3/4"></div>
           ) : (
-            <div className="bg-gray-50 p-5 rounded-2xl border border-gray-200/60">
-              <p className="text-2xl font-bold text-blue-600 mb-3">
+            <div className="bg-slate-50 p-5 rounded-lg border border-slate-200/60">
+              <p className="text-2xl font-bold text-slate-700 mb-3">
                 {formatCurrency(calculateTotalCreditCardDebt())}
               </p>
               <div className="flex justify-between items-center">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-slate-600">
                   {creditCards.filter(card => card.balance > 0).length} active cards
                 </p>
                 <div className="flex items-center">
                   <div className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: getCreditUtilizationColor(calculateCreditUtilization(calculateTotalCreditCardDebt(), calculateTotalCreditLimit())) }}></div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-slate-600">
                     {calculateCreditUtilization(calculateTotalCreditCardDebt(), calculateTotalCreditLimit()).toFixed(0)}% used
                   </p>
                 </div>
@@ -1900,53 +2085,53 @@ export default function Dashboard() {
             </div>
           )}
         </div>
-        
+
         {/* Fund Accounts */}
-        <div className="p-6 bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-200/60">
+        <div className="p-6 bg-white rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-slate-200/60">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Fund Accounts</h2>
-            <Link 
-              href="/fund-accounts" 
-              className="px-3 py-2 bg-blue-500 text-white text-xs rounded-xl hover:bg-blue-600 transition-colors font-medium shadow-[0_2px_6px_rgba(59,130,246,0.15)]"
+            <h2 className="text-lg font-semibold text-slate-950">Fund Accounts</h2>
+            <Link
+              href="/fund-accounts"
+              className="px-3 py-2 bg-slate-950 text-white text-xs rounded-lg hover:bg-slate-800 transition-colors font-medium shadow-[0_2px_6px_rgba(59,130,246,0.15)]"
             >
               Manage Funds
             </Link>
           </div>
-          
+
           <FundAccountsSummary />
         </div>
       </div>
-      
+
       {/* Spending by Vendor - Keep as is */}
-      <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-6 border border-gray-200/60 mb-6 overflow-hidden">
+      <div className="bg-white rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-6 border border-slate-200/60 mb-6 overflow-hidden">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-lg font-semibold text-gray-900">Spending By Vendor</h2>
+          <h2 className="text-lg font-semibold text-slate-950">Spending By Vendor</h2>
         </div>
         <GroupedTransactions />
       </div>
-      
+
       {/* Recent Transactions - Keep as is */}
-      <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-6 border border-gray-200/60 mb-6 overflow-hidden">
+      <div className="bg-white rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-6 border border-slate-200/60 mb-6 overflow-hidden">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Transactions</h2>
-          <Link 
-            href="/transactions" 
-            className="px-3 py-2 bg-blue-500 text-white text-xs rounded-xl hover:bg-blue-600 transition-colors font-medium shadow-[0_2px_6px_rgba(59,130,246,0.15)]"
+          <h2 className="text-lg font-semibold text-slate-950">Recent Transactions</h2>
+          <Link
+            href="/transactions"
+            className="px-3 py-2 bg-slate-950 text-white text-xs rounded-lg hover:bg-slate-800 transition-colors font-medium shadow-[0_2px_6px_rgba(59,130,246,0.15)]"
           >
             View All
           </Link>
         </div>
-        
+
         {loadingTransactions ? (
           <div className="space-y-3">
-            <div className="animate-pulse h-14 bg-gray-100 rounded-2xl w-full"></div>
-            <div className="animate-pulse h-14 bg-gray-100 rounded-2xl w-full"></div>
-            <div className="animate-pulse h-14 bg-gray-100 rounded-2xl w-full"></div>
+            <div className="animate-pulse h-14 bg-slate-100 rounded-lg w-full"></div>
+            <div className="animate-pulse h-14 bg-slate-100 rounded-lg w-full"></div>
+            <div className="animate-pulse h-14 bg-slate-100 rounded-lg w-full"></div>
           </div>
         ) : recentTransactions.length === 0 ? (
-          <div className="text-center py-8 bg-gray-50 rounded-2xl">
-            <p className="text-sm text-gray-600 mb-2">No recent transactions found</p>
-            <Link href="/transactions/new" className="text-sm text-blue-600 hover:text-blue-800 font-medium inline-flex items-center gap-1">
+          <div className="text-center py-8 bg-slate-50 rounded-lg">
+            <p className="text-sm text-slate-600 mb-2">No recent transactions found</p>
+            <Link href="/transactions" className="text-sm text-slate-700 hover:text-slate-800 font-medium inline-flex items-center gap-1">
               Record a Transaction
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
                 <path d="M5 12h14"></path>
@@ -1957,28 +2142,28 @@ export default function Dashboard() {
         ) : (
           <div className="grid grid-cols-1 gap-3">
             {recentTransactions.map(transaction => (
-              <div key={transaction.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-200/60 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all">
+              <div key={transaction.id} className="bg-slate-50 rounded-lg p-4 border border-slate-200/60 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <div 
+                    <div
                       className="w-10 h-10 rounded-full flex items-center justify-center mr-3"
-                      style={{ backgroundColor: transaction.category ? `${transaction.category.color}20` : '#E5E7EB' }}  
+                      style={{ backgroundColor: transaction.category ? `${transaction.category.color}20` : '#E5E7EB' }}
                     >
-                      <span 
-                        className="inline-block w-5 h-5 rounded-full" 
-                        style={{ 
-                          backgroundColor: transaction.category ? transaction.category.color : '#9CA3AF' 
+                      <span
+                        className="inline-block w-5 h-5 rounded-full"
+                        style={{
+                          backgroundColor: transaction.category ? transaction.category.color : '#9CA3AF'
                         }}
                       ></span>
                     </div>
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-900">{transaction.name}</h3>
-                      <p className="text-xs text-gray-500">{formatTransactionDate(transaction.date)}</p>
+                      <h3 className="text-sm font-semibold text-slate-950">{transaction.name}</h3>
+                      <p className="text-xs text-slate-500">{formatTransactionDate(transaction.date)}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-lg font-bold text-blue-600">{formatCurrency(transaction.amount)}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-lg font-bold text-slate-700">{formatCurrency(transaction.amount)}</p>
+                    <p className="text-xs text-slate-500">
                       {transaction.category ? transaction.category.name : 'Uncategorized'}
                     </p>
                   </div>
@@ -1988,61 +2173,61 @@ export default function Dashboard() {
           </div>
         )}
       </div>
-      
+
       {/* Total Spending Analysis */}
       <TotalSpendingAnalysis />
-      
+
       {/* Quick Actions */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mt-3 mb-6">
-        <Link 
-          href="/assets" 
-          className="flex items-center justify-center px-4 py-3 border border-gray-200 text-sm font-medium rounded-2xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+        <Link
+          href="/assets"
+          className="flex items-center justify-center px-4 py-3 border border-slate-200 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 hover:text-slate-700 transition-all duration-200 hover:border-slate-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
         >
           Update Assets
         </Link>
-        <Link 
-          href="/fund-accounts" 
-          className="flex items-center justify-center px-4 py-3 border border-gray-200 text-sm font-medium rounded-2xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+        <Link
+          href="/fund-accounts"
+          className="flex items-center justify-center px-4 py-3 border border-slate-200 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 hover:text-slate-700 transition-all duration-200 hover:border-slate-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
         >
           Fund Accounts
         </Link>
-        <Link 
-          href="/pay-settings" 
-          className="flex items-center justify-center px-4 py-3 border border-gray-200 text-sm font-medium rounded-2xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+        <Link
+          href="/pay-settings"
+          className="flex items-center justify-center px-4 py-3 border border-slate-200 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 hover:text-slate-700 transition-all duration-200 hover:border-slate-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
         >
           Pay Schedule
         </Link>
-        <Link 
-          href="/budget" 
-          className="flex items-center justify-center px-4 py-3 border border-gray-200 text-sm font-medium rounded-2xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+        <Link
+          href="/budget"
+          className="flex items-center justify-center px-4 py-3 border border-slate-200 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 hover:text-slate-700 transition-all duration-200 hover:border-slate-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
         >
           Budget Categories
         </Link>
-        <Link 
-          href="/big-purchases" 
-          className="flex items-center justify-center px-4 py-3 border border-gray-200 text-sm font-medium rounded-2xl text-gray-700 bg-white hover:bg-gray-50 hover:text-purple-600 transition-all duration-200 hover:border-purple-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+        <Link
+          href="/big-purchases"
+          className="flex items-center justify-center px-4 py-3 border border-slate-200 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 hover:text-purple-600 transition-all duration-200 hover:border-purple-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
         >
           Big Purchases
         </Link>
-        <Link 
-          href="/transactions" 
-          className="flex items-center justify-center px-4 py-3 border border-gray-200 text-sm font-medium rounded-2xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+        <Link
+          href="/transactions"
+          className="flex items-center justify-center px-4 py-3 border border-slate-200 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 hover:text-slate-700 transition-all duration-200 hover:border-slate-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
         >
           Transactions
         </Link>
-        <Link 
-          href="/credit-cards" 
-          className="flex items-center justify-center px-4 py-3 border border-gray-200 text-sm font-medium rounded-2xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+        <Link
+          href="/credit-cards"
+          className="flex items-center justify-center px-4 py-3 border border-slate-200 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 hover:text-slate-700 transition-all duration-200 hover:border-slate-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
         >
           Credit Cards
         </Link>
-        <Link 
-          href="/savings-plan" 
-          className="flex items-center justify-center px-4 py-3 border border-gray-200 text-sm font-medium rounded-2xl text-gray-700 bg-white hover:bg-gray-50 hover:text-blue-600 transition-all duration-200 hover:border-blue-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+        <Link
+          href="/savings-plan"
+          className="flex items-center justify-center px-4 py-3 border border-slate-200 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 hover:text-slate-700 transition-all duration-200 hover:border-slate-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
         >
           Savings Plan
         </Link>
       </div>
     </div>
   );
-} 
+}

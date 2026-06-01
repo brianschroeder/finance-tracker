@@ -84,15 +84,15 @@ function Toast({ title, description, variant = "default" }: ToastProps & { id: s
   const getVariantClasses = () => {
     switch (variant) {
       case "success":
-        return "bg-blue-50 border-blue-500 text-blue-800"
+        return "bg-slate-50 border-slate-500 text-slate-800"
       case "error":
-        return "bg-blue-50 border-blue-500 text-blue-800"
+        return "bg-slate-50 border-slate-500 text-slate-800"
       case "warning":
-        return "bg-blue-50 border-blue-500 text-blue-800"
+        return "bg-slate-50 border-slate-500 text-slate-800"
       case "info":
-        return "bg-blue-50 border-blue-500 text-blue-800"
+        return "bg-slate-50 border-slate-500 text-slate-800"
       default:
-        return "bg-white border-gray-300 text-gray-800"
+        return "bg-white border-slate-300 text-slate-900"
     }
   }
   

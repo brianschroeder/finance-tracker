@@ -257,19 +257,19 @@ export default function InvestmentTransactionsModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-slate-200">
           <div className="flex justify-between items-start">
             <div>
-              <h2 className="text-2xl font-bold text-gray-800">Transaction History</h2>
-              <p className="text-sm text-gray-600 mt-1">
+              <h2 className="text-2xl font-bold text-slate-900">Transaction History</h2>
+              <p className="text-sm text-slate-600 mt-1">
                 {investmentSymbol} - {investmentName}
               </p>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+              className="text-slate-400 hover:text-slate-600 text-2xl leading-none"
             >
               ×
             </button>
@@ -283,7 +283,7 @@ export default function InvestmentTransactionsModal({
             <div className="mb-4">
               <Button
                 onClick={() => setShowForm(true)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                className="bg-slate-950 text-white px-4 py-2 rounded-lg hover:bg-slate-800"
               >
                 + Add Transaction
               </Button>
@@ -292,21 +292,21 @@ export default function InvestmentTransactionsModal({
 
           {/* Transaction Form */}
           {showForm && (
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
               <h3 className="text-lg font-semibold mb-4">
                 {editingTransaction ? 'Edit Transaction' : 'Add New Transaction'}
               </h3>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
                       Type <span className="text-red-500">*</span>
                     </label>
                     <select
                       name="type"
                       value={formData.type}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                       required
                     >
                       <option value="buy">Buy</option>
@@ -315,7 +315,7 @@ export default function InvestmentTransactionsModal({
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
                       Date <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -323,13 +323,13 @@ export default function InvestmentTransactionsModal({
                       name="transactionDate"
                       value={formData.transactionDate}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
                       Quantity <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -340,13 +340,13 @@ export default function InvestmentTransactionsModal({
                       placeholder="0.5"
                       step="any"
                       min="0.00000001"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
                       Price Per Unit <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -357,13 +357,13 @@ export default function InvestmentTransactionsModal({
                       placeholder="100.00"
                       step="0.01"
                       min="0.01"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                       required
                     />
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
                       Notes
                     </label>
                     <textarea
@@ -372,7 +372,7 @@ export default function InvestmentTransactionsModal({
                       onChange={handleInputChange}
                       placeholder="Optional notes about this transaction"
                       rows={2}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                     />
                   </div>
                 </div>
@@ -381,13 +381,13 @@ export default function InvestmentTransactionsModal({
                   <button
                     type="button"
                     onClick={resetForm}
-                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                    className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    className="px-4 py-2 bg-slate-950 text-white rounded-lg hover:bg-slate-800"
                   >
                     {editingTransaction ? 'Update' : 'Add'} Transaction
                   </button>
@@ -399,15 +399,15 @@ export default function InvestmentTransactionsModal({
           {/* Summary Section */}
           {!loading && transactions.length > 0 && (
             <div className="mb-6">
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-5 rounded-lg border border-blue-200 mb-4">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Portfolio Summary</h3>
+              <div className="bg-slate-50 p-5 rounded-lg border border-slate-200 mb-4">
+                <h3 className="text-sm font-semibold text-slate-700 mb-3 uppercase tracking-wide">Portfolio Summary</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
-                    <p className="text-xs font-medium text-blue-600 uppercase mb-1">Total Quantity</p>
-                    <p className="text-2xl font-bold text-blue-900" title={`Exact: ${totals.totalQuantity}`}>
+                    <p className="text-xs font-medium text-slate-700 uppercase mb-1">Total Quantity</p>
+                    <p className="text-2xl font-bold text-slate-950" title={`Exact: ${totals.totalQuantity}`}>
                       {totals.totalQuantity}
                     </p>
-                    <p className="text-xs text-blue-700 mt-1">Exact amount owned</p>
+                    <p className="text-xs text-slate-700 mt-1">Exact amount owned</p>
                   </div>
 
                   <div>
@@ -431,9 +431,9 @@ export default function InvestmentTransactionsModal({
                   </div>
 
                   <div>
-                    <p className="text-xs font-medium text-gray-600 uppercase mb-1">Transactions</p>
-                    <p className="text-2xl font-bold text-gray-900">{totals.buyTransactions}</p>
-                    <p className="text-xs text-gray-700 mt-1">Total purchases</p>
+                    <p className="text-xs font-medium text-slate-600 uppercase mb-1">Transactions</p>
+                    <p className="text-2xl font-bold text-slate-950">{totals.buyTransactions}</p>
+                    <p className="text-xs text-slate-700 mt-1">Total purchases</p>
                   </div>
                 </div>
               </div>
@@ -442,20 +442,20 @@ export default function InvestmentTransactionsModal({
 
           {/* Transactions List */}
           {loading ? (
-            <div className="text-center py-8 text-gray-500">Loading transactions...</div>
+            <div className="text-center py-8 text-slate-500">Loading transactions...</div>
           ) : transactions.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500 mb-2">No transactions yet</p>
-              <p className="text-sm text-gray-400">
+              <p className="text-slate-500 mb-2">No transactions yet</p>
+              <p className="text-sm text-slate-400">
                 Add your first transaction to start tracking this investment
               </p>
             </div>
           ) : (
             <>
-              <h3 className="text-lg font-semibold mb-3 text-gray-800">Transaction History</h3>
+              <h3 className="text-lg font-semibold mb-3 text-slate-900">Transaction History</h3>
               <div className="overflow-x-auto">
                 <table className="w-full">
-                <thead className="bg-gray-50 text-gray-700 text-sm">
+                <thead className="bg-slate-50 text-slate-700 text-sm">
                   <tr>
                     <th className="px-4 py-3 text-left">Date</th>
                     <th className="px-4 py-3 text-left">Type</th>
@@ -468,7 +468,7 @@ export default function InvestmentTransactionsModal({
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {transactions.map((transaction) => (
-                    <tr key={transaction.id} className="hover:bg-gray-50">
+                    <tr key={transaction.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3 text-sm">
                         {formatDate(transaction.transactionDate)}
                       </td>
@@ -492,14 +492,14 @@ export default function InvestmentTransactionsModal({
                       <td className="px-4 py-3 text-right text-sm font-medium">
                         {formatCurrency(transaction.quantity * transaction.pricePerUnit)}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
+                      <td className="px-4 py-3 text-sm text-slate-600">
                         {transaction.notes || '-'}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <div className="flex justify-center gap-2">
                           <button
                             onClick={() => handleEdit(transaction)}
-                            className="text-blue-600 hover:text-blue-800 text-sm"
+                            className="text-slate-700 hover:text-slate-800 text-sm"
                           >
                             Edit
                           </button>
@@ -514,24 +514,24 @@ export default function InvestmentTransactionsModal({
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="bg-gray-100 border-t-2 border-gray-300">
+                <tfoot className="bg-slate-100 border-t-2 border-slate-300">
                   <tr>
-                    <td colSpan={2} className="px-4 py-4 text-right font-semibold text-gray-700">
+                    <td colSpan={2} className="px-4 py-4 text-right font-semibold text-slate-700">
                       Totals:
                     </td>
-                    <td className="px-4 py-4 text-right font-bold text-gray-900">
+                    <td className="px-4 py-4 text-right font-bold text-slate-950">
                       {totals.totalQuantity}
                     </td>
-                    <td className="px-4 py-4 text-right text-gray-500">
+                    <td className="px-4 py-4 text-right text-slate-500">
                       -
                     </td>
-                    <td className="px-4 py-4 text-right font-bold text-gray-900">
+                    <td className="px-4 py-4 text-right font-bold text-slate-950">
                       {formatCurrency(totals.totalCost)}
                     </td>
-                    <td colSpan={2} className="px-4 py-4 text-sm text-gray-600">
+                    <td colSpan={2} className="px-4 py-4 text-sm text-slate-600">
                       <div className="flex flex-col">
                         <span>Avg: {formatCurrency(totals.avgPrice)}</span>
-                        <span className="font-mono text-xs text-gray-500">
+                        <span className="font-mono text-xs text-slate-500">
                           (${totals.avgPrice.toFixed(8).replace(/\.?0+$/, '')})
                         </span>
                       </div>
@@ -545,11 +545,11 @@ export default function InvestmentTransactionsModal({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-200 bg-gray-50">
+        <div className="p-4 border-t border-slate-200 bg-slate-50">
           <div className="flex justify-end">
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+              className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
             >
               Close
             </button>

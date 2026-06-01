@@ -201,8 +201,8 @@ export default function InvestmentPerformance({ investments }: InvestmentPerform
 
   if (!investments || investments.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg">
-        <p className="text-gray-400">No investment data available</p>
+      <div className="flex items-center justify-center h-64 bg-slate-50 rounded-lg">
+        <p className="text-slate-400">No investment data available</p>
       </div>
     );
   }
@@ -212,11 +212,11 @@ export default function InvestmentPerformance({ investments }: InvestmentPerform
       {/* Overall performance summary */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-lg shadow-sm">
-          <div className="text-sm text-gray-500">Portfolio Value</div>
+          <div className="text-sm text-slate-500">Portfolio Value</div>
           <div className="text-2xl font-bold">{formatCurrency(totals.totalValue)}</div>
         </div>
         <div className="bg-white p-4 rounded-lg shadow-sm">
-          <div className="text-sm text-gray-500">Total Gain/Loss</div>
+          <div className="text-sm text-slate-500">Total Gain/Loss</div>
           <div className={`text-2xl font-bold ${totals.totalGainLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
             {formatCurrency(totals.totalGainLoss)} 
             <span className="text-lg ml-1">
@@ -225,7 +225,7 @@ export default function InvestmentPerformance({ investments }: InvestmentPerform
           </div>
         </div>
         <div className="bg-white p-4 rounded-lg shadow-sm">
-          <div className="text-sm text-gray-500">Day Change</div>
+          <div className="text-sm text-slate-500">Day Change</div>
           <div className={`text-2xl font-bold ${totals.totalDayChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
             {formatCurrency(totals.totalDayChange)}
             <span className="text-lg ml-1">
@@ -234,7 +234,7 @@ export default function InvestmentPerformance({ investments }: InvestmentPerform
           </div>
         </div>
         <div className="bg-white p-4 rounded-lg shadow-sm">
-          <div className="text-sm text-gray-500">Total Cost Basis</div>
+          <div className="text-sm text-slate-500">Total Cost Basis</div>
           <div className="text-2xl font-bold">{formatCurrency(totals.totalCost)}</div>
         </div>
       </div>
@@ -253,7 +253,7 @@ export default function InvestmentPerformance({ investments }: InvestmentPerform
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 text-gray-700 text-sm">
+            <thead className="bg-slate-50 text-slate-700 text-sm">
               <tr>
                 <th className="px-4 py-3 text-left">Symbol</th>
                 <th className="px-4 py-3 text-right">Value</th>
@@ -264,7 +264,7 @@ export default function InvestmentPerformance({ investments }: InvestmentPerform
             </thead>
             <tbody className="divide-y divide-gray-100">
               {performanceData.map(inv => (
-                <tr key={inv.id || inv.symbol} className="hover:bg-gray-50">
+                <tr key={inv.id || inv.symbol} className="hover:bg-slate-50">
                   <td className="px-4 py-3 font-medium">{inv.symbol}</td>
                   <td className="px-4 py-3 text-right">{formatCurrency(inv.totalValue)}</td>
                   <td className={`px-4 py-3 text-right ${inv.dayChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>

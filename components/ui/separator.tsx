@@ -13,7 +13,7 @@ export function Separator({
     <div 
       className={`
         ${orientation === 'horizontal' ? 'h-px w-full' : 'h-full w-px'} 
-        bg-gray-200 
+        bg-slate-200 
         ${className}
       `}
     />

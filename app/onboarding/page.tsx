@@ -1,10 +1,5 @@
-import { Suspense } from 'react';
-import Onboarding from '@/components/Onboarding';
+import { redirect } from 'next/navigation';
 
 export default function OnboardingPage() {
-  return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
-      <Onboarding />
-    </Suspense>
-  );
-} 
+  redirect('/settings');
+}

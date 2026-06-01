@@ -251,7 +251,7 @@ export default function RecurringTransactionList({
     return (
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-slate-500"></div>
         </div>
       </div>
     );
@@ -259,12 +259,12 @@ export default function RecurringTransactionList({
 
   return (
     <div className="bg-white rounded-lg shadow">
-      <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+      <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center">
         <h3 className="text-lg font-semibold">Recurring Transactions</h3>
         <div className="flex space-x-2">
           <a
             href="/recurring-categories"
-            className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="inline-flex items-center px-3 py-1.5 border border-slate-300 text-sm font-medium rounded-md shadow-sm text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500"
           >
             Manage Categories
           </a>
@@ -273,7 +273,7 @@ export default function RecurringTransactionList({
               resetForms();
               setShowAddForm(true);
             }}
-            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-slate-950 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500"
           >
             Add Transaction
           </button>
@@ -281,15 +281,15 @@ export default function RecurringTransactionList({
       </div>
       
       {error && (
-        <div className="px-6 py-4 bg-blue-100 border-b border-blue-200">
-          <p className="text-blue-700">{error}</p>
+        <div className="px-6 py-4 bg-slate-100 border-b border-slate-200">
+          <p className="text-slate-700">{error}</p>
         </div>
       )}
       
       {/* Add/Edit Form */}
       {(showAddForm || editingTransaction) && (
-        <div className="p-6 border-b border-gray-200">
-          <h4 className={`text-md font-medium mb-4 ${editingTransaction ? 'bg-blue-100 p-2 rounded text-blue-800' : ''}`}>
+        <div className="p-6 border-b border-slate-200">
+          <h4 className={`text-md font-medium mb-4 ${editingTransaction ? 'bg-slate-100 p-2 rounded text-slate-800' : ''}`}>
             {editingTransaction ? `Edit Transaction: ${editingTransaction.name}` : 'Add New Transaction'}
           </h4>
           <RecurringTransactionForm
@@ -302,20 +302,20 @@ export default function RecurringTransactionList({
       )}
       
       {/* Transactions Summary */}
-      <div className="p-6 border-b border-gray-200 bg-gray-50">
+      <div className="p-6 border-b border-slate-200 bg-slate-50">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <span className="text-sm text-gray-500">Total Monthly Recurring:</span>
-            <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalAmount)}</p>
+            <span className="text-sm text-slate-500">Total Monthly Recurring:</span>
+            <p className="text-2xl font-bold text-slate-950">{formatCurrency(totalAmount)}</p>
           </div>
           <div>
-            <span className="text-sm text-gray-500">Total Yearly Recurring:</span>
-            <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalAmount * 12)}</p>
+            <span className="text-sm text-slate-500">Total Yearly Recurring:</span>
+            <p className="text-2xl font-bold text-slate-950">{formatCurrency(totalAmount * 12)}</p>
           </div>
           <div>
-            <span className="text-sm text-gray-500">Essential Expenses:</span>
-            <p className="text-2xl font-bold text-gray-900">{formatCurrency(essentialAmount)}</p>
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-slate-500">Essential Expenses:</span>
+            <p className="text-2xl font-bold text-slate-950">{formatCurrency(essentialAmount)}</p>
+            <span className="text-sm text-slate-500">
               ({totalAmount > 0 ? Math.round((essentialAmount / totalAmount) * 100) : 0}% of total)
             </span>
           </div>
@@ -324,18 +324,18 @@ export default function RecurringTransactionList({
       
       {/* Transactions List */}
       {transactions.length === 0 ? (
-        <div className="p-6 text-center text-gray-500">
+        <div className="p-6 text-center text-slate-500">
           <p>No recurring transactions found.</p>
           <p className="mt-2">Add your first transaction to get started.</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-slate-50">
               <tr>
                 <th 
                   scope="col" 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer"
                   onClick={() => handleSort('name')}
                 >
                   Name
@@ -343,18 +343,18 @@ export default function RecurringTransactionList({
                 </th>
                 <th 
                   scope="col" 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer"
                   onClick={() => handleSort('amount')}
                 >
                   Monthly Amount
                   <SortArrow field="amount" />
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Yearly Total
                 </th>
                 <th 
                   scope="col" 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer"
                   onClick={() => handleSort('dueDate')}
                 >
                   Due Date
@@ -362,13 +362,13 @@ export default function RecurringTransactionList({
                 </th>
                 <th 
                   scope="col" 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer"
                   onClick={() => handleSort('category')}
                 >
                   Category
                   <SortArrow field="category" />
                 </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -377,16 +377,16 @@ export default function RecurringTransactionList({
               {getSortedTransactions().map(transaction => (
                 <tr key={transaction.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{transaction.name}</div>
+                    <div className="text-sm font-medium text-slate-950">{transaction.name}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{formatCurrency(transaction.amount)}</div>
+                    <div className="text-sm text-slate-950">{formatCurrency(transaction.amount)}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{formatCurrency(transaction.amount * 12)}</div>
+                    <div className="text-sm font-medium text-slate-950">{formatCurrency(transaction.amount * 12)}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">Day {transaction.dueDate}</div>
+                    <div className="text-sm text-slate-950">Day {transaction.dueDate}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {transaction.category ? (
@@ -395,10 +395,10 @@ export default function RecurringTransactionList({
                           className="inline-block w-3 h-3 rounded-full mr-2" 
                           style={{ backgroundColor: transaction.category.color }}
                         />
-                        <span className="text-sm text-gray-900">{transaction.category.name}</span>
+                        <span className="text-sm text-slate-950">{transaction.category.name}</span>
                       </div>
                     ) : (
-                      <span className="text-sm text-gray-500">No Category</span>
+                      <span className="text-sm text-slate-500">No Category</span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -416,7 +416,7 @@ export default function RecurringTransactionList({
                           setEditingTransaction(transaction);
                         }
                       }}
-                      className="bg-blue-100 text-blue-700 px-3 py-1 rounded-md mr-3 hover:bg-blue-200 inline-block"
+                      className="bg-slate-100 text-slate-700 px-3 py-1 rounded-md mr-3 hover:bg-slate-200 inline-block"
                     >
                       {selectedTransaction === transaction.id ? 'Cancel' : 'Edit'}
                     </a>
@@ -427,7 +427,7 @@ export default function RecurringTransactionList({
                           e.preventDefault();
                           handleDeleteTransaction(transaction.id!);
                         }}
-                        className="bg-gray-100 text-gray-700 px-3 py-1 rounded-md hover:bg-gray-200 inline-block"
+                        className="bg-slate-100 text-slate-700 px-3 py-1 rounded-md hover:bg-slate-200 inline-block"
                       >
                         Delete
                       </a>

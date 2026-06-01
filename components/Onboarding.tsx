@@ -105,10 +105,10 @@ export default function Onboarding() {
 
   return (
     <div className="container max-w-4xl mx-auto px-4 py-8">
-      <Card className="border-0 shadow-lg">
-        <CardHeader className="text-center bg-gradient-to-r from-blue-50 to-blue-100 rounded-t-lg">
-          <CardTitle className="text-2xl font-bold text-blue-800">Welcome to Your Finance Tracker</CardTitle>
-          <CardDescription className="text-blue-600">
+      <Card className="border-0 shadow-[0_1px_3px_rgba(15,23,42,0.08)]">
+        <CardHeader className="text-center bg-slate-50 rounded-t-lg">
+          <CardTitle className="text-2xl font-bold text-slate-800">Welcome to Your Finance Tracker</CardTitle>
+          <CardDescription className="text-slate-700">
             Let's set up your financial profile to get the most out of your dashboard
           </CardDescription>
         </CardHeader>
@@ -116,7 +116,7 @@ export default function Onboarding() {
         <CardContent className="pt-6">
           <div className="mb-6">
             <div className="flex justify-between mb-2">
-              <span className="text-sm text-gray-600">Setup Progress</span>
+              <span className="text-sm text-slate-600">Setup Progress</span>
               <span className="text-sm font-medium">{Math.round(calculateCompletion())}%</span>
             </div>
             <Progress value={calculateCompletion()} className="h-2" />
@@ -176,7 +176,7 @@ export default function Onboarding() {
         </CardContent>
         
         <CardFooter className="flex justify-between border-t pt-6">
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-slate-500">
             {completedSteps.length === 5 ? (
               <span className="flex items-center text-green-600">
                 <CheckCircle className="w-4 h-4 mr-1" />
@@ -203,7 +203,7 @@ export default function Onboarding() {
               </Button>
             ) : (
               <Button
-                className={`flex items-center ${completedSteps.length < 5 ? 'bg-blue-400' : 'bg-blue-600'}`}
+                className={`flex items-center ${completedSteps.length < 5 ? 'bg-slate-400' : 'bg-slate-950'}`}
                 onClick={() => router.push('/dashboard')}
               >
                 {completedSteps.length === 5 ? 'Go to Dashboard' : 'Skip Remaining Steps'}
@@ -240,10 +240,10 @@ function StepCard({ number, title, description, isCompleted, isActive, onClick }
     <div
       className={`p-4 border rounded-lg cursor-pointer transition-all ${
         isActive
-          ? 'border-blue-500 bg-blue-50 shadow-md'
+          ? 'border-slate-500 bg-slate-50 shadow-md'
           : isCompleted
           ? 'border-green-200 bg-green-50'
-          : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+          : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
       }`}
       onClick={onClick}
     >
@@ -253,15 +253,15 @@ function StepCard({ number, title, description, isCompleted, isActive, onClick }
             isCompleted
               ? 'bg-green-500 text-white'
               : isActive
-              ? 'bg-blue-500 text-white'
-              : 'bg-gray-200 text-gray-700'
+              ? 'bg-slate-950 text-white'
+              : 'bg-slate-200 text-slate-700'
           }`}
         >
           {isCompleted ? <CheckCircle className="w-5 h-5" /> : number}
         </div>
         <div>
           <h3 className="font-medium">{title}</h3>
-          <p className="text-sm text-gray-500">{description}</p>
+          <p className="text-sm text-slate-500">{description}</p>
         </div>
         {isCompleted && (
           <div className="ml-auto">
@@ -366,7 +366,7 @@ function PersonalInfoStep({ isCompleted }: StepProps) {
         ) : (
           <>
             <div className="mb-6 space-y-4">
-              <p className="text-gray-600">
+              <p className="text-slate-600">
                 Let's personalize your experience. What should we call you?
               </p>
               
@@ -378,7 +378,7 @@ function PersonalInfoStep({ isCompleted }: StepProps) {
                     onChange={(e) => setUserName(e.target.value)}
                     placeholder="Your name"
                     disabled={nameLoading}
-                    className="flex-1 px-4 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent rounded-lg shadow-sm"
+                    className="flex-1 px-4 py-2 border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent rounded-lg shadow-sm"
                   />
                   
                   <Button 
@@ -399,9 +399,9 @@ function PersonalInfoStep({ isCompleted }: StepProps) {
                 )}
               </div>
               
-              <hr className="my-6 border-gray-200" />
+              <hr className="my-6 border-slate-200" />
               
-              <p className="text-gray-600">
+              <p className="text-slate-600">
                 Setting up your personal information helps us tailor your experience.
               </p>
             </div>
@@ -432,18 +432,18 @@ function PayScheduleStep({ isCompleted }: StepProps) {
           </div>
         ) : (
           <div className="space-y-4">
-            <p className="text-gray-600">
+            <p className="text-slate-600">
               Setting up your pay schedule helps track your finances between paychecks.
             </p>
             
-            <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
               <div className="flex items-center gap-2 mb-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <h3 className="text-sm font-medium text-blue-800">Why this matters</h3>
+                <h3 className="text-sm font-medium text-slate-800">Why this matters</h3>
               </div>
-              <p className="text-sm text-blue-700">
+              <p className="text-sm text-slate-700">
                 Knowing when you get paid helps us show you relevant information about upcoming bills, cash flow projections, and savings opportunities.
               </p>
             </div>
@@ -473,7 +473,7 @@ function IncomeStep({ isCompleted }: StepProps) {
             <p>You've already set up your income details. You can update them anytime.</p>
           </div>
         ) : (
-          <p className="text-gray-600 mb-4">
+          <p className="text-slate-600 mb-4">
             Adding your income information helps project future savings and budgeting.
           </p>
         )}
@@ -501,7 +501,7 @@ function AssetsStep({ isCompleted }: StepProps) {
             <p>You've already set up your assets. You can update them anytime.</p>
           </div>
         ) : (
-          <p className="text-gray-600 mb-4">
+          <p className="text-slate-600 mb-4">
             Adding your current assets helps track your net worth and financial growth over time.
           </p>
         )}
@@ -530,18 +530,18 @@ function BudgetStep({ isCompleted }: StepProps) {
           </div>
         ) : (
           <div className="space-y-4">
-            <p className="text-gray-600">
+            <p className="text-slate-600">
               Creating budget categories helps you allocate and track spending across different areas.
             </p>
             
-            <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
               <div className="flex items-center gap-2 mb-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <h3 className="text-sm font-medium text-blue-800">Why budget categories matter</h3>
+                <h3 className="text-sm font-medium text-slate-800">Why budget categories matter</h3>
               </div>
-              <p className="text-sm text-blue-700">
+              <p className="text-sm text-slate-700">
                 Budget categories let you allocate specific amounts for different expenses like groceries, entertainment, and utilities. This helps you set spending limits and track where your money is going each month.
               </p>
             </div>

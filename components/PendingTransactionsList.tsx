@@ -473,7 +473,7 @@ export default function PendingTransactionsList() {
     return (
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-slate-500"></div>
         </div>
       </div>
     );
@@ -482,17 +482,17 @@ export default function PendingTransactionsList() {
   return (
     <div className="bg-white rounded-lg shadow">
       {error && (
-        <div className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded-lg mb-6" role="alert">
+        <div className="bg-slate-100 border border-slate-400 text-slate-700 px-4 py-3 rounded-lg mb-6" role="alert">
           <p>{error}</p>
         </div>
       )}
       
       {payPeriodStart && payPeriodEnd && (
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">
+        <div className="px-6 py-4 border-b border-slate-200">
+          <h2 className="text-lg font-semibold text-slate-950">
             Transactions for Pay Period
           </h2>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-slate-600 mt-1">
             {formatDate(payPeriodStart)} to {formatDate(payPeriodEnd)}
           </p>
         </div>
@@ -504,17 +504,17 @@ export default function PendingTransactionsList() {
           {!showAddForm ? (
             <button
               onClick={() => setShowAddForm(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              className="bg-slate-950 text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition-colors"
             >
               Add Manual Transaction
             </button>
           ) : (
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="bg-slate-50 p-4 rounded-lg">
               <h3 className="text-lg font-medium mb-4">Add Manual Transaction</h3>
               <form onSubmit={handleAddManualTransaction} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-1">
                       Transaction Name *
                     </label>
                     <input
@@ -522,13 +522,13 @@ export default function PendingTransactionsList() {
                       id="name"
                       value={newTransaction.name}
                       onChange={(e) => setNewTransaction({...newTransaction, name: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                       placeholder="e.g., Car Registration"
                       required
                     />
                   </div>
                   <div>
-                    <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="amount" className="block text-sm font-medium text-slate-700 mb-1">
                       Amount *
                     </label>
                     <input
@@ -537,7 +537,7 @@ export default function PendingTransactionsList() {
                       id="amount"
                       value={newTransaction.amount}
                       onChange={(e) => setNewTransaction({...newTransaction, amount: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                       placeholder="0.00"
                       required
                     />
@@ -545,7 +545,7 @@ export default function PendingTransactionsList() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="dueDate" className="block text-sm font-medium text-slate-700 mb-1">
                       Due Date *
                     </label>
                     <input
@@ -553,14 +553,14 @@ export default function PendingTransactionsList() {
                       id="dueDate"
                       value={newTransaction.dueDate}
                       onChange={(e) => setNewTransaction({...newTransaction, dueDate: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                       min={payPeriodStart || undefined}
                       max={payPeriodEnd || undefined}
                       required
                     />
                   </div>
                   <div>
-                    <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="notes" className="block text-sm font-medium text-slate-700 mb-1">
                       Notes
                     </label>
                     <input
@@ -568,7 +568,7 @@ export default function PendingTransactionsList() {
                       id="notes"
                       value={newTransaction.notes}
                       onChange={(e) => setNewTransaction({...newTransaction, notes: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                       placeholder="Optional notes"
                     />
                   </div>
@@ -577,7 +577,7 @@ export default function PendingTransactionsList() {
                   <button
                     type="submit"
                     disabled={addingTransaction}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    className="bg-slate-950 text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50"
                   >
                     {addingTransaction ? 'Adding...' : 'Add Transaction'}
                   </button>
@@ -587,7 +587,7 @@ export default function PendingTransactionsList() {
                       setShowAddForm(false);
                       setNewTransaction({name: '', amount: '', dueDate: '', notes: ''});
                     }}
-                    className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors"
+                    className="bg-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-400 transition-colors"
                   >
                     Cancel
                   </button>
@@ -599,12 +599,12 @@ export default function PendingTransactionsList() {
 
         {transactions.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-gray-500 mb-4">
+            <p className="text-slate-500 mb-4">
               No transactions for this pay period.
             </p>
             <Link 
               href="/recurring-transactions" 
-              className="text-blue-600 hover:text-blue-800"
+              className="text-slate-700 hover:text-slate-800"
             >
               Manage recurring transactions →
             </Link>
@@ -615,25 +615,25 @@ export default function PendingTransactionsList() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead>
                   <tr>
-                    <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                       Name
                     </th>
-                    <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                       Amount
                     </th>
-                    <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                       Due Date
                     </th>
-                    <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                       Days Left
                     </th>
-                    <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                       Type
                     </th>
-                    <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -646,11 +646,11 @@ export default function PendingTransactionsList() {
                         <button 
                           onClick={() => toggleTransactionStatus(transaction)}
                           disabled={submitting === transaction.id}
-                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-100 text-blue-800 hover:bg-blue-200`}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 bg-slate-100 text-slate-800 hover:bg-slate-200`}
                         >
                           {submitting === transaction.id ? (
                             <span className="flex items-center">
-                              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-800" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-slate-800" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                               </svg>
@@ -659,17 +659,17 @@ export default function PendingTransactionsList() {
                           ) : "Pending"}
                         </button>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-950">
                         {transaction.name}
                       </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${transaction.amount < 0 ? 'text-blue-600' : 'text-gray-600'}`}>
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${transaction.amount < 0 ? 'text-slate-700' : 'text-slate-600'}`}>
                         {editingTransaction && editingTransaction.id === transaction.id ? (
                           <div className="flex items-center">
                             <input
                               type="text"
                               value={editingTransaction.amount}
                               onChange={(e) => setEditingTransaction({...editingTransaction, amount: e.target.value})}
-                              className="w-24 px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="w-24 px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-slate-500"
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
                                   handleAmountUpdate(transaction);
@@ -682,7 +682,7 @@ export default function PendingTransactionsList() {
                             <button
                               onClick={() => handleAmountUpdate(transaction)}
                               disabled={updatingAmount === transaction.id}
-                              className="ml-2 p-1 text-blue-600 hover:text-blue-800"
+                              className="ml-2 p-1 text-slate-700 hover:text-slate-800"
                             >
                               {updatingAmount === transaction.id ? (
                                 <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -695,7 +695,7 @@ export default function PendingTransactionsList() {
                             </button>
                             <button
                               onClick={() => setEditingTransaction(null)}
-                              className="ml-1 p-1 text-gray-600 hover:text-gray-800"
+                              className="ml-1 p-1 text-slate-600 hover:text-slate-900"
                             >
                               Cancel
                             </button>
@@ -709,10 +709,10 @@ export default function PendingTransactionsList() {
                           </button>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                         {formatDate(transaction.formattedDate)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                         {transaction.daysUntilDue} {transaction.daysUntilDue === 1 ? 'day' : 'days'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -720,8 +720,8 @@ export default function PendingTransactionsList() {
                           transaction.isManual
                             ? 'bg-purple-100 text-purple-800'
                             : transaction.isEssential 
-                              ? 'bg-blue-100 text-blue-800' 
-                              : 'bg-gray-100 text-gray-800'
+                              ? 'bg-slate-100 text-slate-800' 
+                              : 'bg-slate-100 text-slate-900'
                         }`}>
                           {transaction.isManual 
                             ? 'Manual' 
@@ -731,7 +731,7 @@ export default function PendingTransactionsList() {
                           }
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                         {transaction.isManual && (
                           <button
                             onClick={() => handleDeleteManualTransaction(transaction)}
@@ -747,16 +747,16 @@ export default function PendingTransactionsList() {
                   
                   {/* Then show all completed transactions */}
                   {completedTransactions.map((transaction) => (
-                    <tr key={transaction.id} className="bg-gray-50">
+                    <tr key={transaction.id} className="bg-slate-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <button 
                           onClick={() => toggleTransactionStatus(transaction)}
                           disabled={submitting === transaction.id}
-                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-50 text-blue-600 hover:bg-blue-100`}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 bg-slate-50 text-slate-700 hover:bg-slate-100`}
                         >
                           {submitting === transaction.id ? (
                             <span className="flex items-center">
-                              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-slate-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                               </svg>
@@ -765,20 +765,20 @@ export default function PendingTransactionsList() {
                           ) : "Completed"}
                         </button>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-500 line-through">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-500 line-through">
                         {transaction.name}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-500 line-through">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-500 line-through">
                         {formatCurrency(transaction.amount)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 line-through">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 line-through">
                         {formatDate(transaction.formattedDate)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 line-through">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 line-through">
                         {transaction.daysUntilDue} {transaction.daysUntilDue === 1 ? 'day' : 'days'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800`}>
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-slate-100 text-slate-900`}>
                           {transaction.isManual 
                             ? 'Manual' 
                             : transaction.isEssential 
@@ -787,7 +787,7 @@ export default function PendingTransactionsList() {
                           }
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                         {transaction.isManual && (
                           <button
                             onClick={() => handleDeleteManualTransaction(transaction)}
@@ -805,23 +805,23 @@ export default function PendingTransactionsList() {
             </div>
             
             <div className="mt-6 space-y-4">
-              <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="bg-slate-50 p-4 rounded-lg">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-medium text-gray-900">
+                  <h3 className="text-lg font-medium text-slate-950">
                     Pending Amount
                   </h3>
-                  <span className="text-2xl font-bold text-gray-600">
+                  <span className="text-2xl font-bold text-slate-600">
                     {formatCurrency(totalPendingAmount)}
                   </span>
                 </div>
               </div>
               
-              <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="bg-slate-50 p-4 rounded-lg">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-medium text-gray-900">
+                  <h3 className="text-lg font-medium text-slate-950">
                     Completed Amount
                   </h3>
-                  <span className="text-2xl font-bold text-blue-600">
+                  <span className="text-2xl font-bold text-slate-700">
                     {formatCurrency(totalCompletedAmount)}
                   </span>
                 </div>
@@ -831,11 +831,11 @@ export default function PendingTransactionsList() {
         )}
       </div>
       
-      <div className="p-6 border-t border-gray-200">
+      <div className="p-6 border-t border-slate-200">
         <div className="text-right">
           <Link 
             href="/recurring-transactions" 
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            className="text-slate-700 hover:text-slate-800 text-sm font-medium"
           >
             Manage recurring transactions →
           </Link>

@@ -208,7 +208,6 @@ export default function FundAccountsManagement() {
   };
 
   const handleEdit = (fundAccount: FundAccount) => {
-    console.log('Loading fund account for edit:', fundAccount); // Debug log
     setFormData({
       name: fundAccount.name,
       amount: fundAccount.amount.toString(),
@@ -259,29 +258,26 @@ export default function FundAccountsManagement() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="animate-pulse h-32 bg-gray-100 rounded-lg"></div>
-        <div className="animate-pulse h-64 bg-gray-100 rounded-lg"></div>
+        <div className="animate-pulse h-32 bg-slate-100 rounded-lg"></div>
+        <div className="animate-pulse h-64 bg-slate-100 rounded-lg"></div>
       </div>
     );
   }
 
-  // Debug log
-  console.log('Current formData:', formData);
-
   return (
     <div className="space-y-6">
       {/* Overview Section */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Fund Overview</h2>
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+        <h2 className="text-lg font-semibold text-slate-900 mb-4">Fund Overview</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-blue-50 rounded-lg p-4">
+          <div className="bg-slate-50 rounded-lg p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-full">
-                <BanknotesIcon className="w-5 h-5 text-blue-600" />
+              <div className="p-2 bg-slate-100 rounded-full">
+                <BanknotesIcon className="w-5 h-5 text-slate-700" />
               </div>
               <div>
-                <p className="text-sm text-gray-600">Total Cash Available</p>
-                <p className="text-xl font-bold text-blue-600">
+                <p className="text-sm text-slate-600">Total Cash Available</p>
+                <p className="text-xl font-bold text-slate-700">
                   {formatCurrency(assetData ? assetData.cash : 0)}
                 </p>
               </div>
@@ -294,7 +290,7 @@ export default function FundAccountsManagement() {
                 <FaChartLine className="w-5 h-5 text-purple-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-600">Total Allocated</p>
+                <p className="text-sm text-slate-600">Total Allocated</p>
                 <p className="text-xl font-bold text-purple-600">
                   {formatCurrency(totalFundAmount)}
                 </p>
@@ -310,7 +306,7 @@ export default function FundAccountsManagement() {
                 </svg>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Available Remaining</p>
+                <p className="text-sm text-slate-600">Available Remaining</p>
                 <p className={`text-xl font-bold ${calculateAvailableCash() >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {formatCurrency(calculateAvailableCash())}
                 </p>
@@ -322,15 +318,15 @@ export default function FundAccountsManagement() {
 
       {/* Add/Edit Form */}
       {showAddForm && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+          <h3 className="text-lg font-semibold text-slate-900 mb-4">
             {editingId ? 'Edit Fund Account' : 'Add New Fund Account'}
           </h3>
           
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Fund Name *
                 </label>
                 <Input
@@ -343,7 +339,7 @@ export default function FundAccountsManagement() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Amount
                 </label>
                 <Input
@@ -358,7 +354,7 @@ export default function FundAccountsManagement() {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Description
               </label>
               <Input
@@ -371,13 +367,13 @@ export default function FundAccountsManagement() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Icon
                 </label>
                 <select
                   value={formData.icon}
                   onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                 >
                   {iconOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -388,7 +384,7 @@ export default function FundAccountsManagement() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Color
                 </label>
                 <div className="flex gap-2">
@@ -398,7 +394,7 @@ export default function FundAccountsManagement() {
                       type="button"
                       onClick={() => setFormData({ ...formData, color })}
                       className={`w-8 h-8 rounded-full border-2 ${
-                        formData.color === color ? 'border-gray-800' : 'border-gray-300'
+                        formData.color === color ? 'border-slate-800' : 'border-slate-300'
                       }`}
                       style={{ backgroundColor: color }}
                     />
@@ -413,14 +409,12 @@ export default function FundAccountsManagement() {
                 id="isInvesting"
                 checked={formData.isInvesting}
                 onChange={(e) => {
-                  console.log('Checkbox changed:', e.target.checked);
                   setFormData({ ...formData, isInvesting: e.target.checked });
                 }}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                className="w-4 h-4 text-slate-700 bg-slate-100 border-slate-300 rounded focus:ring-slate-500 focus:ring-2"
               />
-              <label htmlFor="isInvesting" className="text-sm font-medium text-gray-700 cursor-pointer">
+              <label htmlFor="isInvesting" className="text-sm font-medium text-slate-700 cursor-pointer">
                 This is an investing fund (will be shown as available investing funds)
-                {formData.isInvesting && <span className="ml-2 text-green-600 font-bold">✓ CHECKED</span>}
               </label>
             </div>
             
@@ -437,9 +431,9 @@ export default function FundAccountsManagement() {
       )}
 
       {/* Fund Accounts List */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-800">Fund Accounts</h3>
+          <h3 className="text-lg font-semibold text-slate-900">Fund Accounts</h3>
           {!showAddForm && (
             <Button onClick={() => setShowAddForm(true)}>
               <PlusIcon className="w-4 h-4 mr-2" />
@@ -449,10 +443,10 @@ export default function FundAccountsManagement() {
         </div>
         
         {fundAccounts.length === 0 ? (
-          <div className="text-center py-8 bg-gray-50 rounded-lg">
-            <FaChartLine className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-600 mb-2">No fund accounts yet</p>
-            <p className="text-sm text-gray-500">Add your first fund account to start tracking your savings goals</p>
+          <div className="text-center py-8 bg-slate-50 rounded-lg">
+            <FaChartLine className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+            <p className="text-slate-600 mb-2">No fund accounts yet</p>
+            <p className="text-sm text-slate-500">Add your first fund account to start tracking your savings goals</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -461,7 +455,7 @@ export default function FundAccountsManagement() {
               return (
                 <div
                   key={fund.id}
-                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:shadow-sm transition-shadow"
+                  className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:shadow-sm transition-shadow"
                 >
                   <div className="flex items-center gap-4">
                     <div
@@ -472,7 +466,7 @@ export default function FundAccountsManagement() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h4 className="font-semibold text-gray-800">{fund.name}</h4>
+                        <h4 className="font-semibold text-slate-900">{fund.name}</h4>
                         {fund.isInvesting ? (
                           <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full font-medium">
                             Investing
@@ -480,9 +474,9 @@ export default function FundAccountsManagement() {
                         ): null}
                       </div>
                       {fund.description && (
-                        <p className="text-sm text-gray-600">{fund.description}</p>
+                        <p className="text-sm text-slate-600">{fund.description}</p>
                       )}
-                      <p className="text-lg font-bold text-gray-900">
+                      <p className="text-lg font-bold text-slate-950">
                         {formatCurrency(fund.amount)}
                       </p>
                     </div>
@@ -513,4 +507,4 @@ export default function FundAccountsManagement() {
       </div>
     </div>
   );
-} 
+}
