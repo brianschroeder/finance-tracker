@@ -122,7 +122,7 @@ export default function StockPrice({ symbol, compact = false, dailyChangeOnly = 
   if (dailyChangeOnly) {
     // Show only the daily price change
     if (loading) {
-      return <span className="text-gray-400 animate-pulse">Loading...</span>;
+      return <span className="text-slate-400 animate-pulse">Loading...</span>;
     }
     
     if (error) {
@@ -130,7 +130,7 @@ export default function StockPrice({ symbol, compact = false, dailyChangeOnly = 
     }
     
     if (!data || data.change === null || data.change === undefined) {
-      return <span className="text-gray-400">N/A</span>;
+      return <span className="text-slate-400">N/A</span>;
     }
     
     // At this point we know data.change is not null or undefined
@@ -139,7 +139,7 @@ export default function StockPrice({ symbol, compact = false, dailyChangeOnly = 
     const isPositive = changeValue >= 0;
     
     return (
-      <div className={`${isPositive ? 'text-green-600' : 'text-gray-600'}`}>
+      <div className={`${isPositive ? 'text-green-600' : 'text-slate-600'}`}>
         {isPositive ? '+' : ''}{changeValue.toFixed(2)} ({isPositive ? '+' : ''}{changePercentValue.toFixed(2)}%)
       </div>
     );
@@ -148,7 +148,7 @@ export default function StockPrice({ symbol, compact = false, dailyChangeOnly = 
   if (compact) {
     // Compact view for using in tables or smaller UI elements
     if (loading) {
-      return <span className="text-gray-400 animate-pulse">Loading...</span>;
+      return <span className="text-slate-400 animate-pulse">Loading...</span>;
     }
     
     if (error) {
@@ -156,19 +156,19 @@ export default function StockPrice({ symbol, compact = false, dailyChangeOnly = 
     }
     
     if (!data) {
-      return <span className="text-gray-400">N/A</span>;
+      return <span className="text-slate-400">N/A</span>;
     }
     
     return (
       <div className="text-right">
         <div className="font-medium">${data.price.toFixed(2)}</div>
         {data.change !== undefined && data.change !== null && (
-          <div className={`text-xs ${data.change >= 0 ? 'text-green-600' : 'text-gray-600'}`}>
+          <div className={`text-xs ${data.change >= 0 ? 'text-green-600' : 'text-slate-600'}`}>
             {data.change >= 0 ? '+' : ''}{data.change.toFixed(2)} ({data.change >= 0 ? '+' : ''}{data.changePercent?.toFixed(2)}%)
           </div>
         )}
         {relativeTime && (
-          <span className="text-xs text-gray-400 block" title={new Date(data.lastUpdated).toLocaleString()}>
+          <span className="text-xs text-slate-400 block" title={new Date(data.lastUpdated).toLocaleString()}>
             {relativeTime}
           </span>
         )}
@@ -179,8 +179,8 @@ export default function StockPrice({ symbol, compact = false, dailyChangeOnly = 
   // Full view with loading and error states
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-6 bg-gray-50 rounded-lg shadow-sm">
-        <div className="animate-pulse text-blue-500">Loading price for {symbol}...</div>
+      <div className="flex items-center justify-center p-6 bg-slate-50 rounded-lg shadow-sm">
+        <div className="animate-pulse text-slate-500">Loading price for {symbol}...</div>
       </div>
     );
   }
@@ -199,8 +199,8 @@ export default function StockPrice({ symbol, compact = false, dailyChangeOnly = 
 
   if (!data) {
     return (
-      <div className="p-6 bg-gray-50 rounded-lg shadow-sm">
-        <p className="text-gray-500">No stock data available for {symbol}</p>
+      <div className="p-6 bg-slate-50 rounded-lg shadow-sm">
+        <p className="text-slate-500">No stock data available for {symbol}</p>
       </div>
     );
   }
@@ -208,8 +208,8 @@ export default function StockPrice({ symbol, compact = false, dailyChangeOnly = 
   return (
     <div className="p-6 bg-white rounded-lg shadow-md">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl font-bold text-gray-800">{data.symbol}</h3>
-        <span className="px-3 py-1 text-sm font-medium bg-blue-100 text-blue-800 rounded-full">
+        <h3 className="text-xl font-bold text-slate-900">{data.symbol}</h3>
+        <span className="px-3 py-1 text-sm font-medium bg-slate-100 text-slate-800 rounded-full">
           Stock Price
         </span>
       </div>
@@ -219,25 +219,25 @@ export default function StockPrice({ symbol, compact = false, dailyChangeOnly = 
       </div>
       
       {data.change !== undefined && data.change !== null && (
-        <div className={`text-xl font-semibold mb-3 ${(data.change !== null && data.change >= 0) ? 'text-green-600' : 'text-gray-600'}`}>
+        <div className={`text-xl font-semibold mb-3 ${(data.change !== null && data.change >= 0) ? 'text-green-600' : 'text-slate-600'}`}>
           {(data.change !== null && data.change >= 0) ? '↑' : '↓'} {Math.abs(data.change !== null ? data.change : 0).toFixed(2)} ({(data.change !== null && data.change >= 0) ? '+' : ''}{data.changePercent?.toFixed(2)}%)
         </div>
       )}
       
       <div className="grid grid-cols-2 gap-2 mb-4 text-sm">
-        <div className="bg-gray-50 p-2 rounded">
-          <div className="text-gray-500">Previous Close</div>
+        <div className="bg-slate-50 p-2 rounded">
+          <div className="text-slate-500">Previous Close</div>
           <div className="font-medium">${data.previousClose?.toFixed(2) || 'N/A'}</div>
         </div>
-        <div className="bg-gray-50 p-2 rounded">
-          <div className="text-gray-500">Day Change</div>
-          <div className={`font-medium ${data.change && data.change >= 0 ? 'text-green-600' : 'text-gray-600'}`}>
+        <div className="bg-slate-50 p-2 rounded">
+          <div className="text-slate-500">Day Change</div>
+          <div className={`font-medium ${data.change && data.change >= 0 ? 'text-green-600' : 'text-slate-600'}`}>
             {data.change ? (data.change >= 0 ? '+' : '') + data.change.toFixed(2) : 'N/A'}
           </div>
         </div>
       </div>
       
-      <div className="text-sm text-gray-500 flex items-center gap-2">
+      <div className="text-sm text-slate-500 flex items-center gap-2">
         <span>Updated: {relativeTime}</span>
         <span className="text-xs" title="Exact time">
           ({new Date(data.lastUpdated).toLocaleString()})

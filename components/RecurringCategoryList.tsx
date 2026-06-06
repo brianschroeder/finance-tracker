@@ -130,7 +130,7 @@ export default function RecurringCategoryList() {
     return (
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex justify-center items-center h-32">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-slate-500"></div>
         </div>
       </div>
     );
@@ -138,7 +138,7 @@ export default function RecurringCategoryList() {
 
   return (
     <div className="bg-white rounded-lg shadow">
-      <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+      <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center">
         <h3 className="text-lg font-semibold">Recurring Transaction Categories</h3>
         <div className="flex space-x-2">
           <button
@@ -146,7 +146,7 @@ export default function RecurringCategoryList() {
               resetForms();
               setShowAddForm(true);
             }}
-            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-slate-950 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500"
           >
             Add Category
           </button>
@@ -161,8 +161,8 @@ export default function RecurringCategoryList() {
       
       {/* Add/Edit Form */}
       {(showAddForm || editingCategory) && (
-        <div className="p-6 border-b border-gray-200">
-          <h4 className={`text-md font-medium mb-4 ${editingCategory ? 'bg-blue-100 p-2 rounded text-blue-800' : ''}`}>
+        <div className="p-6 border-b border-slate-200">
+          <h4 className={`text-md font-medium mb-4 ${editingCategory ? 'bg-slate-100 p-2 rounded text-slate-800' : ''}`}>
             {editingCategory ? `Edit Category: ${editingCategory.name}` : 'Add New Category'}
           </h4>
           <RecurringCategoryForm
@@ -176,25 +176,25 @@ export default function RecurringCategoryList() {
       
       {/* Categories List */}
       {categories.length === 0 ? (
-        <div className="p-6 text-center text-gray-500">
+        <div className="p-6 text-center text-slate-500">
           <p>No categories found.</p>
           <p className="mt-2">Add your first category to get started.</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-slate-50">
               <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Color
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Name
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -209,13 +209,13 @@ export default function RecurringCategoryList() {
                     />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{category.name}</div>
+                    <div className="text-sm font-medium text-slate-950">{category.name}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                       category.isActive
                         ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
+                        : 'bg-slate-100 text-slate-900'
                     }`}>
                       {category.isActive ? 'Active' : 'Inactive'}
                     </span>
@@ -223,7 +223,7 @@ export default function RecurringCategoryList() {
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
                       onClick={() => setEditingCategory(category)}
-                      className="text-blue-600 hover:text-blue-900 mr-4"
+                      className="text-slate-700 hover:text-slate-900 mr-4"
                     >
                       Edit
                     </button>

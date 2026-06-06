@@ -131,10 +131,10 @@ export default function RecurringBillsChart({ transactions, onTransactionsUpdate
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-semibold">Bills Breakdown</h3>
         <div className="text-right">
-          <div className="text-sm font-medium text-gray-900">
+          <div className="text-sm font-medium text-slate-950">
             {formatCurrency(totalAmount)}/month
           </div>
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-slate-500">
             {formatCurrency(totalAmount * 12)}/year total
           </div>
         </div>
@@ -151,7 +151,7 @@ export default function RecurringBillsChart({ transactions, onTransactionsUpdate
                 fill={segment.color}
                 className={`transition-all duration-200 cursor-pointer ${
                   hoveredSegment === index 
-                    ? 'opacity-100 filter drop-shadow-lg' 
+                    ? 'opacity-100 filter drop-shadow-[0_1px_3px_rgba(15,23,42,0.08)]' 
                     : hoveredSegment !== null 
                       ? 'opacity-50' 
                       : 'opacity-90 hover:opacity-100'
@@ -165,20 +165,20 @@ export default function RecurringBillsChart({ transactions, onTransactionsUpdate
             <div className="text-center">
               {hoveredTransaction ? (
                 <>
-                  <div className="text-sm font-medium text-gray-900 truncate max-w-20">
+                  <div className="text-sm font-medium text-slate-950 truncate max-w-20">
                     {hoveredTransaction.name}
                   </div>
                   <div className="text-lg font-bold" style={{ color: hoveredTransaction.color }}>
                     {formatCurrency(hoveredTransaction.amount)}
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-slate-500">
                     {Math.round(hoveredTransaction.percentage)}%
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="text-lg font-bold text-gray-900">Top {topTransactions.length}</div>
-                  <div className="text-sm text-gray-500">Bills</div>
+                  <div className="text-lg font-bold text-slate-950">Top {topTransactions.length}</div>
+                  <div className="text-sm text-slate-500">Bills</div>
                 </>
               )}
             </div>
@@ -193,8 +193,8 @@ export default function RecurringBillsChart({ transactions, onTransactionsUpdate
                 key={segment.id} 
                 className={`flex items-center gap-3 p-2 rounded-lg transition-all duration-200 group ${
                   hoveredSegment === index 
-                    ? 'bg-gray-50 shadow-sm' 
-                    : 'hover:bg-gray-25'
+                    ? 'bg-slate-50 shadow-sm' 
+                    : 'hover:bg-slate-50'
                 }`}
                 onMouseEnter={() => setHoveredSegment(index)}
                 onMouseLeave={() => setHoveredSegment(null)}
@@ -208,19 +208,19 @@ export default function RecurringBillsChart({ transactions, onTransactionsUpdate
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-900 truncate">
+                    <span className="text-sm font-medium text-slate-950 truncate">
                       {segment.name}
                     </span>
                     <div className="flex flex-col items-end">
-                      <span className="text-sm font-semibold text-gray-900">
+                      <span className="text-sm font-semibold text-slate-950">
                         {formatCurrency(segment.amount)}
                       </span>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-slate-500">
                         {formatCurrency(segment.amount * 12)}/year
                       </span>
                     </div>
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-slate-500">
                     {Math.round(segment.percentage)}% of top bills
                   </div>
                 </div>
@@ -250,23 +250,23 @@ export default function RecurringBillsChart({ transactions, onTransactionsUpdate
             {/* Show remaining transactions in scrollable area */}
             {transactions.length > 10 && (
               <div className="border-t pt-3 mt-3">
-                <div className="text-xs font-medium text-gray-500 mb-2">
+                <div className="text-xs font-medium text-slate-500 mb-2">
                   Other Bills ({transactions.length - 10} remaining)
                 </div>
                 {transactions
                   .filter(transaction => !topTransactions.some(top => top.id === transaction.id))
                   .sort((a, b) => b.amount - a.amount)
                   .map((transaction) => (
-                    <div key={transaction.id} className="flex items-center justify-between py-1 px-2 hover:bg-gray-25 rounded group">
-                      <span className="text-xs text-gray-600 truncate">
+                    <div key={transaction.id} className="flex items-center justify-between py-1 px-2 hover:bg-slate-50 rounded group">
+                      <span className="text-xs text-slate-600 truncate">
                         {transaction.name}
                       </span>
                       <div className="flex items-center gap-2">
                         <div className="flex flex-col items-end">
-                          <span className="text-xs text-gray-600">
+                          <span className="text-xs text-slate-600">
                             {formatCurrency(transaction.amount)}
                           </span>
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-slate-500">
                             {formatCurrency(transaction.amount * 12)}/year
                           </span>
                         </div>
@@ -293,7 +293,7 @@ export default function RecurringBillsChart({ transactions, onTransactionsUpdate
                       </div>
                     </div>
                   ))}
-                <div className="text-xs text-gray-500 mt-2 pt-2 border-t">
+                <div className="text-xs text-slate-500 mt-2 pt-2 border-t">
                   Additional: {formatCurrency(totalAmount - topTotal)}
                 </div>
               </div>

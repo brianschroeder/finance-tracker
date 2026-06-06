@@ -445,11 +445,11 @@ export default function CopyPasteTransactions({ onTransactionsAdded }: { onTrans
     <Card className="p-6">
       <div className="space-y-6">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Copy & Paste Transactions</h3>
-          <p className="text-sm text-gray-600 mb-4">
+          <h3 className="text-lg font-semibold text-slate-950 mb-2">Copy & Paste Transactions</h3>
+          <p className="text-sm text-slate-600 mb-4">
             Paste transaction data from your bank or financial app. Features smart category suggestions and allows creating new categories. Transactions will be saved as final (not pending). Expected format:
           </p>
-          <div className="bg-gray-50 p-3 rounded-lg text-xs font-mono text-gray-700 mb-4">
+          <div className="bg-slate-50 p-3 rounded-lg text-xs font-mono text-slate-700 mb-4">
             Tesla<br/>
             Jul 21, 2025 • 2:22 PM<br/>
             -$10.98<br/>
@@ -465,14 +465,14 @@ export default function CopyPasteTransactions({ onTransactionsAdded }: { onTrans
         {!showParsed ? (
           <div className="space-y-4">
             <div>
-              <label htmlFor="transaction-text" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="transaction-text" className="block text-sm font-medium text-slate-700 mb-2">
                 Paste Transaction Data
               </label>
               <textarea
                 id="transaction-text"
                 value={pastedText}
                 onChange={(e) => setPastedText(e.target.value)}
-                className="w-full h-40 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                className="w-full h-40 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 font-mono text-sm"
                 placeholder="Paste your transaction data here..."
               />
             </div>
@@ -493,7 +493,7 @@ export default function CopyPasteTransactions({ onTransactionsAdded }: { onTrans
         ) : (
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <h4 className="text-md font-medium text-gray-900">
+              <h4 className="text-md font-medium text-slate-950">
                 Review Parsed Transactions ({parsedTransactions.length})
               </h4>
               <Button 
@@ -506,41 +506,41 @@ export default function CopyPasteTransactions({ onTransactionsAdded }: { onTrans
             
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {parsedTransactions.map((transaction) => (
-                <div key={transaction.id} className="border border-gray-200 rounded-lg p-4 space-y-3">
+                <div key={transaction.id} className="border border-slate-200 rounded-lg p-4 space-y-3">
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Name</label>
+                      <label className="block text-xs font-medium text-slate-700 mb-1">Name</label>
                       <input
                         type="text"
                         value={transaction.name}
                         onChange={(e) => updateTransaction(transaction.id, 'name', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full p-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                       />
                     </div>
                     
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Date</label>
+                      <label className="block text-xs font-medium text-slate-700 mb-1">Date</label>
                       <input
                         type="date"
                         value={transaction.date}
                         onChange={(e) => updateTransaction(transaction.id, 'date', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full p-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                       />
                     </div>
                     
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Amount</label>
+                      <label className="block text-xs font-medium text-slate-700 mb-1">Amount</label>
                       <input
                         type="number"
                         step="0.01"
                         value={transaction.amount}
                         onChange={(e) => updateTransaction(transaction.id, 'amount', parseFloat(e.target.value) || 0)}
-                        className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full p-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                       />
                     </div>
                     
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-xs font-medium text-slate-700 mb-1">
                         Category
                         {transaction.suggestedCategoryId && (
                           <span className="ml-1 text-xs text-green-600">(✓ Smart suggestion)</span>
@@ -549,7 +549,7 @@ export default function CopyPasteTransactions({ onTransactionsAdded }: { onTrans
                       <select
                         value={transaction.categoryId || ''}
                         onChange={(e) => handleCategoryChange(transaction.id, e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full p-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                       >
                         <option value="">Uncategorized</option>
                         {categories.map((category) => (
@@ -558,22 +558,22 @@ export default function CopyPasteTransactions({ onTransactionsAdded }: { onTrans
                             {transaction.suggestedCategoryId === category.id && " (Suggested)"}
                           </option>
                         ))}
-                        <option value="CREATE_NEW" className="font-bold text-blue-600">
+                        <option value="CREATE_NEW" className="font-bold text-slate-700">
                           + Create New Category
                         </option>
                       </select>
                       
                       {/* New Category Form */}
                       {showNewCategoryForm === transaction.id && (
-                        <div className="mt-2 p-3 border border-blue-200 rounded-lg bg-blue-50 space-y-2">
-                          <h5 className="text-sm font-medium text-blue-800">Create New Category</h5>
+                        <div className="mt-2 p-3 border border-slate-200 rounded-lg bg-slate-50 space-y-2">
+                          <h5 className="text-sm font-medium text-slate-800">Create New Category</h5>
                           <div>
                             <input
                               type="text"
                               placeholder="Category name"
                               value={newCategoryForm.name}
                               onChange={(e) => setNewCategoryForm(prev => ({ ...prev, name: e.target.value }))}
-                              className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              className="w-full p-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                             />
                           </div>
                           <div className="grid grid-cols-2 gap-2">
@@ -582,7 +582,7 @@ export default function CopyPasteTransactions({ onTransactionsAdded }: { onTrans
                                 type="color"
                                 value={newCategoryForm.color}
                                 onChange={(e) => setNewCategoryForm(prev => ({ ...prev, color: e.target.value }))}
-                                className="w-full h-8 border border-gray-300 rounded"
+                                className="w-full h-8 border border-slate-300 rounded"
                               />
                             </div>
                             <div>
@@ -591,7 +591,7 @@ export default function CopyPasteTransactions({ onTransactionsAdded }: { onTrans
                                 placeholder="Budget amount"
                                 value={newCategoryForm.allocatedAmount}
                                 onChange={(e) => setNewCategoryForm(prev => ({ ...prev, allocatedAmount: parseFloat(e.target.value) || 0 }))}
-                                className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full p-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                               />
                             </div>
                           </div>
@@ -618,8 +618,8 @@ export default function CopyPasteTransactions({ onTransactionsAdded }: { onTrans
                     </div>
                   </div>
                   
-                  <div className="flex justify-between items-center pt-2 border-t border-gray-100">
-                    <span className="text-sm text-gray-600">
+                  <div className="flex justify-between items-center pt-2 border-t border-slate-200">
+                    <span className="text-sm text-slate-600">
                       {formatCurrency(transaction.amount)} • Final Transaction
                     </span>
                     <Button
@@ -635,16 +635,16 @@ export default function CopyPasteTransactions({ onTransactionsAdded }: { onTrans
               ))}
             </div>
             
-            <div className="pt-4 border-t border-gray-200 space-y-3">
+            <div className="pt-4 border-t border-slate-200 space-y-3">
               <div className="flex items-center">
                 <input
                   type="checkbox"
                   id="creditCardPending"
                   checked={markAsCreditCardPending}
                   onChange={(e) => setMarkAsCreditCardPending(e.target.checked)}
-                  className="h-4 w-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                  className="h-4 w-4 text-orange-600 border-slate-300 rounded focus:ring-orange-500"
                 />
-                <label htmlFor="creditCardPending" className="ml-2 block text-sm text-gray-700">
+                <label htmlFor="creditCardPending" className="ml-2 block text-sm text-slate-700">
                   Mark all as credit card transactions (not yet paid from checking)
                 </label>
               </div>

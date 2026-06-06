@@ -4,9 +4,12 @@ import { getIncomeData, saveIncomeData } from '@/lib/db';
 interface IncomeData {
   payAmount: number;
   payFrequency: 'weekly' | 'biweekly' | 'semimonthly' | 'monthly';
+  salary: number;
   workHoursPerWeek: number;
   workDaysPerWeek: number;
   bonusPercentage: number;
+  yearsOfService: number;
+  service401kRate: number;
 }
 
 export async function GET() {
@@ -15,9 +18,12 @@ export async function GET() {
     return NextResponse.json(incomeData || {
       payAmount: 2500,
       payFrequency: 'biweekly',
+      salary: 0,
       workHoursPerWeek: 40,
       workDaysPerWeek: 5,
-      bonusPercentage: 10
+      bonusPercentage: 10,
+      yearsOfService: 0,
+      service401kRate: 1.5
     });
   } catch (error) {
     console.error('Error fetching income data:', error);
@@ -36,9 +42,12 @@ export async function POST(request: Request) {
     if (
       typeof data.payAmount !== 'number' ||
       !data.payFrequency ||
+      typeof data.salary !== 'number' ||
       typeof data.workHoursPerWeek !== 'number' ||
       typeof data.workDaysPerWeek !== 'number' ||
-      typeof data.bonusPercentage !== 'number'
+      typeof data.bonusPercentage !== 'number' ||
+      typeof data.yearsOfService !== 'number' ||
+      typeof data.service401kRate !== 'number'
     ) {
       return NextResponse.json(
         { error: 'All fields are required and must be numbers' },
@@ -62,6 +71,13 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    if (data.salary < 0) {
+      return NextResponse.json(
+        { error: 'Salary cannot be negative' },
+        { status: 400 }
+      );
+    }
     
     if (data.workHoursPerWeek <= 0 || data.workHoursPerWeek > 168) {
       return NextResponse.json(
@@ -80,6 +96,20 @@ export async function POST(request: Request) {
     if (data.bonusPercentage < 0 || data.bonusPercentage > 100) {
       return NextResponse.json(
         { error: 'Bonus percentage must be between 0 and 100' },
+        { status: 400 }
+      );
+    }
+
+    if (data.yearsOfService < 0 || data.yearsOfService > 80) {
+      return NextResponse.json(
+        { error: 'Years of service must be between 0 and 80' },
+        { status: 400 }
+      );
+    }
+
+    if (data.service401kRate < 0 || data.service401kRate > 25) {
+      return NextResponse.json(
+        { error: '401k service rate must be between 0% and 25%' },
         { status: 400 }
       );
     }

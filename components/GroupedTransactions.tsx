@@ -520,10 +520,10 @@ const GroupedTransactions = () => {
 
   if (loading || loadingBudgetPeriod) {
     return (
-      <div className="flex justify-center items-center h-64 bg-white rounded-xl shadow-sm border border-gray-100">
+      <div className="flex justify-center items-center h-64 bg-white rounded-lg shadow-sm border border-slate-200">
         <div className="flex flex-col items-center">
-          <div className="w-10 h-10 border-t-4 border-b-4 border-blue-500 rounded-full animate-spin mb-3"></div>
-          <p className="text-gray-600">Loading data...</p>
+          <div className="w-10 h-10 border-t-4 border-b-4 border-slate-500 rounded-full animate-spin mb-3"></div>
+          <p className="text-slate-600">Loading data...</p>
         </div>
       </div>
     );
@@ -531,11 +531,11 @@ const GroupedTransactions = () => {
 
   if (error) {
     return (
-      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 h-64">
+      <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200 h-64">
         <div className="flex justify-center items-center h-full">
           <div className="text-center">
             <div className="text-red-500 font-medium mb-2">Error loading data</div>
-            <div className="text-xs text-gray-500 max-w-md whitespace-pre-line">{debugInfo}</div>
+            <div className="text-xs text-slate-500 max-w-md whitespace-pre-line">{debugInfo}</div>
           </div>
         </div>
       </div>
@@ -544,10 +544,10 @@ const GroupedTransactions = () => {
 
   if (groupedData.length === 0) {
     return (
-      <div className="bg-gray-50 rounded-xl border border-gray-200 p-8 text-center">
-        <p className="text-gray-600 mb-2">No transactions found for this pay period</p>
+      <div className="bg-slate-50 rounded-lg border border-slate-200 p-8 text-center">
+        <p className="text-slate-600 mb-2">No transactions found for this pay period</p>
         {budgetPeriod && (
-          <p className="text-sm text-gray-500">{formatDateRange()}</p>
+          <p className="text-sm text-slate-500">{formatDateRange()}</p>
         )}
       </div>
     );
@@ -561,8 +561,8 @@ const GroupedTransactions = () => {
             onClick={() => setViewMode('vendor')}
             className={`px-3 py-1.5 text-sm font-medium rounded ${
               viewMode === 'vendor' 
-                ? 'bg-blue-100 text-blue-700' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-slate-100 text-slate-700' 
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
           >
             By Vendor
@@ -571,8 +571,8 @@ const GroupedTransactions = () => {
             onClick={() => setViewMode('trend')}
             className={`px-3 py-1.5 text-sm font-medium rounded ${
               viewMode === 'trend' 
-                ? 'bg-blue-100 text-blue-700' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-slate-100 text-slate-700' 
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
           >
             By Date
@@ -581,7 +581,7 @@ const GroupedTransactions = () => {
         
         {budgetPeriod && (
           <div className="flex items-center">
-            <div className="text-sm font-medium bg-blue-50 text-blue-700 px-3 py-1.5 rounded-md border border-blue-100">
+            <div className="text-sm font-medium bg-slate-50 text-slate-700 px-3 py-1.5 rounded-md border border-slate-200">
               Pay Period: <span className="font-bold">{formatDateRange()}</span>
             </div>
             <button 
@@ -593,7 +593,7 @@ const GroupedTransactions = () => {
                   await fetchTransactions();
                 }
               }}
-              className="ml-2 p-1.5 text-gray-500 hover:text-blue-600 rounded-md hover:bg-gray-100"
+              className="ml-2 p-1.5 text-slate-500 hover:text-slate-700 rounded-md hover:bg-slate-100"
               title="Refresh data"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

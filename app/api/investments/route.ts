@@ -151,7 +151,10 @@ export async function PUT(request: NextRequest) {
         );
       }
       
-      const changes = updateInvestmentPrice(data.id, data.currentPrice);
+      const prevDayPrice = data.prevDayPrice !== undefined && !isNaN(data.prevDayPrice)
+        ? Number(data.prevDayPrice)
+        : null;
+      const changes = updateInvestmentPrice(data.id, data.currentPrice, prevDayPrice);
       
       return NextResponse.json({
         success: true,
@@ -239,4 +242,4 @@ export async function DELETE(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

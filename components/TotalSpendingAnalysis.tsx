@@ -101,11 +101,11 @@ export default function TotalSpendingAnalysis({ className = '' }: TotalSpendingA
     return (
       <div className={`bg-white rounded-lg shadow p-6 ${className}`}>
         <div className="animate-pulse">
-          <div className="h-6 bg-gray-200 rounded w-48 mb-4"></div>
+          <div className="h-6 bg-slate-200 rounded w-48 mb-4"></div>
           <div className="space-y-3">
-            <div className="h-4 bg-gray-200 rounded"></div>
-            <div className="h-4 bg-gray-200 rounded"></div>
-            <div className="h-4 bg-gray-200 rounded"></div>
+            <div className="h-4 bg-slate-200 rounded"></div>
+            <div className="h-4 bg-slate-200 rounded"></div>
+            <div className="h-4 bg-slate-200 rounded"></div>
           </div>
         </div>
       </div>
@@ -129,14 +129,14 @@ export default function TotalSpendingAnalysis({ className = '' }: TotalSpendingA
   return (
     <div className={`bg-white rounded-lg shadow-md p-6 ${className}`}>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold text-gray-900">Total Spending Analysis</h2>
+        <h2 className="text-xl font-semibold text-slate-950">Total Spending Analysis</h2>
         <div className="flex space-x-2">
           <button
             onClick={() => setDateRange('month')}
             className={`px-3 py-1 rounded-md text-sm font-medium ${
               dateRange === 'month'
-                ? 'bg-blue-100 text-blue-700'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-slate-100 text-slate-700'
+                : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             This Month
@@ -145,8 +145,8 @@ export default function TotalSpendingAnalysis({ className = '' }: TotalSpendingA
             onClick={() => setDateRange('year')}
             className={`px-3 py-1 rounded-md text-sm font-medium ${
               dateRange === 'year'
-                ? 'bg-blue-100 text-blue-700'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-slate-100 text-slate-700'
+                : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             This Year
@@ -156,12 +156,12 @@ export default function TotalSpendingAnalysis({ className = '' }: TotalSpendingA
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-blue-50 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-blue-800 mb-1">Budget Categories</h3>
-          <div className="text-2xl font-bold text-blue-900">
+        <div className="bg-slate-50 rounded-lg p-4">
+          <h3 className="text-sm font-medium text-slate-800 mb-1">Budget Categories</h3>
+          <div className="text-2xl font-bold text-slate-950">
             {formatCurrency(summary.budget.totalSpent)}
           </div>
-          <div className="text-sm text-blue-600">
+          <div className="text-sm text-slate-700">
             {summary.budget.categoryCount} categories
           </div>
         </div>
@@ -176,12 +176,12 @@ export default function TotalSpendingAnalysis({ className = '' }: TotalSpendingA
           </div>
         </div>
         
-        <div className="bg-gray-50 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-gray-800 mb-1">Total Spending</h3>
-          <div className="text-2xl font-bold text-gray-900">
+        <div className="bg-slate-50 rounded-lg p-4">
+          <h3 className="text-sm font-medium text-slate-900 mb-1">Total Spending</h3>
+          <div className="text-2xl font-bold text-slate-950">
             {formatCurrency(summary.overall.totalSpent)}
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-slate-600">
             All {summary.overall.totalCategories} categories
           </div>
         </div>
@@ -192,21 +192,21 @@ export default function TotalSpendingAnalysis({ className = '' }: TotalSpendingA
         {/* Budget Categories */}
         {budgetCategories.length > 0 && (
           <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-3">Budget Categories</h3>
+            <h3 className="text-lg font-medium text-slate-950 mb-3">Budget Categories</h3>
             <div className="space-y-2">
               {budgetCategories
                 .filter(cat => cat.spent > 0)
                 .sort((a, b) => b.spent - a.spent)
                 .map(category => (
-                  <div key={category.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div key={category.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                     <div className="flex items-center">
                       <div 
                         className="w-3 h-3 rounded-full mr-3"
                         style={{ backgroundColor: category.color }}
                       />
-                      <span className="text-sm font-medium text-gray-800">{category.name}</span>
+                      <span className="text-sm font-medium text-slate-900">{category.name}</span>
                     </div>
-                    <div className="text-sm font-semibold text-gray-900">
+                    <div className="text-sm font-semibold text-slate-950">
                       {formatCurrency(category.spent)}
                     </div>
                   </div>
@@ -218,24 +218,24 @@ export default function TotalSpendingAnalysis({ className = '' }: TotalSpendingA
         {/* Big Purchases */}
         {trackingCategories.length > 0 && (
           <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-3">
+            <h3 className="text-lg font-medium text-slate-950 mb-3">
               Big Purchases 
-              <span className="text-sm font-normal text-gray-500 ml-1">(no budget limit)</span>
+              <span className="text-sm font-normal text-slate-500 ml-1">(no budget limit)</span>
             </h3>
             <div className="space-y-2">
               {trackingCategories
                 .filter(cat => cat.spent > 0)
                 .sort((a, b) => b.spent - a.spent)
                 .map(category => (
-                  <div key={category.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div key={category.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                     <div className="flex items-center">
                       <div 
                         className="w-3 h-3 rounded-full mr-3"
                         style={{ backgroundColor: category.color }}
                       />
-                      <span className="text-sm font-medium text-gray-800">{category.name}</span>
+                      <span className="text-sm font-medium text-slate-900">{category.name}</span>
                     </div>
-                    <div className="text-sm font-semibold text-gray-900">
+                    <div className="text-sm font-semibold text-slate-950">
                       {formatCurrency(category.spent)}
                     </div>
                   </div>

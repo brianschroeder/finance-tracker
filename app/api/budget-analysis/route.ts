@@ -75,6 +75,14 @@ export async function GET(request: NextRequest) {
     
     // Get all transactions in the date range to calculate pending amounts
     const transactions = getTransactionsByDateRange(startDateStr, endDateStr);
+    const transactionsByCategory = new Map<number, Transaction[]>();
+
+    transactions.forEach((transaction: Transaction) => {
+      if (transaction.categoryId === null) return;
+      const existing = transactionsByCategory.get(transaction.categoryId) || [];
+      existing.push(transaction);
+      transactionsByCategory.set(transaction.categoryId, existing);
+    });
     
     // Calculate pending amounts by category
     const pendingAmountsByCategory = new Map<number, { pendingTipAmount: number, pendingCashbackAmount: number, creditCardPendingAmount: number }>();
@@ -119,7 +127,7 @@ export async function GET(request: NextRequest) {
     const start = new Date(startDateStr);
     const end = new Date(endDateStr);
     const dayCount = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    
+
     // Determine if we need to prorate the allocated amount
     const isProratedPeriod = periodType === 'biweekly' || periodType === 'custom';
     
@@ -147,16 +155,14 @@ export async function GET(request: NextRequest) {
       totalPendingCashbackAmount += pendingAmounts.pendingCashbackAmount;
       totalCreditCardPendingAmount += pendingAmounts.creditCardPendingAmount;
       
-      // If biweekly period, prorate the monthly budget to biweekly
+      // Stored category budgets are monthly amounts. Prorate them for the
+      // current budget view.
       let allocatedAmount = category.allocatedAmount;
-      
+
       if (isProratedPeriod) {
-        // For biweekly or custom periods, prorate the monthly allocation based on days
         if (periodType === 'biweekly') {
-          // For biweekly periods, use exactly half of the monthly budget
           allocatedAmount = category.allocatedAmount * 0.5;
         } else {
-          // For custom periods, continue to prorate based on days
           const daysInMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
           allocatedAmount = (category.allocatedAmount / daysInMonth) * dayCount;
         }
@@ -164,6 +170,15 @@ export async function GET(request: NextRequest) {
       
       // Calculate the adjusted spent amount including all pending amounts
       const adjustedSpent = spent + pendingAmounts.pendingTipAmount - pendingAmounts.pendingCashbackAmount + pendingAmounts.creditCardPendingAmount;
+      const categoryTransactions = transactionsByCategory.get(category.id) || [];
+      const merchantTotals = categoryTransactions.reduce((acc, transaction) => {
+        const merchant = transaction.name || 'Unnamed';
+        const existing = acc.get(merchant) || { name: merchant, amount: 0, count: 0 };
+        existing.amount += transaction.amount - (transaction.cashBack || 0);
+        existing.count += 1;
+        acc.set(merchant, existing);
+        return acc;
+      }, new Map<string, { name: string; amount: number; count: number }>());
       
       return {
         id: category.id,
@@ -179,7 +194,22 @@ export async function GET(request: NextRequest) {
         creditCardPendingAmount: pendingAmounts.creditCardPendingAmount,
         adjustedSpent: adjustedSpent, // Includes pending tips, credit card pending, minus pending cashback
         remaining: allocatedAmount - adjustedSpent, // Adjust remaining to account for all pending amounts
-        daysInPeriod: dayCount
+        daysInPeriod: dayCount,
+        topMerchants: Array.from(merchantTotals.values())
+          .sort((a, b) => b.amount - a.amount)
+          .slice(0, 5),
+        recentTransactions: categoryTransactions
+          .slice(0, 6)
+          .map((transaction) => ({
+            id: transaction.id,
+            date: transaction.date,
+            name: transaction.name,
+            amount: transaction.amount,
+            cashBack: transaction.cashBack || 0,
+            pending: !!transaction.pending,
+            pendingTipAmount: transaction.pendingTipAmount || 0,
+            creditCardPending: !!transaction.creditCardPending,
+          }))
       };
     });
     

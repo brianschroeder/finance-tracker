@@ -91,7 +91,7 @@ function SortableTransactionItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`bg-white border border-gray-200 rounded-lg p-4 mb-3 shadow-sm hover:shadow-md transition-shadow ${
+      className={`bg-white border border-slate-200 rounded-lg p-4 mb-3 shadow-sm hover:shadow-md transition-shadow ${
         isDragging ? 'z-50' : ''
       }`}
     >
@@ -100,7 +100,7 @@ function SortableTransactionItem({
         <div 
           {...attributes} 
           {...listeners}
-          className="flex items-center cursor-grab active:cursor-grabbing mr-4 p-2 text-gray-400 hover:text-gray-600 rounded"
+          className="flex items-center cursor-grab active:cursor-grabbing mr-4 p-2 text-slate-400 hover:text-slate-600 rounded"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
@@ -110,16 +110,16 @@ function SortableTransactionItem({
         {/* Transaction Info */}
         <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
           {/* Date */}
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-slate-500">
             {formatDate(transaction.date)}
           </div>
           
           {/* Name */}
           <div>
-            <div className="text-sm font-medium text-gray-900">
+            <div className="text-sm font-medium text-slate-950">
               {transaction.name}
               {transaction.pending && (
-                <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-slate-100 text-slate-800 border border-slate-200">
                   Pending
                 </span>
               )}
@@ -129,13 +129,13 @@ function SortableTransactionItem({
                 </span>
               )}
               {transaction.pending && transaction.pendingTipAmount && transaction.pendingTipAmount > 0 && (
-                <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+                <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-slate-50 text-slate-700 border border-slate-200">
                   Tip: {formatCurrency(transaction.pendingTipAmount)}
                 </span>
               )}
             </div>
             {transaction.notes && (
-              <div className="text-xs text-gray-500 truncate max-w-xs">{transaction.notes}</div>
+              <div className="text-xs text-slate-500 truncate max-w-xs">{transaction.notes}</div>
             )}
           </div>
           
@@ -153,26 +153,26 @@ function SortableTransactionItem({
                 {transaction.category.name}
               </span>
             ) : (
-              <span className="text-xs text-gray-500">Uncategorized</span>
+              <span className="text-xs text-slate-500">Uncategorized</span>
             )}
           </div>
           
           {/* Amount */}
-          <div className="text-sm font-medium text-gray-900">
+          <div className="text-sm font-medium text-slate-950">
             {formatCurrency(transaction.amount)}
           </div>
           
           {/* Cash Back */}
           <div className="text-sm">
             {transaction.cashBack && transaction.cashBack > 0 ? (
-              <span className={`font-medium ${transaction.cashbackPosted ? 'text-green-600' : 'text-blue-500'}`}>
+              <span className={`font-medium ${transaction.cashbackPosted ? 'text-green-600' : 'text-slate-500'}`}>
                 {formatCurrency(transaction.cashBack)}
                 {!transaction.cashbackPosted && (
-                  <span className="ml-1 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">pending</span>
+                  <span className="ml-1 text-xs bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">pending</span>
                 )}
               </span>
             ) : (
-              <span className="text-gray-400">-</span>
+              <span className="text-slate-400">-</span>
             )}
           </div>
         </div>
@@ -181,14 +181,14 @@ function SortableTransactionItem({
         <div className="flex gap-2 ml-4">
           <button
             onClick={() => onEdit(transaction)}
-            className="bg-blue-100 text-blue-700 px-3 py-1 rounded-md hover:bg-blue-200 text-sm"
+            className="bg-slate-100 text-slate-700 px-3 py-1 rounded-md hover:bg-slate-200 text-sm"
           >
             {selectedTransaction === transaction.id ? 'Cancel' : 'Edit'}
           </button>
           {selectedTransaction === transaction.id && (
             <button
               onClick={() => onDelete(transaction.id!)}
-              className="bg-gray-100 text-gray-700 px-3 py-1 rounded-md hover:bg-gray-200 text-sm"
+              className="bg-slate-100 text-slate-700 px-3 py-1 rounded-md hover:bg-slate-200 text-sm"
             >
               Delete
             </button>
@@ -237,6 +237,17 @@ export default function TransactionsList() {
   // Filter state
   const [startDate, setStartDate] = useState<string>(format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState<string>(format(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0), 'yyyy-MM-dd'));
+
+  useEffect(() => {
+    const showAddForm = () => {
+      setEditingTransaction(null);
+      setSelectedTransaction(null);
+      setShowForm(true);
+    };
+
+    window.addEventListener('showAddForm', showAddForm);
+    return () => window.removeEventListener('showAddForm', showAddForm);
+  }, []);
   
   // Fetch transactions
   useEffect(() => {
@@ -543,23 +554,17 @@ export default function TransactionsList() {
     <div className="mt-6">
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <Tabs defaultValue="all" value={activeTab} onValueChange={handleTabChange}>
-          <div className="flex justify-between items-center mb-4">
+          <div className="mb-4">
             <TabsList>
               <TabsTrigger value="all">All Transactions</TabsTrigger>
               <TabsTrigger value="filtered">Filter by Date</TabsTrigger>
             </TabsList>
-            <Button
-              onClick={() => setShowForm(!showForm)}
-              variant={showForm ? "outline" : "primary"}
-            >
-              {showForm ? 'Cancel' : 'Add Transaction'}
-            </Button>
           </div>
           
           <TabsContent value="filtered" className="mt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div>
-                <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="startDate" className="block text-sm font-medium text-slate-700 mb-1">
                   Start Date
                 </label>
                 <input
@@ -568,11 +573,11 @@ export default function TransactionsList() {
                   name="startDate"
                   value={startDate}
                   onChange={handleFilterChange}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-slate-500 focus:border-slate-500"
                 />
               </div>
               <div>
-                <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="endDate" className="block text-sm font-medium text-slate-700 mb-1">
                   End Date
                 </label>
                 <input
@@ -581,21 +586,21 @@ export default function TransactionsList() {
                   name="endDate"
                   value={endDate}
                   onChange={handleFilterChange}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-slate-500 focus:border-slate-500"
                 />
               </div>
             </div>
           </TabsContent>
           
           {showForm && (
-            <div className="mb-6 mt-6 bg-gray-50 p-4 rounded-lg">
+            <div className="mb-6 mt-6 bg-slate-50 p-4 rounded-lg">
               <h3 className="text-lg font-medium mb-4">
                 {editingTransaction ? 'Edit Transaction' : 'Add New Transaction'}
               </h3>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="date" className="block text-sm font-medium text-slate-700 mb-1">
                       Date
                     </label>
                     <input
@@ -604,12 +609,12 @@ export default function TransactionsList() {
                       name="date"
                       value={formData.date}
                       onChange={handleInputChange}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                      className="block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-slate-500 focus:border-slate-500"
                       required
                     />
                   </div>
                   <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-1">
                       Description
                     </label>
                     <input
@@ -618,7 +623,7 @@ export default function TransactionsList() {
                       name="name"
                       value={formData.name}
                       onChange={handleInputChange}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                      className="block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-slate-500 focus:border-slate-500"
                       required
                     />
                   </div>
@@ -626,12 +631,12 @@ export default function TransactionsList() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="amount" className="block text-sm font-medium text-slate-700 mb-1">
                       Amount
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <span className="text-gray-500">$</span>
+                        <span className="text-slate-500">$</span>
                       </div>
                       <input
                         type="number"
@@ -641,13 +646,13 @@ export default function TransactionsList() {
                         onChange={handleInputChange}
                         min="0.01"
                         step="0.01"
-                        className="block w-full pl-7 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                        className="block w-full pl-7 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-slate-500 focus:border-slate-500"
                         required
                       />
                     </div>
                   </div>
                   <div>
-                    <label htmlFor="categoryId" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="categoryId" className="block text-sm font-medium text-slate-700 mb-1">
                       Category
                     </label>
                     <select
@@ -655,7 +660,7 @@ export default function TransactionsList() {
                       name="categoryId"
                       value={formData.categoryId || ''}
                       onChange={handleInputChange}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                      className="block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-slate-500 focus:border-slate-500"
                     >
                       <option value="">-- Select Category --</option>
                       {categories.map(category => (
@@ -667,12 +672,12 @@ export default function TransactionsList() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="cashBack" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="cashBack" className="block text-sm font-medium text-slate-700 mb-1">
                       Cash Back
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <span className="text-gray-500">$</span>
+                        <span className="text-slate-500">$</span>
                       </div>
                       <input
                         type="number"
@@ -682,7 +687,7 @@ export default function TransactionsList() {
                         onChange={handleInputChange}
                         min="0.00"
                         step="0.01"
-                        className="block w-full pl-7 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                        className="block w-full pl-7 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-slate-500 focus:border-slate-500"
                       />
                     </div>
                   </div>
@@ -694,9 +699,9 @@ export default function TransactionsList() {
                         name="cashbackPosted"
                         checked={formData.cashbackPosted || false}
                         onChange={(e) => setFormData(prev => ({ ...prev, cashbackPosted: e.target.checked }))}
-                        className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        className="h-4 w-4 text-slate-700 border-slate-300 rounded focus:ring-slate-500"
                       />
-                      <label htmlFor="cashbackPosted" className="ml-2 block text-sm text-gray-700">
+                      <label htmlFor="cashbackPosted" className="ml-2 block text-sm text-slate-700">
                         Cash back has been posted to account
                       </label>
                     </div>
@@ -711,9 +716,9 @@ export default function TransactionsList() {
                       name="pending"
                       checked={formData.pending || false}
                       onChange={(e) => setFormData(prev => ({ ...prev, pending: e.target.checked }))}
-                      className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      className="h-4 w-4 text-slate-700 border-slate-300 rounded focus:ring-slate-500"
                     />
-                    <label htmlFor="pending" className="ml-2 block text-sm text-gray-700">
+                    <label htmlFor="pending" className="ml-2 block text-sm text-slate-700">
                       Mark as pending (not yet cleared by bank)
                     </label>
                   </div>
@@ -724,9 +729,9 @@ export default function TransactionsList() {
                       name="creditCardPending"
                       checked={formData.creditCardPending || false}
                       onChange={(e) => setFormData(prev => ({ ...prev, creditCardPending: e.target.checked }))}
-                      className="h-4 w-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                      className="h-4 w-4 text-orange-600 border-slate-300 rounded focus:ring-orange-500"
                     />
-                    <label htmlFor="creditCardPending" className="ml-2 block text-sm text-gray-700">
+                    <label htmlFor="creditCardPending" className="ml-2 block text-sm text-slate-700">
                       Credit card (not yet paid from checking)
                     </label>
                   </div>
@@ -734,12 +739,12 @@ export default function TransactionsList() {
                 
                 {formData.pending && (
                   <div className="mb-4">
-                    <label htmlFor="pendingTipAmount" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="pendingTipAmount" className="block text-sm font-medium text-slate-700 mb-1">
                       Pending Tip Amount
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <span className="text-gray-500">$</span>
+                        <span className="text-slate-500">$</span>
                       </div>
                       <input
                         type="number"
@@ -749,11 +754,11 @@ export default function TransactionsList() {
                         onChange={handleInputChange}
                         min="0.00"
                         step="0.01"
-                        className="block w-full pl-7 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                        className="block w-full pl-7 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-slate-500 focus:border-slate-500"
                         placeholder="Amount expected to be added later (e.g., tip)"
                       />
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-slate-500">
                       For cases like restaurant bills where the meal charge has already posted, but the tip will be added later.
                       Only the tip amount should be entered here.
                     </p>
@@ -761,7 +766,7 @@ export default function TransactionsList() {
                 )}
                 
                 <div>
-                  <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="notes" className="block text-sm font-medium text-slate-700 mb-1">
                     Notes
                   </label>
                   <textarea
@@ -770,7 +775,7 @@ export default function TransactionsList() {
                     value={formData.notes || ''}
                     onChange={handleInputChange}
                     rows={3}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    className="block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-slate-500 focus:border-slate-500"
                   ></textarea>
                 </div>
                 
@@ -795,31 +800,31 @@ export default function TransactionsList() {
           
           {loading ? (
             <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-slate-500"></div>
             </div>
           ) : error ? (
-            <div className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded-lg mb-6" role="alert">
+            <div className="bg-slate-100 border border-slate-400 text-slate-700 px-4 py-3 rounded-lg mb-6" role="alert">
               <p>{error}</p>
             </div>
           ) : transactions.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-slate-500">
               <p>No transactions found.</p>
             </div>
           ) : (
             <div className="space-y-4">
               {/* Header */}
-              <div className="bg-gray-50 px-6 py-3 rounded-lg">
+              <div className="bg-slate-50 px-6 py-3 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-8 h-4"></div> {/* Space for drag handle */}
                     <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-4">
-                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">Date</div>
-                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">Name</div>
-                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">Category</div>
-                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</div>
-                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">Cash Back</div>
+                      <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Date</div>
+                      <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Name</div>
+                      <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Category</div>
+                      <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Amount</div>
+                      <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Cash Back</div>
                     </div>
-                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</div>
+                    <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</div>
                   </div>
                 </div>
               </div>
@@ -855,4 +860,4 @@ export default function TransactionsList() {
       </div>
     </div>
   );
-} 
+}

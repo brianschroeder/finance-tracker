@@ -72,7 +72,7 @@ export default function FundAccountsSummary() {
     return (
       <div className="animate-pulse space-y-3">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-16 bg-gray-100 rounded-lg"></div>
+          <div key={i} className="h-16 bg-slate-100 rounded-lg"></div>
         ))}
       </div>
     );
@@ -80,10 +80,10 @@ export default function FundAccountsSummary() {
 
   if (fundAccounts.length === 0) {
     return (
-      <div className="text-center py-6 bg-gray-50 rounded-lg">
-        <FaChartLine className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-        <p className="text-sm text-gray-600 mb-1">No fund accounts yet</p>
-        <p className="text-xs text-gray-500">Create fund accounts to track your savings goals</p>
+      <div className="text-center py-6 bg-slate-50 rounded-lg">
+        <FaChartLine className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+        <p className="text-sm text-slate-600 mb-1">No fund accounts yet</p>
+        <p className="text-xs text-slate-500">Create fund accounts to track your savings goals</p>
       </div>
     );
   }
@@ -98,7 +98,7 @@ export default function FundAccountsSummary() {
         console.log('Rendering fund:', fund); // Debug log
         const IconComponent = getIconComponent(fund.icon || 'FaChartLine');
         return (
-          <div key={fund.id} className="flex items-center justify-between bg-gray-50 p-4 rounded-lg border border-gray-200">
+          <div key={fund.id} className="flex items-center justify-between bg-slate-50 p-4 rounded-lg border border-slate-200">
             <div className="flex items-center">
               <div 
                 className="w-8 h-8 rounded-full flex items-center justify-center mr-3 text-white"
@@ -108,7 +108,7 @@ export default function FundAccountsSummary() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-medium text-gray-700">{fund.name}</h3>
+                  <h3 className="text-sm font-medium text-slate-700">{fund.name}</h3>
                   {fund.isInvesting ? (
                           <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full font-medium">
                             Investing
@@ -116,28 +116,28 @@ export default function FundAccountsSummary() {
                   ): null}
                 </div>
                 {fund.description && (
-                  <p className="text-xs text-gray-500">{fund.description}</p>
+                  <p className="text-xs text-slate-500">{fund.description}</p>
                 )}
               </div>
             </div>
-            <p className="text-lg font-bold text-gray-900">{formatCurrency(fund.amount)}</p>
+            <p className="text-lg font-bold text-slate-950">{formatCurrency(fund.amount)}</p>
           </div>
         );
       })}
       
       {hasMore && (
         <div className="text-center py-2">
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-slate-500">
             +{fundAccounts.length - 3} more fund{fundAccounts.length - 3 !== 1 ? 's' : ''}
           </p>
         </div>
       )}
       
       {totalAmount > 0 && (
-        <div className="pt-3 border-t border-gray-200">
+        <div className="pt-3 border-t border-slate-200">
           <div className="flex justify-between items-center">
-            <span className="text-sm font-medium text-gray-600">Total Allocated:</span>
-            <span className="text-lg font-bold text-blue-600">{formatCurrency(totalAmount)}</span>
+            <span className="text-sm font-medium text-slate-600">Total Allocated:</span>
+            <span className="text-lg font-bold text-slate-700">{formatCurrency(totalAmount)}</span>
           </div>
         </div>
       )}

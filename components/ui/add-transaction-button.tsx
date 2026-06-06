@@ -5,7 +5,7 @@ import { PlusIcon } from './icons';
 export function AddTransactionButton() {
   return (
     <button 
-      className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium inline-flex items-center hover:bg-blue-700 transition-colors"
+      className="px-4 py-2 bg-slate-950 text-white rounded-lg text-sm font-medium inline-flex items-center hover:bg-slate-800 transition-colors"
       id="add-transaction-button"
       onClick={() => {
         const event = new CustomEvent('showAddForm');

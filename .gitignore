@@ -35,9 +35,13 @@ next-env.d.ts
 # Database files
 /data/*.db
 /data/*.db-journal
+/data/backups/
 
 # JSON data files (after migration)
 /data/*.json
+
+# Next.js dev server logs
+.next-dev-*.log
 
 # IDE files
 .idea/

@@ -67,7 +67,7 @@ export default function UserGreetingClient({ initialName }: UserGreetingClientPr
   }, [userName]);
 
   return (
-    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">
+    <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
       {userName ? `Welcome, ${userName}` : 'Welcome'}
     </p>
   );

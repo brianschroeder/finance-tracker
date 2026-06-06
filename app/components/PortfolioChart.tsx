@@ -209,8 +209,8 @@ export default function PortfolioChart({
 
   if (!investments || investments.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg">
-        <p className="text-gray-400">No investment data available</p>
+      <div className="flex items-center justify-center h-64 bg-slate-50 rounded-lg">
+        <p className="text-slate-400">No investment data available</p>
       </div>
     );
   }
@@ -236,7 +236,7 @@ export default function PortfolioChart({
       <div style={{ height: `${height}px` }}>
         <ChartComponent data={chartData} options={options} />
       </div>
-      <div className="text-center mt-4 text-sm text-gray-600">
+      <div className="text-center mt-4 text-sm text-slate-600">
         Total Portfolio Value: <span className="font-semibold">{formatCurrency(portfolioTotal)}</span>
       </div>
     </div>

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { EditIcon, TrashIcon, RefreshIcon } from '@/components/ui/icons';
 import Link from 'next/link';
-import { getStockPriceOnly } from '@/lib/stock-api';
+import { getStockPrice, getStockPriceOnly } from '@/lib/stock-api';
 import StockPrice from '@/app/components/StockPrice';
 import InvestmentTransactionsModal from '@/components/InvestmentTransactionsModal';
 import { 
@@ -99,16 +99,18 @@ export default function InvestmentsList() {
 
   // Fetch investments
   useEffect(() => {
-    fetchInvestments().then(() => {
-      // After fetching investments, refresh the prices
-      // Adding a small delay so the UI can update first
+    fetchInvestments().then((loadedInvestments) => {
+      if (!loadedInvestments.length) return;
+
+      // Refresh the exact holdings we just loaded. Reading `investments`
+      // here would use the initial empty state captured by this effect.
       setTimeout(() => {
-        refreshAllPrices();
+        updateAllPrices(loadedInvestments, { showToast: false });
       }, 500);
     });
   }, []);
   
-  async function fetchInvestments() {
+  async function fetchInvestments(): Promise<Investment[]> {
     try {
       setLoading(true);
       setError('');
@@ -120,10 +122,13 @@ export default function InvestmentsList() {
       }
       
       const data = await response.json();
-      setInvestments(data.investments || []);
+      const loadedInvestments = data.investments || [];
+      setInvestments(loadedInvestments);
+      return loadedInvestments;
     } catch (err) {
       console.error('Error fetching investments:', err);
       setError('Failed to load investments. Please try again.');
+      return [];
     } finally {
       setLoading(false);
     }
@@ -304,17 +309,28 @@ export default function InvestmentsList() {
     return ((currentPrice - avgPrice) / avgPrice) * 100;
   };
   
-  const updateAllPrices = async () => {
+  const updateAllPrices = async (
+    investmentsToUpdate: Investment[] = investments,
+    options: { showToast?: boolean } = {}
+  ) => {
+    const showToast = options.showToast ?? true;
+
+    if (investmentsToUpdate.length === 0) {
+      return;
+    }
+
     setRefreshingPrices(true);
     
-    toast({
-      title: 'Updating Prices',
-      description: 'Fetching current stock prices. This may take a moment...',
-      variant: 'info'
-    });
+    if (showToast) {
+      toast({
+        title: 'Updating Prices',
+        description: 'Fetching current stock prices. This may take a moment...',
+        variant: 'info'
+      });
+    }
     
     // Update each investment with current market price
-    const updatedInvestments = [...investments];
+    const updatedInvestments = [...investmentsToUpdate];
     let successCount = 0;
     let failCount = 0;
     
@@ -322,8 +338,8 @@ export default function InvestmentsList() {
       if (!investment.id) continue;
       
       try {
-        // Get the real price from the stock API using getStockPriceOnly
-        const currentPrice = await getStockPriceOnly(investment.symbol);
+        const quote = await getStockPrice(investment.symbol);
+        const currentPrice = quote.price;
         
         if (currentPrice === null) {
           failCount++;
@@ -338,6 +354,7 @@ export default function InvestmentsList() {
           body: JSON.stringify({
             id: investment.id,
             currentPrice: currentPrice,
+            prevDayPrice: quote.previousClose,
             updatePriceOnly: true
           })
         });
@@ -354,15 +371,17 @@ export default function InvestmentsList() {
     }
     
     if (successCount > 0) {
-      toast({
-        title: 'Success',
-        description: `Updated prices for ${successCount} investments${failCount > 0 ? ` (${failCount} failed)` : ''}`,
-        variant: 'success'
-      });
+      if (showToast) {
+        toast({
+          title: 'Success',
+          description: `Updated prices for ${successCount} investments${failCount > 0 ? ` (${failCount} failed)` : ''}`,
+          variant: 'success'
+        });
+      }
       
       // Refresh the list
       fetchInvestments();
-    } else if (failCount > 0) {
+    } else if (showToast && failCount > 0) {
       toast({
         title: 'Error',
         description: `Failed to update prices. Please try again later.`,
@@ -376,7 +395,8 @@ export default function InvestmentsList() {
   // Update single investment price
   const updateSinglePrice = async (investment: Investment) => {
     try {
-      const currentPrice = await getStockPriceOnly(investment.symbol);
+      const quote = await getStockPrice(investment.symbol);
+      const currentPrice = quote.price;
       
       if (currentPrice === null) {
         toast({
@@ -395,6 +415,7 @@ export default function InvestmentsList() {
         body: JSON.stringify({
           id: investment.id,
           currentPrice: currentPrice,
+          prevDayPrice: quote.previousClose,
           updatePriceOnly: true
         })
       });
@@ -568,8 +589,7 @@ export default function InvestmentsList() {
   
   // Refresh all investment prices using the new API endpoint
   const refreshAllPrices = async () => {
-    // Just use the updateAllPrices function since it works client-side
-    updateAllPrices();
+    await updateAllPrices(investments);
   };
   
   // Calculate today's total change
@@ -642,8 +662,8 @@ export default function InvestmentsList() {
     return (
       <div className="p-6 flex items-center justify-center">
         <div className="animate-pulse flex flex-col items-center">
-          <div className="h-8 w-32 bg-gray-200 rounded mb-4"></div>
-          <div className="h-64 w-full max-w-3xl bg-gray-100 rounded"></div>
+          <div className="h-8 w-32 bg-slate-200 rounded mb-4"></div>
+          <div className="h-64 w-full max-w-3xl bg-slate-100 rounded"></div>
         </div>
       </div>
     );
@@ -685,60 +705,73 @@ export default function InvestmentsList() {
     : 0;
   
   return (
-    <div className="w-full bg-gray-50 rounded-xl overflow-hidden shadow-sm">
+    <div className="w-full bg-slate-50 rounded-lg overflow-hidden shadow-sm">
       {/* Dashboard Header */}
       <div className="p-6 bg-white border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-xl font-semibold text-gray-800">Investment Portfolio</h2>
-          <p className="text-sm text-gray-500">Track and manage your stocks, crypto, and other investments</p>
+          <h2 className="text-xl font-semibold text-slate-900">Investment Portfolio</h2>
+          <p className="text-sm text-slate-500">Track and manage your stocks, crypto, and other investments</p>
         </div>
-        {!loading && getMostRecentUpdate() && (
-          <span className="text-xs text-gray-500" title={getMostRecentUpdate() ? new Date(getMostRecentUpdate()!).toLocaleString() : ''}>
-            Last updated: {formatRelativeTime(getMostRecentUpdate())}
-          </span>
-        )}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          {!loading && getMostRecentUpdate() && (
+            <span className="text-xs text-slate-500" title={getMostRecentUpdate() ? new Date(getMostRecentUpdate()!).toLocaleString() : ''}>
+              Last updated: {formatRelativeTime(getMostRecentUpdate())}
+            </span>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={refreshAllPrices}
+            isLoading={refreshingPrices}
+            disabled={loading || investments.length === 0}
+            icon={<RefreshIcon className="w-4 h-4" />}
+          >
+            Refresh Prices
+          </Button>
+        </div>
       </div>
       
       {/* Portfolio Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-6">
         <div className="bg-white p-4 rounded-lg shadow-sm">
-          <p className="text-sm font-medium text-gray-500">Portfolio Value</p>
-          <p className="text-3xl font-bold text-gray-800">{formatCurrency(totalInvestmentValue)}</p>
-          <p className="text-sm text-gray-500">Cost Basis: {formatCurrency(totalCostBasis)}</p>
+          <p className="text-sm font-medium text-slate-500">Portfolio Value</p>
+          <p className="text-3xl font-bold text-slate-900">{formatCurrency(totalInvestmentValue)}</p>
+          <p className="text-sm text-slate-500">Cost Basis: {formatCurrency(totalCostBasis)}</p>
         </div>
         
         <div className="bg-white p-4 rounded-lg shadow-sm">
-          <p className="text-sm font-medium text-gray-500">Total Gain/Loss</p>
-          <p className={`text-3xl font-bold ${totalGainLoss >= 0 ? 'text-green-600' : 'text-gray-600'}`}>
+          <p className="text-sm font-medium text-slate-500">Total Gain/Loss</p>
+          <p className={`text-3xl font-bold ${totalGainLoss >= 0 ? 'text-green-600' : 'text-slate-600'}`}>
             {formatCurrency(totalGainLoss)}
           </p>
-          <p className={`text-sm ${totalGainLoss >= 0 ? 'text-green-600' : 'text-gray-600'}`}>
+          <p className={`text-sm ${totalGainLoss >= 0 ? 'text-green-600' : 'text-slate-600'}`}>
             {formatPercentage(totalGainLossPercentage)}
           </p>
         </div>
         
         <div className="bg-white p-4 rounded-lg shadow-sm">
-          <p className="text-sm font-medium text-gray-500">Today's Change</p>
+          <p className="text-sm font-medium text-slate-500">Today's Change</p>
           {todaysChange ? (
             <>
-              <p className={`text-3xl font-bold ${todaysChange.amount >= 0 ? 'text-green-600' : 'text-gray-600'}`}>
+              <p className={`text-3xl font-bold ${todaysChange.amount >= 0 ? 'text-green-600' : 'text-slate-600'}`}>
                 {formatCurrency(todaysChange.amount)}
               </p>
-              <p className={`text-sm ${todaysChange.amount >= 0 ? 'text-green-600' : 'text-gray-600'}`}>
+              <p className={`text-sm ${todaysChange.amount >= 0 ? 'text-green-600' : 'text-slate-600'}`}>
                 {todaysChange.amount >= 0 ? '+' : ''}{todaysChange.percent.toFixed(2)}%
               </p>
             </>
           ) : (
-            <p className="text-3xl font-bold text-gray-400">--</p>
+            <p className="text-3xl font-bold text-slate-400">--</p>
           )}
         </div>
         
         <div className="bg-white p-4 rounded-lg shadow-sm">
-          <p className="text-sm font-medium text-gray-500">Holding Count</p>
-          <p className="text-3xl font-bold text-gray-800">{investments.length}</p>
+          <p className="text-sm font-medium text-slate-500">Holding Count</p>
+          <p className="text-3xl font-bold text-slate-900">{investments.length}</p>
           <Link 
             href="/investments/new"
-            className="text-sm text-blue-600 hover:underline"
+            className="text-sm text-slate-700 hover:underline"
           >
             Add new investment
           </Link>
@@ -748,10 +781,10 @@ export default function InvestmentsList() {
       {/* Modern Allocation Visualization */}
       {investments.length > 0 ? (
         <div className="p-6">
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
-            <div className="p-6 border-b border-gray-50">
-              <h3 className="text-lg font-semibold text-gray-800">Portfolio Allocation</h3>
-              <p className="text-sm text-gray-500 mt-1">Breakdown of your investment holdings</p>
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-slate-200">
+            <div className="p-6 border-b border-slate-100">
+              <h3 className="text-lg font-semibold text-slate-900">Portfolio Allocation</h3>
+              <p className="text-sm text-slate-500 mt-1">Breakdown of your investment holdings</p>
             </div>
             
             <div className="p-6">
@@ -768,8 +801,8 @@ export default function InvestmentsList() {
                     )}
                     {/* Center text */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                      <div className="text-xs uppercase tracking-wider text-gray-500 font-medium">TOTAL VALUE</div>
-                      <div className="text-3xl font-bold text-gray-900 mt-1">{formatCurrency(totalInvestmentValue)}</div>
+                      <div className="text-xs uppercase tracking-wider text-slate-500 font-medium">TOTAL VALUE</div>
+                      <div className="text-3xl font-bold text-slate-950 mt-1">{formatCurrency(totalInvestmentValue)}</div>
                     </div>
                   </div>
                 </div>
@@ -777,8 +810,8 @@ export default function InvestmentsList() {
                 {/* Legend and Holdings */}
                 <div className="w-full lg:w-1/2 mt-8 lg:mt-0 flex flex-col justify-center">
                   <div className="flex justify-between items-center mb-6 px-2">
-                    <h4 className="text-base font-semibold text-gray-700">Portfolio Summary</h4>
-                    <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-medium">
+                    <h4 className="text-base font-semibold text-slate-700">Portfolio Summary</h4>
+                    <span className="px-2 py-1 bg-slate-50 text-slate-700 rounded-full text-xs font-medium">
                       {investments.length} Holdings
                     </span>
                   </div>
@@ -793,18 +826,18 @@ export default function InvestmentsList() {
                       return (
                         <div 
                           key={label} 
-                          className="flex items-center justify-between py-2 px-3 hover:bg-gray-50 rounded-md transition-colors cursor-pointer"
+                          className="flex items-center justify-between py-2 px-3 hover:bg-slate-50 rounded-md transition-colors cursor-pointer"
                         >
                           <div className="flex items-center">
                             <div 
                               className="w-3 h-3 rounded-sm mr-3 flex-shrink-0" 
                               style={{ backgroundColor: bgColor }}
                             ></div>
-                            <span className="text-sm font-medium text-gray-800">{label}</span>
+                            <span className="text-sm font-medium text-slate-900">{label}</span>
                           </div>
                           <div className="flex flex-col items-end">
-                            <div className="text-sm font-medium text-gray-900">{formatCurrency(value)}</div>
-                            <div className="text-xs text-gray-500">{percentage}%</div>
+                            <div className="text-sm font-medium text-slate-950">{formatCurrency(value)}</div>
+                            <div className="text-xs text-slate-500">{percentage}%</div>
                           </div>
                         </div>
                       );
@@ -814,8 +847,8 @@ export default function InvestmentsList() {
               </div>
             </div>
             
-            <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 py-3 px-6 text-center">
-              <p className="text-sm text-gray-600">
+            <div className="bg-slate-50 py-3 px-6 text-center">
+              <p className="text-sm text-slate-600">
                 <span className="font-medium">Pro Tip:</span> Consider rebalancing your portfolio at least once per quarter
               </p>
             </div>
@@ -824,13 +857,13 @@ export default function InvestmentsList() {
       ) : (
         <div className="p-6 text-center">
           <div className="bg-white p-8 rounded-lg shadow-sm">
-            <svg className="h-12 w-12 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-12 w-12 mx-auto text-slate-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <p className="text-gray-600 mb-4">No investments added yet.</p>
+            <p className="text-slate-600 mb-4">No investments added yet.</p>
             <Link 
               href="/investments/new" 
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium inline-flex items-center hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 bg-slate-950 text-white rounded-lg text-sm font-medium inline-flex items-center hover:bg-slate-800 transition-colors"
             >
               Add Your First Investment
             </Link>
@@ -842,12 +875,12 @@ export default function InvestmentsList() {
       {investments.length > 0 && (
         <div className="p-6">
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-800">Holdings</h3>
+            <div className="p-4 border-b border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-900">Holdings</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 text-gray-700 text-sm">
+                <thead className="bg-slate-50 text-slate-700 text-sm">
                   <tr>
                     <th className="px-4 py-3 text-left">Symbol</th>
                     <th className="px-4 py-3 text-left">Name</th>
@@ -872,7 +905,7 @@ export default function InvestmentsList() {
                     const lastUpdated = investment.lastUpdated ? new Date(investment.lastUpdated) : null;
                     
                     return (
-                      <tr key={investment.id} className="hover:bg-gray-50">
+                      <tr key={investment.id} className="hover:bg-slate-50">
                         <td className="px-4 py-4 font-medium">{investment.symbol}</td>
                         <td className="px-4 py-4">{investment.name}</td>
                         <td className="px-4 py-4 text-right">{investment.shares.toFixed(2)}</td>
@@ -888,16 +921,16 @@ export default function InvestmentsList() {
                           <StockPrice symbol={investment.symbol} compact={true} dailyChangeOnly={true} />
                         </td>
                         <td className="px-4 py-4 text-right">{formatCurrency(totalValue)}</td>
-                        <td className={`px-4 py-4 text-right ${isPositive ? 'text-green-600' : 'text-gray-600'}`}>
+                        <td className={`px-4 py-4 text-right ${isPositive ? 'text-green-600' : 'text-slate-600'}`}>
                           {isPositive ? '+' : ''}{formatCurrency(gainLoss)}
                         </td>
-                        <td className={`px-4 py-4 text-right ${isPositive ? 'text-green-600' : 'text-gray-600'}`}>
+                        <td className={`px-4 py-4 text-right ${isPositive ? 'text-green-600' : 'text-slate-600'}`}>
                           {isPositive ? '+' : ''}{formatPercentage(gainLossPercentage)}
                         </td>
                         <td className="px-4 py-4 text-center">
                           <button
                             onClick={() => handleOpenTransactions(investment)}
-                            className="text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                            className="text-sm text-slate-700 hover:text-slate-800 hover:underline font-medium"
                           >
                             View
                           </button>
@@ -906,7 +939,7 @@ export default function InvestmentsList() {
                           <div className="flex justify-center gap-1">
                             <Link 
                               href={`/investments/edit/${investment.id}`}
-                              className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                              className="p-1 text-slate-700 hover:text-slate-800 hover:bg-slate-50 rounded transition-colors"
                             >
                               <EditIcon className="w-4 h-4" />
                               <span className="sr-only">Edit</span>
@@ -943,4 +976,4 @@ export default function InvestmentsList() {
       )}
     </div>
   );
-} 
+}

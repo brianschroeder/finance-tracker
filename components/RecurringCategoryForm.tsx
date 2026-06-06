@@ -94,7 +94,7 @@ export default function RecurringCategoryForm({
       )}
       
       <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="name" className="block text-sm font-medium text-slate-700">
           Category Name
         </label>
         <input
@@ -103,14 +103,14 @@ export default function RecurringCategoryForm({
           name="name"
           value={formData.name}
           onChange={handleChange}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-slate-500 focus:border-slate-500"
           placeholder="Housing, Utilities, Entertainment, etc."
           required
         />
       </div>
       
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-slate-700 mb-2">
           Category Color
         </label>
         <div className="grid grid-cols-5 gap-3">
@@ -118,14 +118,14 @@ export default function RecurringCategoryForm({
             <button
               key={color}
               type="button"
-              className={`h-10 rounded-md border-2 ${formData.color === color ? 'border-gray-800' : 'border-transparent'}`}
+              className={`h-10 rounded-md border-2 ${formData.color === color ? 'border-slate-800' : 'border-transparent'}`}
               style={{ backgroundColor: color }}
               onClick={() => handleColorSelect(color)}
             />
           ))}
         </div>
         <div className="mt-3">
-          <label htmlFor="custom-color" className="block text-sm text-gray-500">
+          <label htmlFor="custom-color" className="block text-sm text-slate-500">
             Custom Color
           </label>
           <div className="flex items-center mt-1">
@@ -142,7 +142,7 @@ export default function RecurringCategoryForm({
               value={formData.color}
               onChange={handleChange}
               name="color"
-              className="ml-2 block w-32 px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="ml-2 block w-32 px-3 py-2 border border-slate-300 rounded-md shadow-sm text-sm focus:outline-none focus:ring-slate-500 focus:border-slate-500"
             />
           </div>
         </div>
@@ -155,9 +155,9 @@ export default function RecurringCategoryForm({
           type="checkbox"
           checked={formData.isActive}
           onChange={handleChange}
-          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+          className="h-4 w-4 text-slate-700 focus:ring-slate-500 border-slate-300 rounded"
         />
-        <label htmlFor="isActive" className="ml-2 block text-sm text-gray-700">
+        <label htmlFor="isActive" className="ml-2 block text-sm text-slate-700">
           Active Category
         </label>
       </div>
@@ -167,7 +167,7 @@ export default function RecurringCategoryForm({
           <button
             type="button"
             onClick={onCancel}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="inline-flex items-center px-4 py-2 border border-slate-300 shadow-sm text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500"
           >
             Cancel
           </button>
@@ -176,8 +176,8 @@ export default function RecurringCategoryForm({
           type="submit"
           disabled={submitting}
           className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white ${
-            submitting ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
-          } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+            submitting ? 'bg-slate-400' : 'bg-slate-950 hover:bg-slate-800'
+          } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500`}
         >
           {submitting ? 'Saving...' : isEditing ? 'Update' : 'Add Category'}
         </button>

@@ -28,19 +28,19 @@ interface LinkButtonProps {
 const getVariantClasses = (variant: ButtonVariant = 'primary') => {
   switch (variant) {
     case 'primary':
-      return 'bg-blue-600 hover:bg-blue-700 text-white shadow-[0_2px_6px_rgba(59,130,246,0.15)]';
+      return 'bg-slate-950 hover:bg-slate-800 text-white';
     case 'secondary':
-      return 'bg-gray-100 hover:bg-gray-200 text-gray-700';
+      return 'bg-slate-100 hover:bg-slate-200 text-slate-700';
     case 'outline':
-      return 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.04)]';
+      return 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04)]';
     case 'danger':
       return 'bg-red-500 hover:bg-red-600 text-white shadow-[0_2px_6px_rgba(239,68,68,0.15)]';
     case 'success':
       return 'bg-green-500 hover:bg-green-600 text-white shadow-[0_2px_6px_rgba(34,197,94,0.15)]';
     case 'ghost':
-      return 'bg-transparent hover:bg-gray-100 text-gray-700';
+      return 'bg-transparent hover:bg-slate-100 text-slate-700';
     default:
-      return 'bg-blue-600 hover:bg-blue-700 text-white';
+      return 'bg-slate-950 hover:bg-slate-800 text-white';
   }
 };
 
@@ -72,8 +72,8 @@ export function Button({
     <button
       disabled={disabled || isLoading}
       className={`
-        inline-flex items-center justify-center font-medium rounded-xl
-        transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+        inline-flex items-center justify-center font-medium rounded-lg
+        transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500
         ${getVariantClasses(variant)}
         ${getSizeClasses(size)}
         ${isFullWidth ? 'w-full' : ''}
@@ -111,8 +111,8 @@ export function LinkButton({
     <Link
       href={href}
       className={`
-        inline-flex items-center justify-center font-medium rounded-xl
-        transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+        inline-flex items-center justify-center font-medium rounded-lg
+        transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500
         ${getVariantClasses(variant)}
         ${getSizeClasses(size)}
         ${isFullWidth ? 'w-full' : ''}

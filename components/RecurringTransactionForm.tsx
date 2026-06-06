@@ -123,7 +123,7 @@ export default function RecurringTransactionForm({
       )}
       
       <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="name" className="block text-sm font-medium text-slate-700">
           Transaction Name
         </label>
         <input
@@ -132,19 +132,19 @@ export default function RecurringTransactionForm({
           name="name"
           value={formData.name}
           onChange={handleChange}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-slate-500 focus:border-slate-500"
           placeholder="Rent, Subscription, etc."
           required
         />
       </div>
       
       <div>
-        <label htmlFor="amount" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="amount" className="block text-sm font-medium text-slate-700">
           Amount
         </label>
         <div className="mt-1 relative rounded-md shadow-sm">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <span className="text-gray-500 sm:text-sm">$</span>
+            <span className="text-slate-500 sm:text-sm">$</span>
           </div>
           <input
             type="text"
@@ -152,7 +152,7 @@ export default function RecurringTransactionForm({
             name="amount"
             value={formData.amount}
             onChange={handleChange}
-            className="block w-full pl-7 pr-12 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            className="block w-full pl-7 pr-12 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-slate-500 focus:border-slate-500"
             placeholder="0.00"
             required
           />
@@ -160,7 +160,7 @@ export default function RecurringTransactionForm({
       </div>
       
       <div>
-        <label htmlFor="categoryId" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="categoryId" className="block text-sm font-medium text-slate-700">
           Category
         </label>
         <select
@@ -168,7 +168,7 @@ export default function RecurringTransactionForm({
           name="categoryId"
           value={formData.categoryId || ''}
           onChange={handleChange}
-          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md"
+          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-slate-300 focus:outline-none focus:ring-slate-500 focus:border-slate-500 rounded-md"
         >
           <option value="">No Category</option>
           {categories.map(category => (
@@ -193,7 +193,7 @@ export default function RecurringTransactionForm({
           <a 
             href="/recurring-categories" 
             target="_blank" 
-            className="text-xs text-blue-600 hover:text-blue-800 underline"
+            className="text-xs text-slate-700 hover:text-slate-800 underline"
           >
             Manage Categories
           </a>
@@ -201,7 +201,7 @@ export default function RecurringTransactionForm({
       </div>
       
       <div>
-        <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="dueDate" className="block text-sm font-medium text-slate-700">
           Due Date (Day of Month)
         </label>
         <select
@@ -209,7 +209,7 @@ export default function RecurringTransactionForm({
           name="dueDate"
           value={formData.dueDate}
           onChange={handleChange}
-          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md"
+          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-slate-300 focus:outline-none focus:ring-slate-500 focus:border-slate-500 rounded-md"
           required
         >
           {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
@@ -225,9 +225,9 @@ export default function RecurringTransactionForm({
           type="checkbox"
           checked={formData.isEssential}
           onChange={handleChange}
-          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+          className="h-4 w-4 text-slate-700 focus:ring-slate-500 border-slate-300 rounded"
         />
-        <label htmlFor="isEssential" className="ml-2 block text-sm text-gray-700">
+        <label htmlFor="isEssential" className="ml-2 block text-sm text-slate-700">
           Essential Expense
         </label>
       </div>
@@ -237,7 +237,7 @@ export default function RecurringTransactionForm({
           <button
             type="button"
             onClick={onCancel}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="inline-flex items-center px-4 py-2 border border-slate-300 shadow-sm text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500"
           >
             Cancel
           </button>
@@ -246,8 +246,8 @@ export default function RecurringTransactionForm({
           type="submit"
           disabled={submitting}
           className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white ${
-            submitting ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
-          } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+            submitting ? 'bg-slate-400' : 'bg-slate-950 hover:bg-slate-800'
+          } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500`}
         >
           {submitting ? 'Saving...' : isEditing ? 'Update' : 'Add Transaction'}
         </button>

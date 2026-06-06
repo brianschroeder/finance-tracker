@@ -1,7 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import { CreditCard as CreditCardIcon, Pencil, Plus, Trash2 } from 'lucide-react';
+import {
+  EmptyState,
+  FinanceCard,
+  FinanceCardBody,
+  FinanceCardHeader,
+  inputClass,
+  labelClass,
+  MetricCard,
+  primaryButtonClass,
+  secondaryButtonClass,
+} from '@/components/FinanceUI';
+import { PageHeader, PageShell } from '@/components/PageShell';
 
 interface CreditCard {
   id: number;
@@ -11,133 +23,104 @@ interface CreditCard {
   color?: string;
 }
 
+const currency = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+});
+
+function money(value: number) {
+  return currency.format(value || 0);
+}
+
+function utilization(balance: number, limit: number) {
+  return limit > 0 ? (balance / limit) * 100 : 0;
+}
+
+function utilizationTone(percent: number) {
+  if (percent < 30) return 'bg-emerald-500';
+  if (percent < 70) return 'bg-amber-500';
+  return 'bg-rose-500';
+}
+
+const blankCard: Omit<CreditCard, 'id'> = {
+  name: '',
+  balance: 0,
+  limit: 0,
+  color: '#0f172a',
+};
+
 export default function CreditCardsPage() {
   const [creditCards, setCreditCards] = useState<CreditCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingCard, setEditingCard] = useState<CreditCard | null>(null);
-  const [newCard, setNewCard] = useState<Omit<CreditCard, 'id'>>({
-    name: '',
-    balance: 0,
-    limit: 0,
-    color: '#000000'
-  });
+  const [newCard, setNewCard] = useState<Omit<CreditCard, 'id'>>(blankCard);
   const [showNewCardForm, setShowNewCardForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch credit cards
-  useEffect(() => {
-    async function fetchCreditCards() {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const response = await fetch('/api/credit-cards');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch credit cards');
-        }
-        
-        const data = await response.json();
-        setCreditCards(data);
-      } catch (err) {
-        console.error('Error fetching credit cards:', err);
-        setError('Failed to load credit cards. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
+  const fetchCreditCards = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch('/api/credit-cards');
+      if (!response.ok) throw new Error('Failed to fetch credit cards');
+      setCreditCards(await response.json());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load credit cards');
+    } finally {
+      setLoading(false);
     }
-    
+  };
+
+  useEffect(() => {
     fetchCreditCards();
   }, []);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(value);
-  };
-
-  // Calculate credit utilization
-  const calculateCreditUtilization = (balance: number, limit: number) => {
-    if (limit === 0) return 0;
-    return (balance / limit) * 100;
-  };
-
-  // Get credit utilization color
-  const getCreditUtilizationColor = (utilizationPercentage: number) => {
-    if (utilizationPercentage < 10) return 'bg-green-500';
-    if (utilizationPercentage < 30) return 'bg-blue-500';
-    if (utilizationPercentage < 50) return 'bg-blue-400';
-    if (utilizationPercentage < 75) return 'bg-blue-600';
-    return 'bg-blue-700';
-  };
-
-  // Calculate total credit card debt
-  const calculateTotalCreditCardDebt = () => {
-    return creditCards.reduce((sum, card) => sum + card.balance, 0);
-  };
-
-  // Calculate total credit limit
-  const calculateTotalCreditLimit = () => {
-    return creditCards.reduce((sum, card) => sum + card.limit, 0);
-  };
-
-  const handleEditCard = (card: CreditCard) => {
-    setEditingCard(card);
-    setShowNewCardForm(false);
-    setError(null);
-  };
+  const totals = useMemo(() => {
+    const balance = creditCards.reduce((sum, card) => sum + card.balance, 0);
+    const limit = creditCards.reduce((sum, card) => sum + card.limit, 0);
+    return {
+      balance,
+      limit,
+      available: Math.max(limit - balance, 0),
+      utilization: utilization(balance, limit),
+    };
+  }, [creditCards]);
 
   const handleUpdateCard = async () => {
     if (!editingCard) return;
-    
+
     try {
       setError(null);
-      
       const response = await fetch(`/api/credit-cards/${editingCard.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingCard)
+        body: JSON.stringify(editingCard),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to update credit card');
       }
-      
-      const updatedCard = await response.json();
-      
-      setCreditCards(prev => 
-        prev.map(card => 
-          card.id === updatedCard.id ? updatedCard : card
-        )
-      );
-      
+
+      await fetchCreditCards();
       setEditingCard(null);
     } catch (err) {
-      console.error('Error updating credit card:', err);
       setError(err instanceof Error ? err.message : 'Failed to update credit card');
     }
   };
 
   const handleDeleteCard = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this credit card?')) return;
-    
+    if (!window.confirm('Delete this credit card?')) return;
+
     try {
       setError(null);
-      
-      const response = await fetch(`/api/credit-cards/${id}`, {
-        method: 'DELETE'
-      });
-      
+      const response = await fetch(`/api/credit-cards/${id}`, { method: 'DELETE' });
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to delete credit card');
       }
-      
-      setCreditCards(prev => prev.filter(card => card.id !== id));
+      setCreditCards((current) => current.filter((card) => card.id !== id));
     } catch (err) {
-      console.error('Error deleting credit card:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete credit card');
     }
   };
@@ -145,350 +128,196 @@ export default function CreditCardsPage() {
   const handleAddNewCard = async () => {
     try {
       setError(null);
-      
       const response = await fetch('/api/credit-cards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newCard)
+        body: JSON.stringify(newCard),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to add credit card');
       }
-      
-      const createdCard = await response.json();
-      
-      setCreditCards(prev => [...prev, createdCard]);
-      
-      setNewCard({
-        name: '',
-        balance: 0,
-        limit: 0,
-        color: '#000000'
-      });
-      
+
+      await fetchCreditCards();
+      setNewCard(blankCard);
       setShowNewCardForm(false);
     } catch (err) {
-      console.error('Error adding credit card:', err);
       setError(err instanceof Error ? err.message : 'Failed to add credit card');
     }
   };
 
+  const cardForm = (card: CreditCard | Omit<CreditCard, 'id'>, setCard: (card: any) => void) => (
+    <div className="grid gap-4 md:grid-cols-2">
+      <div>
+        <label className={labelClass}>Card Name</label>
+        <input
+          type="text"
+          value={card.name}
+          onChange={(event) => setCard({ ...card, name: event.target.value })}
+          className={inputClass}
+          placeholder="Chase Sapphire"
+        />
+      </div>
+      <div>
+        <label className={labelClass}>Card Color</label>
+        <div className="flex items-center gap-3">
+          <input
+            type="color"
+            value={card.color || '#0f172a'}
+            onChange={(event) => setCard({ ...card, color: event.target.value })}
+            className="h-10 w-12 rounded-lg border border-slate-200 bg-white"
+          />
+          <input
+            type="text"
+            value={card.color || '#0f172a'}
+            onChange={(event) => setCard({ ...card, color: event.target.value })}
+            className={inputClass}
+          />
+        </div>
+      </div>
+      <div>
+        <label className={labelClass}>Current Balance</label>
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          value={card.balance}
+          onChange={(event) => setCard({ ...card, balance: parseFloat(event.target.value) || 0 })}
+          className={inputClass}
+        />
+      </div>
+      <div>
+        <label className={labelClass}>Credit Limit</label>
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          value={card.limit}
+          onChange={(event) => setCard({ ...card, limit: parseFloat(event.target.value) || 0 })}
+          className={inputClass}
+        />
+      </div>
+    </div>
+  );
+
   return (
-    <div className="p-4 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Credit Cards</h1>
-        <div className="flex gap-2">
-          <Link
-            href="/"
-            className="px-3 py-1.5 bg-gray-200 text-gray-700 text-xs rounded-md hover:bg-gray-300 transition-colors font-medium"
-          >
-            Back to Dashboard
-          </Link>
+    <PageShell maxWidth="7xl">
+      <PageHeader
+        eyebrow="Accounts"
+        title="Credit Cards"
+        description="Monitor balances, limits, utilization, and debt pressure alongside the checking alignment view."
+        icon={<CreditCardIcon className="h-5 w-5" />}
+        actions={(
           <button
             onClick={() => {
               setShowNewCardForm(true);
               setEditingCard(null);
               setError(null);
             }}
-            className="px-3 py-1.5 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors font-medium"
+            className={primaryButtonClass}
           >
-            Add New Card
+            <Plus className="mr-1.5 h-4 w-4" />
+            Card
           </button>
-        </div>
-      </div>
-
-      {/* Error Message */}
-      {error && (
-        <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-md mb-6">
-          <p>{error}</p>
-        </div>
-      )}
-
-      {/* Credit Card Summary */}
-      <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100 mb-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Credit Card Summary</h2>
-        
-        {loading ? (
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-gray-200 rounded-md w-2/3"></div>
-            <div className="h-8 bg-gray-200 rounded-md w-1/2"></div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-              <p className="text-sm text-gray-500 mb-1">Total Credit Card Debt</p>
-              <p className="text-2xl font-bold text-gray-800">{formatCurrency(calculateTotalCreditCardDebt())}</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-              <p className="text-sm text-gray-500 mb-1">Total Credit Limit</p>
-              <p className="text-2xl font-bold text-gray-800">{formatCurrency(calculateTotalCreditLimit())}</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-              <p className="text-sm text-gray-500 mb-1">Overall Utilization</p>
-              <div className="flex items-end gap-2">
-                <p className="text-2xl font-bold text-gray-800">
-                  {calculateCreditUtilization(calculateTotalCreditCardDebt(), calculateTotalCreditLimit()).toFixed(1)}%
-                </p>
-                <div className="w-full max-w-[100px] bg-gray-200 rounded-full h-2 self-center">
-                  <div 
-                    className={`h-2 rounded-full ${getCreditUtilizationColor(calculateCreditUtilization(calculateTotalCreditCardDebt(), calculateTotalCreditLimit()))}`}
-                    style={{ width: `${Math.min(calculateCreditUtilization(calculateTotalCreditCardDebt(), calculateTotalCreditLimit()), 100)}%` }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-          </div>
         )}
+      />
+
+      {error && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {error}
+        </div>
+      )}
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <MetricCard label="Card Debt" value={money(totals.balance)} detail="Total active card balance" icon={<CreditCardIcon className="h-4 w-4" />} tone="rose" />
+        <MetricCard label="Credit Limit" value={money(totals.limit)} detail={`${money(totals.available)} available`} icon={<CreditCardIcon className="h-4 w-4" />} tone="slate" />
+        <MetricCard label="Utilization" value={`${totals.utilization.toFixed(1)}%`} detail="Across all cards" icon={<CreditCardIcon className="h-4 w-4" />} tone={totals.utilization > 70 ? 'rose' : totals.utilization > 30 ? 'amber' : 'emerald'} />
       </div>
 
-      {/* Form for editing a card */}
       {editingCard && (
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100 mb-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Edit Credit Card</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Card Name</label>
-              <input 
-                type="text"
-                value={editingCard.name}
-                onChange={(e) => setEditingCard({...editingCard, name: e.target.value})}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+        <FinanceCard>
+          <FinanceCardHeader title="Edit Card" description="Update balance, limit, and visual label." />
+          <FinanceCardBody>
+            {cardForm(editingCard, setEditingCard)}
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => setEditingCard(null)} className={secondaryButtonClass}>Cancel</button>
+              <button onClick={handleUpdateCard} className={primaryButtonClass} disabled={!editingCard.name || editingCard.limit <= 0}>Save</button>
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Card Color</label>
-              <div className="flex items-center gap-3">
-                <input 
-                  type="color"
-                  value={editingCard.color || '#000000'}
-                  onChange={(e) => setEditingCard({...editingCard, color: e.target.value})}
-                  className="border border-gray-300 rounded-md h-10 w-10"
-                />
-                <input 
-                  type="text"
-                  value={editingCard.color || '#000000'}
-                  onChange={(e) => setEditingCard({...editingCard, color: e.target.value})}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Current Balance ($)</label>
-              <input 
-                type="number"
-                min="0"
-                step="0.01"
-                value={editingCard.balance}
-                onChange={(e) => setEditingCard({...editingCard, balance: parseFloat(e.target.value) || 0})}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Credit Limit ($)</label>
-              <input 
-                type="number"
-                min="0"
-                step="0.01"
-                value={editingCard.limit}
-                onChange={(e) => setEditingCard({...editingCard, limit: parseFloat(e.target.value) || 0})}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-          
-          <div className="flex justify-end space-x-3 mt-6">
-            <button 
-              onClick={() => setEditingCard(null)}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button 
-              onClick={handleUpdateCard}
-              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-              disabled={!editingCard.name || editingCard.limit <= 0}
-            >
-              Save Changes
-            </button>
-          </div>
-        </div>
+          </FinanceCardBody>
+        </FinanceCard>
       )}
 
-      {/* Form for adding a new card */}
       {showNewCardForm && (
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100 mb-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Add New Credit Card</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Card Name</label>
-              <input 
-                type="text"
-                value={newCard.name}
-                onChange={(e) => setNewCard({...newCard, name: e.target.value})}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g. Chase Sapphire"
-              />
+        <FinanceCard>
+          <FinanceCardHeader title="Add Card" description="Create a new card record for utilization tracking." />
+          <FinanceCardBody>
+            {cardForm(newCard, setNewCard)}
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => setShowNewCardForm(false)} className={secondaryButtonClass}>Cancel</button>
+              <button onClick={handleAddNewCard} className={primaryButtonClass} disabled={!newCard.name || newCard.limit <= 0}>Add Card</button>
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Card Color</label>
-              <div className="flex items-center gap-3">
-                <input 
-                  type="color"
-                  value={newCard.color || '#000000'}
-                  onChange={(e) => setNewCard({...newCard, color: e.target.value})}
-                  className="border border-gray-300 rounded-md h-10 w-10"
-                />
-                <input 
-                  type="text"
-                  value={newCard.color || '#000000'}
-                  onChange={(e) => setNewCard({...newCard, color: e.target.value})}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="#000000"
-                />
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Current Balance ($)</label>
-              <input 
-                type="number"
-                min="0"
-                step="0.01"
-                value={newCard.balance}
-                onChange={(e) => setNewCard({...newCard, balance: parseFloat(e.target.value) || 0})}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="0.00"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Credit Limit ($)</label>
-              <input 
-                type="number"
-                min="0"
-                step="0.01"
-                value={newCard.limit}
-                onChange={(e) => setNewCard({...newCard, limit: parseFloat(e.target.value) || 0})}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="0.00"
-              />
-            </div>
-          </div>
-          
-          <div className="flex justify-end space-x-3 mt-6">
-            <button 
-              onClick={() => setShowNewCardForm(false)}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button 
-              onClick={handleAddNewCard}
-              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-              disabled={!newCard.name || newCard.limit <= 0}
-            >
-              Add Card
-            </button>
-          </div>
-        </div>
+          </FinanceCardBody>
+        </FinanceCard>
       )}
 
-      {/* Credit Cards List */}
-      <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Your Credit Cards</h2>
-        
-        {loading ? (
-          <div className="animate-pulse space-y-4">
-            <div className="h-16 bg-gray-200 rounded-md w-full"></div>
-            <div className="h-16 bg-gray-200 rounded-md w-full"></div>
-            <div className="h-16 bg-gray-200 rounded-md w-full"></div>
-          </div>
-        ) : creditCards.length === 0 ? (
-          <div className="text-center py-6">
-            <p className="text-gray-500">No credit cards added yet</p>
-            <button 
-              onClick={() => setShowNewCardForm(true)}
-              className="mt-2 text-blue-600 hover:text-blue-800"
-            >
-              Add your first credit card →
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {creditCards.map(card => (
-              <div 
-                key={card.id} 
-                className="flex flex-col md:flex-row justify-between border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center mb-4 md:mb-0">
-                  <div 
-                    className="w-10 h-10 rounded-full flex items-center justify-center mr-4" 
-                    style={{ backgroundColor: card.color ? card.color + '20' : '#CBD5E0' }}
-                  >
-                    <svg 
-                      className="w-5 h-5" 
-                      style={{ color: card.color }}
-                      fill="none" 
-                      viewBox="0 0 24 24" 
-                      stroke="currentColor"
-                    >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" 
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-800">{card.name}</h3>
-                    <div className="mt-1 flex items-center">
-                      <div className="w-20 bg-gray-200 rounded-full h-1.5 mr-2">
-                        <div 
-                          className={`h-1.5 rounded-full ${getCreditUtilizationColor(calculateCreditUtilization(card.balance, card.limit))}`}
-                          style={{ width: `${Math.min(calculateCreditUtilization(card.balance, card.limit), 100)}%` }}
-                        ></div>
+      <FinanceCard>
+        <FinanceCardHeader title="Cards" description="Balances should stay current so net worth and debt pressure are accurate." />
+        <FinanceCardBody>
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((item) => <div key={item} className="h-20 animate-pulse rounded-lg bg-slate-100" />)}
+            </div>
+          ) : creditCards.length === 0 ? (
+            <EmptyState
+              title="No cards yet"
+              description="Add cards here to track credit limits, balances, utilization, and debt pressure."
+              action={<button onClick={() => setShowNewCardForm(true)} className={primaryButtonClass}>Add first card</button>}
+            />
+          ) : (
+            <div className="space-y-3">
+              {creditCards.map((card) => {
+                const percent = utilization(card.balance, card.limit);
+                return (
+                  <div key={card.id} className="rounded-lg border border-slate-200 p-4">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50"
+                          style={{ color: card.color || '#0f172a' }}
+                        >
+                          <CreditCardIcon className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-base font-semibold text-slate-950">{card.name}</p>
+                          <p className="text-sm text-slate-500">{percent.toFixed(1)}% used</p>
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-500">
-                        {calculateCreditUtilization(card.balance, card.limit).toFixed(1)}% used
-                      </p>
+                      <div className="min-w-0 flex-1 md:max-w-sm">
+                        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                          <div className={`h-full rounded-full ${utilizationTone(percent)}`} style={{ width: `${Math.min(percent, 100)}%` }} />
+                        </div>
+                        <div className="mt-2 flex justify-between text-sm text-slate-500">
+                          <span>{money(card.balance)}</span>
+                          <span>{money(card.limit)}</span>
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => setEditingCard(card)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50" title="Edit card">
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => handleDeleteCard(card.id)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50" title="Delete card">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-                
-                <div className="flex flex-col md:flex-row md:items-center gap-4">
-                  <div className="text-right md:mr-6">
-                    <p className="text-sm text-gray-500">Balance</p>
-                    <p className="text-lg font-bold text-gray-800">{formatCurrency(card.balance)}</p>
-                    <p className="text-xs text-gray-500">of {formatCurrency(card.limit)} limit</p>
-                  </div>
-                  
-                  <div className="flex justify-end space-x-2">
-                    <button 
-                      onClick={() => handleEditCard(card)}
-                      className="px-3 py-1 border border-gray-300 text-gray-700 text-xs rounded-md hover:bg-gray-50"
-                    >
-                      Edit
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteCard(card.id)}
-                      className="px-3 py-1 border border-gray-300 text-gray-700 text-xs rounded-md hover:bg-gray-50"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+                );
+              })}
+            </div>
+          )}
+        </FinanceCardBody>
+      </FinanceCard>
+    </PageShell>
   );
-} 
+}
