@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import {
   calculateNetWorth,
   getActiveBudgetCategories,
-  getAllAdditionalBudgetItems,
   getAllInvestments,
   getAllRecurringTransactions,
   getIncomeData,
@@ -183,6 +182,8 @@ type SnapshotOverrides = Partial<{
   withdrawalRate: number;
   retirementMonthlyBudget: number;
   inflationRate: number;
+  brokerageYearlySavings: number | null;
+  retirementYearlyContribution: number | null;
 }>;
 
 function getSavingsPlanSnapshot(overrides: SnapshotOverrides = {}) {
@@ -190,7 +191,6 @@ function getSavingsPlanSnapshot(overrides: SnapshotOverrides = {}) {
   const income = getIncomeData();
   const budgetCategories = getActiveBudgetCategories();
   const recurringTransactions = getAllRecurringTransactions();
-  const additionalBudgetItems = getAllAdditionalBudgetItems();
   const savedPlan = getSavingsPlanData();
 
   // ----- Net worth (canonical, shared with the dashboard) -----
@@ -214,16 +214,19 @@ function getSavingsPlanSnapshot(overrides: SnapshotOverrides = {}) {
   // ----- Expenses -----
   const monthlyBudget = budgetCategories.reduce((sum, category) => sum + money(category.allocatedAmount), 0);
   const monthlyRecurring = recurringTransactions.reduce((sum, transaction) => sum + money(transaction.amount), 0);
-  const monthlyAdditional = additionalBudgetItems.reduce((sum, item) => sum + money(item.amount), 0);
-  const monthlyExpenses = monthlyBudget + monthlyRecurring + monthlyAdditional;
+  const monthlyExpenses = monthlyBudget + monthlyRecurring;
   const annualExpenses = monthlyExpenses * 12;
 
   // ----- Savings -----
   const annualCashSavings = annualIncome - annualExpenses;
   const netBonus = bonusTaxEstimate.netBonus;
   const annualCashWithBonus = annualCashSavings + netBonus;
-  const totalAnnualSavings = annualCashWithBonus + annual401kContribution;
-  const monthlyPace = annualCashWithBonus / 12;
+  const defaultBrokerageYearlySavings = annualCashWithBonus;
+  const defaultRetirementYearlyContribution = annual401kContribution;
+  const brokerageYearlySavings = overrides.brokerageYearlySavings ?? savedPlan?.brokerageYearlySavings ?? defaultBrokerageYearlySavings;
+  const retirementYearlyContribution = overrides.retirementYearlyContribution ?? savedPlan?.retirementYearlyContribution ?? defaultRetirementYearlyContribution;
+  const totalAnnualSavings = brokerageYearlySavings + retirementYearlyContribution;
+  const monthlyPace = brokerageYearlySavings / 12;
   const perPaycheckSurplus = annualCashSavings / payPeriodsPerYear;
   const cashIncomeWithBonus = annualIncome + netBonus;
   const savingsRate = cashIncomeWithBonus > 0 ? (annualCashWithBonus / cashIncomeWithBonus) * 100 : 0;
@@ -233,7 +236,7 @@ function getSavingsPlanSnapshot(overrides: SnapshotOverrides = {}) {
   const yearStart = new Date(now.getFullYear(), 0, 1);
   const yearEnd = new Date(now.getFullYear() + 1, 0, 1);
   const fractionElapsed = Math.min(1, Math.max(0, (now.getTime() - yearStart.getTime()) / (yearEnd.getTime() - yearStart.getTime())));
-  const brokerageTarget = annualCashWithBonus;
+  const brokerageTarget = brokerageYearlySavings;
   const brokerageInvested = getInvestedThisYear(now.getFullYear());
   const brokeragePace = brokerageTarget * fractionElapsed;
 
@@ -253,14 +256,25 @@ function getSavingsPlanSnapshot(overrides: SnapshotOverrides = {}) {
     : null;
   const retirementMonthlyBudget = overrides.retirementMonthlyBudget ?? savedRetirementBudget ?? monthlyExpenses;
   const retirementAnnualExpenses = retirementMonthlyBudget * 12;
+  const retirementStartInflationFactor = Math.pow(1 + inflationRate / 100, yearsToTarget);
+  const retirementMonthlyBudgetAtTarget = retirementMonthlyBudget * retirementStartInflationFactor;
+  const retirementAnnualExpensesAtTarget = retirementMonthlyBudgetAtTarget * 12;
 
   // ----- Retirement projection (single source of truth) -----
   // Bridge = taxable brokerage (tracked investments). Funds/cash are allocations
   // of cash, not added separately. Retirement = 401k.
   const currentBridgeAssets = worth.stocks;
   const currentRetirementAssets = worth.retirement401k;
-  const taxableAnnualContribution = annualCashWithBonus;
+  const taxableAnnualContribution = brokerageYearlySavings;
   const getRetirementAnnualContribution = (year: number) => {
+    if (overrides.retirementYearlyContribution !== null && overrides.retirementYearlyContribution !== undefined) {
+      return retirementYearlyContribution;
+    }
+
+    if (savedPlan?.retirementYearlyContribution !== null && savedPlan?.retirementYearlyContribution !== undefined) {
+      return retirementYearlyContribution;
+    }
+
     const projectedYearsOfService = yearsOfService + Math.max(0, year - 1);
     const projectedRate = getService401kRate(projectedYearsOfService, service401kRate);
     return salary * (projectedRate / 100);
@@ -271,7 +285,7 @@ function getSavingsPlanSnapshot(overrides: SnapshotOverrides = {}) {
     currentRetirement: currentRetirementAssets,
     taxableAnnualContribution,
     getRetirementAnnualContribution,
-    annualExpenses: retirementAnnualExpenses,
+    annualExpenses: retirementAnnualExpensesAtTarget,
     currentAge,
     retireAge: targetAge,
     accessAge,
@@ -291,7 +305,7 @@ function getSavingsPlanSnapshot(overrides: SnapshotOverrides = {}) {
 
   // 4% rule (or whatever withdrawal rate is set): the nest egg needed to fund
   // retirement expenses indefinitely.
-  const fiNumber = withdrawalRate > 0 ? retirementAnnualExpenses / (withdrawalRate / 100) : 0;
+  const fiNumber = withdrawalRate > 0 ? retirementAnnualExpensesAtTarget / (withdrawalRate / 100) : 0;
   const fiSurplus = totalAtTarget - fiNumber;
 
   // Does the taxable bridge survive the gap between retiring and 401k access?
@@ -322,6 +336,12 @@ function getSavingsPlanSnapshot(overrides: SnapshotOverrides = {}) {
       inflationRate,
       retirementMonthlyBudget: round2(retirementMonthlyBudget),
       retirementAnnualExpenses: round2(retirementAnnualExpenses),
+      retirementMonthlyBudgetAtTarget: round2(retirementMonthlyBudgetAtTarget),
+      retirementAnnualExpensesAtTarget: round2(retirementAnnualExpensesAtTarget),
+      brokerageYearlySavings: round2(brokerageYearlySavings),
+      retirementYearlyContribution: round2(retirementYearlyContribution),
+      defaultBrokerageYearlySavings: round2(defaultBrokerageYearlySavings),
+      defaultRetirementYearlyContribution: round2(defaultRetirementYearlyContribution),
       accessAge,
       payFrequency,
       payPeriodsPerYear,
@@ -366,27 +386,26 @@ function getSavingsPlanSnapshot(overrides: SnapshotOverrides = {}) {
         taxes: round2(bonusTaxEstimate.taxes),
         effectiveTaxRate: round2(bonusTaxEstimate.effectiveTaxRate),
       },
-      annual401kContribution: round2(annual401kContribution),
+      annual401kContribution: round2(retirementYearlyContribution),
       currentService401kRate: round2(currentService401kRate),
       totalCompensation: round2(salary + annualBonus + annual401kContribution),
     },
     expenses: {
       monthlyBudget: round2(monthlyBudget),
       monthlyRecurring: round2(monthlyRecurring),
-      monthlyAdditional: round2(monthlyAdditional),
       monthlyExpenses: round2(monthlyExpenses),
       annualExpenses: round2(annualExpenses),
       breakdown: [
         { name: 'Budget', value: round2(monthlyBudget) },
         { name: 'Recurring', value: round2(monthlyRecurring) },
-        { name: 'Additional', value: round2(monthlyAdditional) },
       ],
     },
     savings: {
       annualCashSavings: round2(annualCashSavings),
       netBonus: round2(netBonus),
       annualCashWithBonus: round2(annualCashWithBonus),
-      annual401kContribution: round2(annual401kContribution),
+      annual401kContribution: round2(retirementYearlyContribution),
+      defaultAnnual401kContribution: round2(defaultRetirementYearlyContribution),
       totalAnnualSavings: round2(totalAnnualSavings),
       monthlyPace: round2(monthlyPace),
       perPaycheckSurplus: round2(perPaycheckSurplus),
@@ -399,14 +418,14 @@ function getSavingsPlanSnapshot(overrides: SnapshotOverrides = {}) {
       brokerageInvested: round2(brokerageInvested),
       brokeragePace: round2(brokeragePace),
       onPace: brokerageInvested >= brokeragePace,
-      auto401k: round2(annual401kContribution),
+      auto401k: round2(retirementYearlyContribution),
     },
     strategy: {
       accessAge,
       withdrawalRate,
       yearsToTarget,
       taxableAnnualContribution: round2(taxableAnnualContribution),
-      retirementAnnualContribution: round2(annual401kContribution),
+      retirementAnnualContribution: round2(retirementYearlyContribution),
       currentBridgeAssets: round2(currentBridgeAssets),
       currentRetirementAssets: round2(currentRetirementAssets),
       bridgeAtTarget: Math.round(bridgeAtTarget),
@@ -451,6 +470,8 @@ export async function GET(request: Request) {
       withdrawalRate: num('withdrawalRate'),
       retirementMonthlyBudget: num('retirementMonthlyBudget'),
       inflationRate: num('inflationRate'),
+      brokerageYearlySavings: num('brokerageYearlySavings'),
+      retirementYearlyContribution: num('retirementYearlyContribution'),
     };
 
     return NextResponse.json(getSavingsPlanSnapshot(overrides));
@@ -479,6 +500,12 @@ export async function POST(request: Request) {
     const inflationRate = data.inflationRate === undefined || data.inflationRate === null || data.inflationRate === ''
       ? currentSnapshot.settings.inflationRate
       : Number(data.inflationRate);
+    const brokerageYearlySavings = data.brokerageYearlySavings === undefined || data.brokerageYearlySavings === null || data.brokerageYearlySavings === ''
+      ? null
+      : Number(data.brokerageYearlySavings);
+    const retirementYearlyContribution = data.retirementYearlyContribution === undefined || data.retirementYearlyContribution === null || data.retirementYearlyContribution === ''
+      ? null
+      : Number(data.retirementYearlyContribution);
 
     if (!Number.isFinite(currentAge) || currentAge < 18 || currentAge > 100) {
       return NextResponse.json({ error: 'Current age must be between 18 and 100' }, { status: 400 });
@@ -504,6 +531,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Inflation rate must be between 0% and 15%' }, { status: 400 });
     }
 
+    if (brokerageYearlySavings !== null && (!Number.isFinite(brokerageYearlySavings) || brokerageYearlySavings < 0 || brokerageYearlySavings > 10000000)) {
+      return NextResponse.json({ error: 'Brokerage savings must be a positive yearly amount' }, { status: 400 });
+    }
+
+    if (retirementYearlyContribution !== null && (!Number.isFinite(retirementYearlyContribution) || retirementYearlyContribution < 0 || retirementYearlyContribution > 1000000)) {
+      return NextResponse.json({ error: '401k contribution must be a positive yearly amount' }, { status: 400 });
+    }
+
     saveSavingsPlanData({
       currentAge,
       retirementAge: targetAge,
@@ -515,6 +550,8 @@ export async function POST(request: Request) {
       withdrawalRate,
       retirementMonthlyBudget,
       inflationRate,
+      brokerageYearlySavings,
+      retirementYearlyContribution,
     });
 
     return NextResponse.json(getSavingsPlanSnapshot());

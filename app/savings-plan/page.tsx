@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Banknote, Info, PiggyBank, Receipt, RefreshCcw, Save, Target, WalletCards } from 'lucide-react';
+import { Banknote, Calculator, Info, LineChart, PiggyBank, Receipt, RefreshCcw, Save, SlidersHorizontal, Target, WalletCards } from 'lucide-react';
 import { PageHeader, PagePanel, PageShell } from '@/components/PageShell';
 
 type ProjectionPoint = {
@@ -28,6 +28,12 @@ type SavingsPlanData = {
     inflationRate: number;
     retirementMonthlyBudget: number;
     retirementAnnualExpenses: number;
+    retirementMonthlyBudgetAtTarget: number;
+    retirementAnnualExpensesAtTarget: number;
+    brokerageYearlySavings: number;
+    retirementYearlyContribution: number;
+    defaultBrokerageYearlySavings: number;
+    defaultRetirementYearlyContribution: number;
     accessAge: number;
     yearsToTarget: number;
   };
@@ -43,13 +49,15 @@ type SavingsPlanData = {
   expenses: {
     monthlyBudget: number;
     monthlyRecurring: number;
-    monthlyAdditional: number;
     monthlyExpenses: number;
     annualExpenses: number;
   };
   savings: {
+    annualCashSavings: number;
+    netBonus: number;
     annualCashWithBonus: number;
     annual401kContribution: number;
+    defaultAnnual401kContribution: number;
     totalAnnualSavings: number;
     savingsRate: number;
   };
@@ -58,6 +66,18 @@ type SavingsPlanData = {
     withdrawalRate: number;
     fiNumber: number;
     bridgeLasts: boolean;
+    taxableAnnualContribution: number;
+    retirementAnnualContribution: number;
+    currentBridgeAssets: number;
+    currentRetirementAssets: number;
+    bridgeAtTarget: number;
+    retirementAtTarget: number;
+    totalAtTarget: number;
+    bridgeAtAccess: number;
+    totalAtAccess: number;
+    fiSurplus: number;
+    bridgeYears: number;
+    bridgeRunwayYears: number;
     projection: ProjectionPoint[];
   };
 };
@@ -76,7 +96,7 @@ function InfoHint({ text }: { text: string }) {
       <button type="button" aria-label={text} className="inline-flex h-4 w-4 items-center justify-center rounded-full text-slate-400 outline-none transition-colors hover:text-slate-700 focus:text-slate-700">
         <Info className="h-3.5 w-3.5" />
       </button>
-      <span className="pointer-events-none absolute left-1/2 top-6 z-20 hidden w-60 -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-3 text-xs font-normal leading-relaxed text-slate-600 shadow-lg group-hover:block group-focus-within:block">
+      <span className="pointer-events-none absolute left-1/2 top-6 z-50 hidden w-72 -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-3 text-xs font-normal leading-relaxed text-slate-600 shadow-lg group-hover:block group-focus-within:block">
         {text}
       </span>
     </span>
@@ -91,12 +111,21 @@ const accentStyles = {
 } as const;
 
 type SummaryRow = { label: string; value: string; sub?: string; info?: string };
+type TabKey = 'overview' | 'bridge' | 'projection' | 'assumptions';
+type ChartLineKey = 'brokerage' | 'retirement' | 'safeSpending' | 'liveOffReturns' | 'budgetLine';
+
+const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
+  { key: 'overview', label: 'Overview', icon: <WalletCards className="h-4 w-4" /> },
+  { key: 'bridge', label: 'Bridge', icon: <Calculator className="h-4 w-4" /> },
+  { key: 'projection', label: 'Projection', icon: <LineChart className="h-4 w-4" /> },
+  { key: 'assumptions', label: 'Assumptions', icon: <SlidersHorizontal className="h-4 w-4" /> },
+];
 
 function SummaryCard({ title, total, subtotal, icon, accent, rows, footer }: { title: string; total: string; subtotal?: string; icon: React.ReactNode; accent: keyof typeof accentStyles; rows: SummaryRow[]; footer?: SummaryRow }) {
   const a = accentStyles[accent];
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-      <div className={`h-1 w-full ${a.bar}`} />
+    <div className="rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
+      <div className={`h-1 w-full rounded-t-xl ${a.bar}`} />
       <div className="p-5">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm font-medium text-slate-500">{title}</p>
@@ -161,9 +190,16 @@ export default function SavingsPlanPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [projectionView, setProjectionView] = useState<'chart' | 'table'>('chart');
-  const [form, setForm] = useState({ currentAge: '30', targetAge: '45', annualReturn: '7', withdrawalRate: '4', retirementBudget: '', inflation: '3' });
-  const [floor, setFloor] = useState('');
+  const [visibleLines, setVisibleLines] = useState<Record<ChartLineKey, boolean>>({
+    brokerage: true,
+    retirement: true,
+    safeSpending: true,
+    liveOffReturns: true,
+    budgetLine: true,
+  });
+  const [form, setForm] = useState({ currentAge: '30', targetAge: '45', annualReturn: '7', withdrawalRate: '4', retirementBudget: '', inflation: '3', brokerageSavings: '', retirementContribution: '' });
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const skipPreview = useRef(true);
 
@@ -183,6 +219,8 @@ export default function SavingsPlanPage() {
         withdrawalRate: String(nextData.settings.withdrawalRate),
         retirementBudget: String(Math.round(nextData.settings.retirementMonthlyBudget)),
         inflation: String(nextData.settings.inflationRate),
+        brokerageSavings: String(Math.round(nextData.settings.brokerageYearlySavings)),
+        retirementContribution: String(Math.round(nextData.settings.retirementYearlyContribution)),
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load savings plan');
@@ -211,6 +249,8 @@ export default function SavingsPlanPage() {
       if (form.withdrawalRate) params.set('withdrawalRate', form.withdrawalRate);
       if (form.retirementBudget) params.set('retirementMonthlyBudget', form.retirementBudget);
       if (form.inflation) params.set('inflationRate', form.inflation);
+      if (form.brokerageSavings) params.set('brokerageYearlySavings', form.brokerageSavings);
+      if (form.retirementContribution) params.set('retirementYearlyContribution', form.retirementContribution);
       try {
         const response = await fetch(`/api/savings-plan?${params.toString()}`);
         if (!response.ok) return;
@@ -229,6 +269,14 @@ export default function SavingsPlanPage() {
     try {
       setSaving(true);
       setError('');
+      const brokerageSavings = form.brokerageSavings === '' ? undefined : Number(form.brokerageSavings);
+      const retirementContribution = form.retirementContribution === '' ? undefined : Number(form.retirementContribution);
+      const brokerageSavingsPayload = data && brokerageSavings !== undefined && Math.round(brokerageSavings) === Math.round(data.settings.defaultBrokerageYearlySavings)
+        ? undefined
+        : brokerageSavings;
+      const retirementContributionPayload = data && retirementContribution !== undefined && Math.round(retirementContribution) === Math.round(data.settings.defaultRetirementYearlyContribution)
+        ? undefined
+        : retirementContribution;
       const response = await fetch('/api/savings-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -239,6 +287,8 @@ export default function SavingsPlanPage() {
           withdrawalRate: Number(form.withdrawalRate),
           retirementMonthlyBudget: form.retirementBudget === '' ? undefined : Number(form.retirementBudget),
           inflationRate: form.inflation === '' ? undefined : Number(form.inflation),
+          brokerageYearlySavings: brokerageSavingsPayload,
+          retirementYearlyContribution: retirementContributionPayload,
         }),
       });
       const nextData = await response.json();
@@ -249,6 +299,15 @@ export default function SavingsPlanPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function resetSavingsAssumptions() {
+    if (!data) return;
+    setForm((prev) => ({
+      ...prev,
+      brokerageSavings: String(Math.round(data.settings.defaultBrokerageYearlySavings)),
+      retirementContribution: String(Math.round(data.settings.defaultRetirementYearlyContribution)),
+    }));
   }
 
   const chartDomain = useMemo<[number, number]>(() => {
@@ -266,8 +325,9 @@ export default function SavingsPlanPage() {
     const rate = data.settings.withdrawalRate / 100;
     const retireAge = data.settings.targetAge;
     const accessAge = data.settings.accessAge;
-    const baseBudget = data.settings.retirementAnnualExpenses;
+    const baseBudget = data.settings.retirementAnnualExpensesAtTarget;
     const inflation = data.settings.inflationRate / 100;
+    const nominalReturn = data.settings.annualReturn / 100;
     // Real return = what you can spend forever without eroding principal (in
     // today's purchasing power). Precisely (1+return)/(1+inflation) − 1.
     const realRate = (1 + data.settings.annualReturn / 100) / (1 + inflation) - 1;
@@ -275,23 +335,72 @@ export default function SavingsPlanPage() {
       let safeSpending: number | null = null;
       let liveOffReturns: number | null = null;
       let budgetLine: number | null = null;
+      const chartBridgeAssets = Math.max(0, point.bridgeAssets);
+      const chartRetirementAssets = point.retirementAssets;
       if (point.age >= retireAge) {
-        const accessibleAssets = point.age < accessAge ? point.bridgeAssets : point.totalAssets;
+        const yearsSinceRetire = Math.max(0, point.age - retireAge);
+        const capacityBridgeAssets = data.strategy.bridgeAtTarget * Math.pow(1 + nominalReturn, yearsSinceRetire);
+        const capacityRetirementAssets = data.strategy.retirementAtTarget * Math.pow(1 + nominalReturn, yearsSinceRetire);
+        const accessibleAssets = point.age < accessAge
+          ? capacityBridgeAssets
+          : capacityBridgeAssets + capacityRetirementAssets;
         safeSpending = Math.round(accessibleAssets * rate);
         liveOffReturns = Math.round(accessibleAssets * Math.max(0, realRate));
         budgetLine = Math.round(baseBudget * Math.pow(1 + inflation, point.age - retireAge));
       }
-      return { ...point, safeSpending, liveOffReturns, budgetLine };
+      return { ...point, chartBridgeAssets, chartRetirementAssets, safeSpending, liveOffReturns, budgetLine };
     });
   }, [data]);
 
-  const floorValue = floor === '' ? null : Number(floor);
   const realRatePct = data ? (((1 + data.settings.annualReturn / 100) / (1 + data.settings.inflationRate / 100) - 1) * 100) : 0;
   // The age your principal-preserving income first covers your (inflating) budget.
   const neverDepleteAge = useMemo(() => {
     const hit = chartData.find((p) => p.liveOffReturns !== null && p.budgetLine !== null && (p.liveOffReturns as number) >= (p.budgetLine as number));
     return hit ? hit.age : null;
   }, [chartData]);
+
+  const bridgePlan = useMemo(() => {
+    if (!data) return null;
+    const monthlyReturn = data.settings.annualReturn / 100 / 12;
+    const monthsToTarget = Math.max(0, Math.round(data.settings.yearsToTarget * 12));
+    const bridgeMonths = Math.max(0, Math.round((data.settings.accessAge - data.settings.targetAge) * 12));
+    const currentBridgeAssets = data.strategy.currentBridgeAssets;
+    const projectedBridgeWithoutMoreSavings = currentBridgeAssets * Math.pow(1 + monthlyReturn, monthsToTarget);
+
+    let requiredBridge = 0;
+    let undiscountedBridgeSpending = 0;
+    for (let month = 0; month < bridgeMonths; month += 1) {
+      const retirementYear = Math.floor(month / 12);
+      const monthlyWithdrawal = data.settings.retirementMonthlyBudgetAtTarget * Math.pow(1 + data.settings.inflationRate / 100, retirementYear);
+      undiscountedBridgeSpending += monthlyWithdrawal;
+      requiredBridge += monthlyReturn === 0
+        ? monthlyWithdrawal
+        : monthlyWithdrawal / Math.pow(1 + monthlyReturn, month + 1);
+    }
+
+    const targetGap = Math.max(0, requiredBridge - projectedBridgeWithoutMoreSavings);
+    const monthlySavingsNeeded = monthsToTarget === 0
+      ? targetGap
+      : monthlyReturn === 0
+        ? targetGap / monthsToTarget
+        : targetGap * monthlyReturn / (Math.pow(1 + monthlyReturn, monthsToTarget) - 1);
+    const currentMonthlyBrokerageSavings = data.strategy.taxableAnnualContribution / 12;
+
+    return {
+      bridgeMonths,
+      requiredBridge: Math.round(requiredBridge),
+      undiscountedBridgeSpending: Math.round(undiscountedBridgeSpending),
+      investmentOffset: Math.round(Math.max(0, undiscountedBridgeSpending - requiredBridge)),
+      projectedBridgeWithoutMoreSavings: Math.round(projectedBridgeWithoutMoreSavings),
+      targetGap: Math.round(targetGap),
+      monthlySavingsNeeded: Math.round(monthlySavingsNeeded),
+      yearlySavingsNeeded: Math.round(monthlySavingsNeeded * 12),
+      currentMonthlyBrokerageSavings: Math.round(currentMonthlyBrokerageSavings),
+      currentYearlyBrokerageSavings: Math.round(data.strategy.taxableAnnualContribution),
+      projectedBridgeWithCurrentSavings: Math.round(data.strategy.bridgeAtTarget),
+      surplusWithCurrentSavings: Math.round(data.strategy.bridgeAtTarget - requiredBridge),
+    };
+  }, [data]);
 
   if (loading) {
     return (
@@ -323,13 +432,11 @@ export default function SavingsPlanPage() {
 
   const recurringYearly = expenses.monthlyRecurring * 12;
   const budgetYearly = expenses.monthlyBudget * 12;
-  const additionalYearly = expenses.monthlyAdditional * 12;
 
   const expenseRows: SummaryRow[] = [
     { label: 'Recurring', value: formatCurrency(recurringYearly), sub: perMonth(recurringYearly) },
     { label: 'Budget', value: formatCurrency(budgetYearly), sub: perMonth(budgetYearly) },
   ];
-  if (additionalYearly > 0) expenseRows.push({ label: 'Additional', value: formatCurrency(additionalYearly), sub: perMonth(additionalYearly) });
 
   return (
     <PageShell maxWidth="7xl">
@@ -348,25 +455,22 @@ export default function SavingsPlanPage() {
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-      {/* Assumptions */}
-      <form onSubmit={saveSettings} className="flex flex-wrap items-center gap-2">
-        <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Assumptions</span>
-        <Lever label="Current age" value={form.currentAge} onChange={(v) => setForm((p) => ({ ...p, currentAge: v }))} info="Your age today — the starting point for the projection. Everything is calculated forward from here, and it sets how many years you have to keep investing before retirement." />
-        <Lever label="Retire at" value={form.targetAge} onChange={(v) => setForm((p) => ({ ...p, targetAge: v }))} info="The age you stop working and stop adding new money. After this you live off investments, drawing from the brokerage until your 401k unlocks at 59½. Pushing it later means more saving and a shorter bridge to fund." />
-        <Lever label="Return" suffix="%" value={form.annualReturn} onChange={(v) => setForm((p) => ({ ...p, annualReturn: v }))} info="The average yearly investment return you assume (nominal, before inflation). 6–8% is a common long-term stock-market assumption. Drop it to 5–6% to stress-test whether the plan still holds in a weaker market." />
-        <Lever label="Withdrawal" suffix="%" value={form.withdrawalRate} onChange={(v) => setForm((p) => ({ ...p, withdrawalRate: v }))} info="The share of your portfolio you'd withdraw per year — the 4% rule is the classic 'safe' default that's survived historical crashes. It sets your FI target (budget ÷ rate) and the orange 'can live on' line. Lower = safer." />
-        <Lever label="Inflation" suffix="%" value={form.inflation} onChange={(v) => setForm((p) => ({ ...p, inflation: v }))} info="How fast prices — and your retirement budget — rise each year (~3% is typical). It makes your withdrawals grow over time and shrinks your 'real' return, which is why ignoring it makes a plan look rosier than it is." />
-        <Lever label="Retire budget" prefix="$" suffix="/mo" wide value={form.retirementBudget} onChange={(v) => setForm((p) => ({ ...p, retirementBudget: v }))} info="What you expect to spend per month in retirement. Defaults to today's spending — raise it to plan for a family or a richer lifestyle. It drives how fast the brokerage is drawn down and sets your FI target." />
-        <Lever label="Brokerage floor" prefix="$" wide value={floor} onChange={setFloor} info="A guardrail you set: the minimum brokerage balance you want to keep. It draws a line on the chart so you can confirm you stay above it. Purely a visual planning aid — it isn't saved and doesn't change the projection." />
-        <button type="submit" disabled={saving} className="inline-flex items-center rounded-lg bg-slate-950 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60">
-          <Save className="mr-1.5 h-4 w-4" />
-          {saving ? 'Saving' : 'Update'}
-        </button>
-      </form>
-      <p className="-mt-2 text-xs text-slate-400">Tweak any assumption to preview live; <span className="font-medium text-slate-500">Update</span> saves it. Retire budget grows with inflation each year. The brokerage floor is a visual guardrail — your blue line should stay above it.</p>
+      <div className="flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white p-1 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setActiveTab(tab.key)}
+            className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${activeTab === tab.key ? 'bg-slate-950 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'}`}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-      {/* Summary cards */}
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      {activeTab === 'overview' && (
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <SummaryCard
           title="Income (post-tax)"
           total={formatCurrency(income.annualIncome)}
@@ -415,9 +519,98 @@ export default function SavingsPlanPage() {
             info: `The nest egg that can fund your retirement budget indefinitely at the ${strategy.withdrawalRate}% rule (retire budget ÷ ${strategy.withdrawalRate}%). Once your investments reach it, work becomes optional.`,
           }}
         />
-      </div>
+        </div>
+      )}
 
-      {/* Projection */}
+      {activeTab === 'bridge' && bridgePlan && (
+        <div className="space-y-5">
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            <SummaryCard
+              title="Retire budget"
+              total={`${formatCurrency(settings.retirementMonthlyBudgetAtTarget)}/mo`}
+              subtotal={`${formatCurrency(settings.retirementMonthlyBudget)}/mo today, inflated to age ${settings.targetAge}`}
+              icon={<Receipt className="h-4 w-4" />}
+              accent="amber"
+              rows={[
+                { label: 'Today dollars', value: formatCurrency(settings.retirementAnnualExpenses), sub: `${formatCurrency(settings.retirementMonthlyBudget)}/mo` },
+                { label: `Age ${settings.targetAge} dollars`, value: formatCurrency(settings.retirementAnnualExpensesAtTarget), sub: `${formatCurrency(settings.retirementMonthlyBudgetAtTarget)}/mo`, info: `This is the budget the bridge math starts with: your entered monthly budget inflated ${settings.yearsToTarget.toFixed(1)} years at ${settings.inflationRate}% before retirement starts.` },
+              ]}
+            />
+            <SummaryCard
+              title="Bridge needed"
+              total={formatCurrency(bridgePlan.requiredBridge)}
+              subtotal={`Starts at ${formatCurrency(settings.retirementMonthlyBudgetAtTarget)}/mo, then +${settings.inflationRate}%/yr`}
+              icon={<Calculator className="h-4 w-4" />}
+              accent="blue"
+              rows={[
+                { label: 'Raw withdrawals', value: formatCurrency(bridgePlan.undiscountedBridgeSpending), sub: `${bridgePlan.bridgeMonths} inflated monthly payments`, info: `This is the simple total of every monthly withdrawal from age ${settings.targetAge} to ${settings.accessAge}, starting at ${formatCurrency(settings.retirementMonthlyBudgetAtTarget)}/mo and increasing ${settings.inflationRate}% each year.` },
+                { label: 'Growth credit', value: formatCurrency(-bridgePlan.investmentOffset), sub: `${settings.annualReturn}% return while withdrawing`, info: `The bridge target is lower than raw withdrawals because the remaining bridge balance is assumed to stay invested and earn ${settings.annualReturn}% per year during the bridge years.` },
+                { label: 'Bridge length', value: `${strategy.bridgeYears.toFixed(1)} years`, sub: `${bridgePlan.bridgeMonths} months` },
+                { label: 'Current brokerage', value: formatCurrency(strategy.currentBridgeAssets) },
+                { label: 'Current only grows to', value: formatCurrency(bridgePlan.projectedBridgeWithoutMoreSavings) },
+              ]}
+            />
+            <SummaryCard
+              title="Need to save"
+              total={formatCurrency(bridgePlan.yearlySavingsNeeded)}
+              subtotal={`${formatCurrency(bridgePlan.monthlySavingsNeeded)}/mo to bridge age ${settings.targetAge}-${settings.accessAge}`}
+              icon={<PiggyBank className="h-4 w-4" />}
+              accent={bridgePlan.surplusWithCurrentSavings >= 0 ? 'emerald' : 'amber'}
+              rows={[
+                { label: 'Brokerage savings', value: formatCurrency(bridgePlan.currentYearlyBrokerageSavings), sub: `${formatCurrency(bridgePlan.currentMonthlyBrokerageSavings)}/mo` },
+                { label: 'Default from cashflow', value: formatCurrency(settings.defaultBrokerageYearlySavings), sub: `${formatCurrency(savings.netBonus)} net bonus included` },
+                { label: 'Current plan result', value: formatCurrency(bridgePlan.projectedBridgeWithCurrentSavings), sub: bridgePlan.surplusWithCurrentSavings >= 0 ? `${formatCurrency(bridgePlan.surplusWithCurrentSavings)} cushion` : `${formatCurrency(Math.abs(bridgePlan.surplusWithCurrentSavings))} short` },
+              ]}
+            />
+            <SummaryCard
+              title="401k reserve"
+              total={formatCurrency(strategy.retirementAtTarget)}
+              subtotal={`${formatCurrency(strategy.currentRetirementAssets)} now`}
+              icon={<WalletCards className="h-4 w-4" />}
+              accent="indigo"
+              rows={[
+                { label: 'At 59.5 access', value: formatCurrency(strategy.totalAtAccess) },
+                { label: 'FI number at retire', value: formatCurrency(strategy.fiNumber), info: `${settings.retirementAnnualExpensesAtTarget.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })}/yr divided by ${settings.withdrawalRate}%.` },
+              ]}
+            />
+          </div>
+          <PagePanel className={`border px-5 py-4 ${strategy.bridgeLasts ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+            <p className={`text-sm font-semibold ${strategy.bridgeLasts ? 'text-emerald-900' : 'text-amber-900'}`}>
+              {strategy.bridgeLasts
+                ? `The brokerage bridge survives to age ${settings.accessAge}.`
+                : `The brokerage bridge runs for about ${strategy.bridgeRunwayYears.toFixed(1)} of ${strategy.bridgeYears.toFixed(1)} years.`}
+            </p>
+            <p className={`mt-1 text-sm ${strategy.bridgeLasts ? 'text-emerald-800' : 'text-amber-800'}`}>
+              At the current brokerage savings pace, projection reaches {formatCurrency(strategy.bridgeAtTarget)} at age {settings.targetAge}. The standalone bridge target is about {formatCurrency(bridgePlan.requiredBridge)}, using a starting retirement withdrawal of {formatCurrency(settings.retirementMonthlyBudgetAtTarget)}/mo in age-{settings.targetAge} dollars before relying on the 401k.
+            </p>
+          </PagePanel>
+        </div>
+      )}
+
+      {activeTab === 'assumptions' && (
+        <PagePanel className="overflow-visible p-5 sm:p-6">
+          <form onSubmit={saveSettings} className="flex flex-wrap items-center gap-2">
+            <Lever label="Current age" value={form.currentAge} onChange={(v) => setForm((p) => ({ ...p, currentAge: v }))} info="Your age today — the starting point for the projection. Everything is calculated forward from here, and it sets how many years you have to keep investing before retirement." />
+            <Lever label="Retire at" value={form.targetAge} onChange={(v) => setForm((p) => ({ ...p, targetAge: v }))} info="The age you stop working and stop adding new money. After this you live off investments, drawing from the brokerage until your 401k unlocks at 59½. Pushing it later means more saving and a shorter bridge to fund." />
+            <Lever label="Return" suffix="%" value={form.annualReturn} onChange={(v) => setForm((p) => ({ ...p, annualReturn: v }))} info="The average yearly investment return you assume (nominal, before inflation). 6–8% is a common long-term stock-market assumption. Drop it to 5–6% to stress-test whether the plan still holds in a weaker market." />
+            <Lever label="Withdrawal" suffix="%" value={form.withdrawalRate} onChange={(v) => setForm((p) => ({ ...p, withdrawalRate: v }))} info="The share of your portfolio you'd withdraw per year. It sets your FI target (budget divided by rate) and the orange can-live-on line. Lower is more conservative." />
+            <Lever label="Inflation" suffix="%" value={form.inflation} onChange={(v) => setForm((p) => ({ ...p, inflation: v }))} info="How fast prices and your retirement budget rise each year. This now inflates the budget from today to retirement age and throughout retirement." />
+            <Lever label="Retire budget" prefix="$" suffix="/mo" wide value={form.retirementBudget} onChange={(v) => setForm((p) => ({ ...p, retirementBudget: v }))} info={`Monthly family budget in today's dollars. The bridge starts from this amount inflated to age ${settings.targetAge}, then grows it every retirement year by the inflation assumption.`} />
+            <Lever label="Brokerage/yr" prefix="$" wide value={form.brokerageSavings} onChange={(v) => setForm((p) => ({ ...p, brokerageSavings: v }))} info="Yearly taxable brokerage savings. Defaults to cash left after expenses plus expected net bonus, and controls the early-retirement bridge before 401k access." />
+            <Lever label="401k/yr" prefix="$" wide value={form.retirementContribution} onChange={(v) => setForm((p) => ({ ...p, retirementContribution: v }))} info="Yearly 401k contribution used in the projection. Defaults to the employer service-based 401k contribution, and controls the post-59.5 retirement phase." />
+            <button type="button" onClick={resetSavingsAssumptions} className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50">
+              Reset savings
+            </button>
+            <button type="submit" disabled={saving} className="inline-flex items-center rounded-lg bg-slate-950 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60">
+              <Save className="mr-1.5 h-4 w-4" />
+              {saving ? 'Saving' : 'Update'}
+            </button>
+          </form>
+          <p className="mt-3 text-xs text-slate-500">Tweak any assumption to preview live; <span className="font-medium text-slate-700">Update</span> saves it. Savings defaults are {formatCurrency(settings.defaultBrokerageYearlySavings)}/yr brokerage and {formatCurrency(settings.defaultRetirementYearlyContribution)}/yr 401k.</p>
+        </PagePanel>
+      )}
+
+      {activeTab === 'projection' && (
       <PagePanel className="overflow-hidden">
         <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -435,13 +628,25 @@ export default function SavingsPlanPage() {
 
         {projectionView === 'chart' ? (
           <div className="p-5 sm:p-6">
-            <div className="mb-3 flex flex-wrap gap-4 text-xs text-slate-500">
-              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#2563eb]" /> Brokerage <InfoHint text="Your taxable brokerage balance over time. This money is accessible at ANY age, so it's what funds your early-retirement years before the 401k unlocks. It builds from contributions while you work, then gets drawn down by spending." /></span>
-              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#059669]" /> 401k <InfoHint text="Your 401k balance, stacked on top of the brokerage so the top edge is your total net worth. It keeps compounding untouched and can't be tapped penalty-free until 59½ — it's your long-term, after-59½ money." /></span>
-              <span className="flex items-center gap-1.5"><span className="h-0.5 w-4 rounded-full bg-[#d97706]" /> Can live on / yr ({settings.withdrawalRate}% rule) <InfoHint text="The 'safe' yearly income your accessible investments can support using the 4% rule — designed to survive market crashes across a 30-year retirement. It draws principal down slowly but is the battle-tested benchmark for 'will my money last?' If this stays above your budget, you're funded." /></span>
-              <span className="flex items-center gap-1.5"><span className="h-0.5 w-4 rounded-full bg-[#0891b2]" /> Live off returns (~{realRatePct.toFixed(1)}%, never touch principal) <InfoHint text="The yearly income you could take using only your real return (return minus inflation), so your principal never erodes in today's dollars — sustainable forever. It's higher than the 4% rule but assumes steady returns, so treat it as the optimistic ceiling. Where it crosses your budget is your 'never-deplete' age." /></span>
-              <span className="flex items-center gap-1.5"><span className="h-0 w-4 border-t-2 border-dashed border-[#dc2626]" /> Retire budget ({formatCurrency(settings.retirementMonthlyBudget)}/mo, +{settings.inflationRate}%/yr) <InfoHint text="What you plan to spend each year in retirement, rising with inflation. It's the target the income lines must clear: when the orange or teal line sits above this red line, your investments can cover your lifestyle." /></span>
-              {floorValue !== null && <span className="flex items-center gap-1.5"><span className="h-0 w-4 border-t-2 border-dotted border-[#9333ea]" /> Brokerage floor <InfoHint text="A guardrail you set — the minimum brokerage balance you're comfortable keeping. If the blue brokerage line approaches it, that's your signal to trim spending so you don't run the bridge dry before the 401k unlocks at 59½." /></span>}
+            <div className="mb-4 flex flex-wrap gap-2 text-xs text-slate-600">
+              {([
+                ['brokerage', 'Brokerage', '#2563eb', 'Your taxable brokerage balance over time. This money is accessible at any age and funds the early-retirement bridge.'],
+                ['retirement', '401k', '#059669', 'Your 401k balance. It compounds untouched until normal access age.'],
+                ['safeSpending', `Capacity / yr (${settings.withdrawalRate}% rule)`, '#d97706', 'A separate capacity overlay: what accessible assets could support using your withdrawal-rate assumption, without letting the retirement-budget drawdown reduce this line.'],
+                ['liveOffReturns', `Returns-only capacity (~${realRatePct.toFixed(1)}%)`, '#0891b2', "A separate capacity overlay: yearly income from real return only, so principal is preserved in today's dollars."],
+                ['budgetLine', `Retire budget (${formatCurrency(settings.retirementMonthlyBudgetAtTarget)}/mo at ${settings.targetAge})`, '#dc2626', 'Your retirement budget at retirement age, then rising with inflation.'],
+              ] as [ChartLineKey, string, string, string][]).map(([key, label, color, hint]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setVisibleLines((prev) => ({ ...prev, [key]: !prev[key] }))}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 transition-colors ${visibleLines[key] ? 'border-slate-200 bg-white text-slate-700' : 'border-slate-200 bg-slate-50 text-slate-400'}`}
+                  title={hint}
+                >
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color, opacity: visibleLines[key] ? 1 : 0.35 }} />
+                  {label}
+                </button>
+              ))}
             </div>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
@@ -453,21 +658,20 @@ export default function SavingsPlanPage() {
                   <Tooltip formatter={(value: number) => formatCurrency(value)} labelFormatter={(age) => `Age ${age}`} />
                   <ReferenceLine yAxisId="left" x={settings.targetAge} stroke="#0f172a" strokeDasharray="4 4" label={{ value: `Retire ${settings.targetAge}`, position: 'top', fill: '#0f172a', fontSize: 11 }} />
                   <ReferenceLine yAxisId="left" x={settings.accessAge} stroke="#059669" strokeDasharray="4 4" label={{ value: `401k unlocks ${settings.accessAge}`, position: 'top', fill: '#059669', fontSize: 11 }} />
-                  {floorValue !== null && <ReferenceLine yAxisId="left" y={floorValue} stroke="#9333ea" strokeDasharray="2 3" label={{ value: `Floor ${formatCurrency(floorValue)}`, position: 'insideTopLeft', fill: '#9333ea', fontSize: 11 }} />}
-                  <Area yAxisId="left" type="monotone" dataKey="bridgeAssets" stackId="1" stroke="#2563eb" fill="#dbeafe" strokeWidth={2} name="Brokerage" />
-                  <Area yAxisId="left" type="monotone" dataKey="retirementAssets" stackId="1" stroke="#059669" fill="#dcfce7" strokeWidth={2} name="401k" />
-                  <Line yAxisId="right" type="monotone" dataKey="budgetLine" stroke="#dc2626" strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls={false} name="Retire budget" />
-                  <Line yAxisId="right" type="monotone" dataKey="safeSpending" stroke="#d97706" strokeWidth={2.5} dot={false} connectNulls={false} name="Can live on / yr" />
-                  <Line yAxisId="right" type="monotone" dataKey="liveOffReturns" stroke="#0891b2" strokeWidth={2.5} dot={false} connectNulls={false} name="Live off returns" />
+                  {visibleLines.brokerage && <Area yAxisId="left" type="monotone" dataKey="chartBridgeAssets" stroke="#2563eb" fill="#dbeafe" strokeWidth={2} name="Brokerage" />}
+                  {visibleLines.retirement && <Line yAxisId="left" type="monotone" dataKey="chartRetirementAssets" stroke="#059669" strokeWidth={2.5} dot={false} name="401k" />}
+                  {visibleLines.budgetLine && <Line yAxisId="right" type="monotone" dataKey="budgetLine" stroke="#dc2626" strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls={false} name="Retire budget" />}
+                  {visibleLines.safeSpending && <Line yAxisId="right" type="monotone" dataKey="safeSpending" stroke="#d97706" strokeWidth={2.5} dot={false} connectNulls={false} name="Capacity / yr" />}
+                  {visibleLines.liveOffReturns && <Line yAxisId="right" type="monotone" dataKey="liveOffReturns" stroke="#0891b2" strokeWidth={2.5} dot={false} connectNulls={false} name="Returns-only capacity" />}
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
             {neverDepleteAge !== null ? (
-              <p className="mt-3 rounded-lg border border-cyan-100 bg-cyan-50 px-3 py-2 text-xs text-cyan-900"><span className="font-semibold">Never-deplete age: {neverDepleteAge}.</span> From here, the teal &ldquo;live off returns&rdquo; line clears your budget — your investments can fund your spending forever without touching principal (in today&apos;s dollars).</p>
+              <p className="mt-3 rounded-lg border border-cyan-100 bg-cyan-50 px-3 py-2 text-xs text-cyan-900"><span className="font-semibold">Never-deplete age: {neverDepleteAge}.</span> From here, the teal capacity line clears your budget in the separate returns-only strategy — your investments can fund spending without touching principal (in today&apos;s dollars).</p>
             ) : (
-              <p className="mt-3 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-900"><span className="font-semibold">Not yet self-sustaining.</span> The teal &ldquo;live off returns&rdquo; line stays below your budget through {settings.accessAge}, so at this budget you&apos;d still be drawing down principal. Lower the budget or grow the portfolio to close the gap.</p>
+              <p className="mt-3 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-900"><span className="font-semibold">Not yet self-sustaining.</span> The teal returns-only capacity line stays below your budget through {settings.accessAge}, so this separate strategy would still require principal drawdown. Lower the budget or grow the portfolio to close the gap.</p>
             )}
-            <p className="mt-2 text-xs text-slate-500">Right axis: the <span className="font-medium text-[#d97706]">orange</span> line is the {settings.withdrawalRate}%-rule safe spend (bulletproof through downturns); the <span className="font-medium text-[#0891b2]">teal</span> line is spending only your real return (~{realRatePct.toFixed(1)}%) so principal never erodes — higher, but it assumes steady returns. Both use <span className="font-medium text-slate-600">accessible brokerage</span> before {settings.accessAge}, then the full portfolio. The <span className="font-medium text-[#dc2626]">red</span> line is your budget rising {settings.inflationRate}%/yr.</p>
+            <p className="mt-2 text-xs text-slate-500">Left axis: <span className="font-medium text-[#2563eb]">blue</span> is the brokerage bridge after the retirement budget withdrawals. Right axis: <span className="font-medium text-[#dc2626]">red</span> is that budget rising {settings.inflationRate}%/yr. The <span className="font-medium text-[#d97706]">orange</span> and <span className="font-medium text-[#0891b2]">teal</span> lines are separate capacity overlays: they show what accessible assets could support under a withdrawal-rate plan or a returns-only plan, without driving the blue bridge line.</p>
           </div>
         ) : (
           <div className="max-h-96 overflow-auto">
@@ -501,10 +705,11 @@ export default function SavingsPlanPage() {
                 ))}
               </tbody>
             </table>
-            <p className="px-4 py-3 text-xs text-slate-500">The 401k contribution rises 1.5% of salary per year of service (capped at 15%). After age {settings.targetAge}, contributions stop and the brokerage is drawn down by your {formatCurrency(settings.retirementMonthlyBudget)}/mo budget — note the withdrawal grows each year with {settings.inflationRate}% inflation.</p>
+            <p className="px-4 py-3 text-xs text-slate-500">The 401k contribution rises 1.5% of salary per year of service (capped at 15%). After age {settings.targetAge}, contributions stop and the brokerage is drawn down by your {formatCurrency(settings.retirementMonthlyBudgetAtTarget)}/mo age-{settings.targetAge} budget — note the withdrawal grows each year with {settings.inflationRate}% inflation.</p>
           </div>
         )}
       </PagePanel>
+      )}
     </PageShell>
   );
 }

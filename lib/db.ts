@@ -411,6 +411,8 @@ function initDb() {
         yearlyBonus REAL NOT NULL DEFAULT 0,
         yearlyBonusPercentage REAL NOT NULL DEFAULT 0,
         annualReturn REAL NOT NULL DEFAULT 7,
+        brokerageYearlySavings REAL DEFAULT NULL,
+        retirementYearlyContribution REAL DEFAULT NULL,
         createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     `).run();
@@ -434,6 +436,14 @@ function initDb() {
 
     if (!columnNames.includes('inflationRate')) {
       db.prepare(`ALTER TABLE savings_plan ADD COLUMN inflationRate REAL NOT NULL DEFAULT 3`).run();
+    }
+
+    if (!columnNames.includes('brokerageYearlySavings')) {
+      db.prepare(`ALTER TABLE savings_plan ADD COLUMN brokerageYearlySavings REAL DEFAULT NULL`).run();
+    }
+
+    if (!columnNames.includes('retirementYearlyContribution')) {
+      db.prepare(`ALTER TABLE savings_plan ADD COLUMN retirementYearlyContribution REAL DEFAULT NULL`).run();
     }
   }
 
@@ -2606,6 +2616,8 @@ export interface SavingsPlanData {
   withdrawalRate?: number;
   retirementMonthlyBudget?: number;
   inflationRate?: number;
+  brokerageYearlySavings?: number | null;
+  retirementYearlyContribution?: number | null;
   createdAt?: string;
 }
 
@@ -2637,7 +2649,9 @@ export function saveSavingsPlanData(data: SavingsPlanData): number {
         annualReturn = ?,
         withdrawalRate = ?,
         retirementMonthlyBudget = ?,
-        inflationRate = ?
+        inflationRate = ?,
+        brokerageYearlySavings = ?,
+        retirementYearlyContribution = ?
       WHERE id = ?
     `).run(
       data.currentAge,
@@ -2650,6 +2664,8 @@ export function saveSavingsPlanData(data: SavingsPlanData): number {
       data.withdrawalRate ?? 4,
       data.retirementMonthlyBudget ?? 0,
       data.inflationRate ?? 3,
+      data.brokerageYearlySavings ?? null,
+      data.retirementYearlyContribution ?? null,
       existingSavingsPlan.id
     );
     
@@ -2667,8 +2683,10 @@ export function saveSavingsPlanData(data: SavingsPlanData): number {
         annualReturn,
         withdrawalRate,
         retirementMonthlyBudget,
-        inflationRate
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        inflationRate,
+        brokerageYearlySavings,
+        retirementYearlyContribution
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       data.currentAge,
       data.retirementAge,
@@ -2679,7 +2697,9 @@ export function saveSavingsPlanData(data: SavingsPlanData): number {
       data.annualReturn,
       data.withdrawalRate ?? 4,
       data.retirementMonthlyBudget ?? 0,
-      data.inflationRate ?? 3
+      data.inflationRate ?? 3,
+      data.brokerageYearlySavings ?? null,
+      data.retirementYearlyContribution ?? null
     );
     
     return result.lastInsertRowid as number;
