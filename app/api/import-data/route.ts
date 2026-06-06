@@ -410,6 +410,41 @@ export async function POST(request: NextRequest) {
           console.error('Error importing savings plans:', error);
         }
       }
+
+      // Planning Funds
+      if (data.planningFunds && Array.isArray(data.planningFunds) && tableExists(db, 'planning_funds')) {
+        try {
+          const columns = getTableColumns(db, 'planning_funds');
+          console.log(`Found columns for planning_funds:`, columns);
+
+          if (columns.length > 0) {
+            let importedCount = 0;
+
+            for (const fund of data.planningFunds) {
+              const fundData = prepareDataForTable(fund, columns);
+
+              if (Object.keys(fundData).length > 0) {
+                const columnNames = Object.keys(fundData).join(', ');
+                const placeholders = Object.keys(fundData).map(() => '?').join(', ');
+
+                const insertPlanningFund = db.prepare(`
+                  INSERT INTO planning_funds (${columnNames})
+                  VALUES (${placeholders})
+                `);
+
+                insertPlanningFund.run(...Object.values(fundData));
+                importedCount++;
+              }
+            }
+
+            console.log(`Imported ${importedCount} planning funds`);
+          } else {
+            console.log('No columns found for planning_funds table');
+          }
+        } catch (error) {
+          console.error('Error importing planning funds:', error);
+        }
+      }
       
       // Income
       if (data.income && Array.isArray(data.income) && tableExists(db, 'income')) {

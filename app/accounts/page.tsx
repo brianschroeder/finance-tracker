@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import AssetForm from '@/components/AssetForm';
 import FundAccountsManagement from '@/components/FundAccountsManagement';
+import PlanningFundsManagement from '@/components/PlanningFundsManagement';
 import InvestmentsList from '@/components/InvestmentsList';
 import { PageHeader, PagePanel, PageShell } from '@/components/PageShell';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -52,7 +53,10 @@ export default function AccountsPage() {
           </TabsContent>
 
           <TabsContent value="funds" className="p-5 sm:p-6">
-            <FundAccountsManagement />
+            <div className="space-y-8">
+              <PlanningFundsManagement />
+              <FundAccountsManagement />
+            </div>
           </TabsContent>
 
           <TabsContent value="investments" className="p-0">

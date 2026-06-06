@@ -112,6 +112,49 @@ function initDb() {
     }
   }
 
+  // Create planning_funds table. These are sinking-fund plans used for
+  // projections; linked fund_accounts remain the cash buckets.
+  const planningFundsTableExists = db.prepare(`
+    SELECT name FROM sqlite_master WHERE type='table' AND name='planning_funds'
+  `).get();
+
+  if (!planningFundsTableExists) {
+    db.prepare(`
+      CREATE TABLE planning_funds (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        annualTarget REAL NOT NULL DEFAULT 0,
+        targetDate TEXT,
+        linkedFundAccountId INTEGER,
+        includeInSavingsPlan INTEGER NOT NULL DEFAULT 1,
+        isActive INTEGER NOT NULL DEFAULT 1,
+        sortOrder INTEGER DEFAULT 0,
+        createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (linkedFundAccountId) REFERENCES fund_accounts(id) ON DELETE SET NULL
+      )
+    `).run();
+  } else {
+    const columns = db.prepare(`PRAGMA table_info(planning_funds)`).all() as ColumnInfo[];
+    const columnNames = columns.map(col => col.name);
+
+    if (!columnNames.includes('targetDate')) {
+      db.prepare(`ALTER TABLE planning_funds ADD COLUMN targetDate TEXT`).run();
+    }
+
+    if (!columnNames.includes('linkedFundAccountId')) {
+      db.prepare(`ALTER TABLE planning_funds ADD COLUMN linkedFundAccountId INTEGER`).run();
+    }
+
+    if (!columnNames.includes('includeInSavingsPlan')) {
+      db.prepare(`ALTER TABLE planning_funds ADD COLUMN includeInSavingsPlan INTEGER NOT NULL DEFAULT 1`).run();
+    }
+
+    if (!columnNames.includes('sortOrder')) {
+      db.prepare(`ALTER TABLE planning_funds ADD COLUMN sortOrder INTEGER DEFAULT 0`).run();
+    }
+  }
+
   // Create additional_budget_items table
   const additionalBudgetItemsTableExists = db.prepare(`
     SELECT name FROM sqlite_master WHERE type='table' AND name='additional_budget_items'
@@ -830,6 +873,114 @@ export function getTotalInvestingFundAccountsAmount(): number {
   `).get() as { total: number };
   
   return result.total;
+}
+
+// Planning Funds Interface and Functions
+export interface PlanningFund {
+  id?: number;
+  name: string;
+  annualTarget: number;
+  targetDate?: string | null;
+  linkedFundAccountId?: number | null;
+  linkedFundName?: string | null;
+  linkedFundAmount?: number | null;
+  includeInSavingsPlan?: boolean | number;
+  isActive?: boolean;
+  sortOrder?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export function getAllPlanningFunds(): PlanningFund[] {
+  const db = getDb();
+  return db.prepare(`
+    SELECT
+      pf.*,
+      fa.name AS linkedFundName,
+      fa.amount AS linkedFundAmount
+    FROM planning_funds pf
+    LEFT JOIN fund_accounts fa
+      ON fa.id = pf.linkedFundAccountId
+      AND fa.isActive = 1
+    WHERE pf.isActive = 1
+    ORDER BY pf.sortOrder ASC, pf.name ASC
+  `).all() as PlanningFund[];
+}
+
+export function getPlanningFundsAnnualTarget(): number {
+  const db = getDb();
+  const result = db.prepare(`
+    SELECT COALESCE(SUM(annualTarget), 0) AS total
+    FROM planning_funds
+    WHERE isActive = 1 AND includeInSavingsPlan = 1
+  `).get() as { total: number };
+
+  return result.total;
+}
+
+export function createPlanningFund(planningFund: Omit<PlanningFund, 'id' | 'createdAt' | 'updatedAt' | 'linkedFundName' | 'linkedFundAmount'>): number {
+  const db = getDb();
+  const stmt = db.prepare(`
+    INSERT INTO planning_funds (
+      name, annualTarget, targetDate, linkedFundAccountId, includeInSavingsPlan, isActive, sortOrder
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  const result = stmt.run(
+    planningFund.name,
+    planningFund.annualTarget || 0,
+    planningFund.targetDate || null,
+    planningFund.linkedFundAccountId || null,
+    planningFund.includeInSavingsPlan !== false ? 1 : 0,
+    planningFund.isActive !== false ? 1 : 0,
+    planningFund.sortOrder || 0
+  );
+
+  return result.lastInsertRowid as number;
+}
+
+export function updatePlanningFund(id: number, planningFund: Partial<PlanningFund>): boolean {
+  const db = getDb();
+  const stmt = db.prepare(`
+    UPDATE planning_funds
+    SET name = COALESCE(?, name),
+        annualTarget = COALESCE(?, annualTarget),
+        targetDate = ?,
+        linkedFundAccountId = ?,
+        includeInSavingsPlan = COALESCE(?, includeInSavingsPlan),
+        isActive = COALESCE(?, isActive),
+        sortOrder = COALESCE(?, sortOrder),
+        updatedAt = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `);
+
+  const existing = db.prepare(`SELECT targetDate, linkedFundAccountId FROM planning_funds WHERE id = ?`).get(id) as Pick<PlanningFund, 'targetDate' | 'linkedFundAccountId'> | undefined;
+  if (!existing) return false;
+
+  const result = stmt.run(
+    planningFund.name || null,
+    planningFund.annualTarget !== undefined ? planningFund.annualTarget : null,
+    planningFund.targetDate !== undefined ? planningFund.targetDate || null : existing.targetDate || null,
+    planningFund.linkedFundAccountId !== undefined ? planningFund.linkedFundAccountId || null : existing.linkedFundAccountId || null,
+    planningFund.includeInSavingsPlan !== undefined ? (planningFund.includeInSavingsPlan ? 1 : 0) : null,
+    planningFund.isActive !== undefined ? (planningFund.isActive ? 1 : 0) : null,
+    planningFund.sortOrder !== undefined ? planningFund.sortOrder : null,
+    id
+  );
+
+  return result.changes > 0;
+}
+
+export function deletePlanningFund(id: number): boolean {
+  const db = getDb();
+  const stmt = db.prepare(`
+    UPDATE planning_funds
+    SET isActive = 0, updatedAt = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `);
+
+  const result = stmt.run(id);
+  return result.changes > 0;
 }
 
 // Additional Budget Items Interface and Functions

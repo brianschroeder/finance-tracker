@@ -3,6 +3,7 @@ import {
   calculateNetWorth,
   getActiveBudgetCategories,
   getAllInvestments,
+  getAllPlanningFunds,
   getAllRecurringTransactions,
   getIncomeData,
   getInvestedThisYear,
@@ -190,6 +191,7 @@ function getSavingsPlanSnapshot(overrides: SnapshotOverrides = {}) {
   const investments = getAllInvestments();
   const income = getIncomeData();
   const budgetCategories = getActiveBudgetCategories();
+  const planningFunds = getAllPlanningFunds();
   const recurringTransactions = getAllRecurringTransactions();
   const savedPlan = getSavingsPlanData();
 
@@ -214,7 +216,11 @@ function getSavingsPlanSnapshot(overrides: SnapshotOverrides = {}) {
   // ----- Expenses -----
   const monthlyBudget = budgetCategories.reduce((sum, category) => sum + money(category.allocatedAmount), 0);
   const monthlyRecurring = recurringTransactions.reduce((sum, transaction) => sum + money(transaction.amount), 0);
-  const monthlyExpenses = monthlyBudget + monthlyRecurring;
+  const annualPlanningFunds = planningFunds
+    .filter(fund => fund.includeInSavingsPlan !== false && fund.includeInSavingsPlan !== 0 && money(fund.annualTarget) > 0)
+    .reduce((sum, fund) => sum + money(fund.annualTarget), 0);
+  const monthlyPlanningFunds = annualPlanningFunds / 12;
+  const monthlyExpenses = monthlyBudget + monthlyRecurring + monthlyPlanningFunds;
   const annualExpenses = monthlyExpenses * 12;
 
   // ----- Savings -----
@@ -393,12 +399,25 @@ function getSavingsPlanSnapshot(overrides: SnapshotOverrides = {}) {
     expenses: {
       monthlyBudget: round2(monthlyBudget),
       monthlyRecurring: round2(monthlyRecurring),
+      monthlyPlanningFunds: round2(monthlyPlanningFunds),
       monthlyExpenses: round2(monthlyExpenses),
       annualExpenses: round2(annualExpenses),
+      annualPlanningFunds: round2(annualPlanningFunds),
       breakdown: [
         { name: 'Budget', value: round2(monthlyBudget) },
         { name: 'Recurring', value: round2(monthlyRecurring) },
+        { name: 'Planning funds', value: round2(monthlyPlanningFunds) },
       ],
+      planningFunds: planningFunds.map(fund => ({
+        id: fund.id,
+        name: fund.name,
+        annualTarget: round2(money(fund.annualTarget)),
+        monthlyTarget: round2(money(fund.annualTarget) / 12),
+        linkedFundAccountId: fund.linkedFundAccountId,
+        linkedFundName: fund.linkedFundName,
+        linkedFundAmount: round2(money(fund.linkedFundAmount)),
+        includeInSavingsPlan: fund.includeInSavingsPlan !== false && fund.includeInSavingsPlan !== 0,
+      })),
     },
     savings: {
       annualCashSavings: round2(annualCashSavings),

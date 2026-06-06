@@ -49,8 +49,19 @@ type SavingsPlanData = {
   expenses: {
     monthlyBudget: number;
     monthlyRecurring: number;
+    monthlyPlanningFunds: number;
     monthlyExpenses: number;
     annualExpenses: number;
+    annualPlanningFunds: number;
+    planningFunds: {
+      id?: number;
+      name: string;
+      annualTarget: number;
+      monthlyTarget: number;
+      linkedFundName?: string | null;
+      linkedFundAmount?: number | null;
+      includeInSavingsPlan: boolean;
+    }[];
   };
   savings: {
     annualCashSavings: number;
@@ -432,11 +443,20 @@ export default function SavingsPlanPage() {
 
   const recurringYearly = expenses.monthlyRecurring * 12;
   const budgetYearly = expenses.monthlyBudget * 12;
+  const planningFundsYearly = expenses.annualPlanningFunds;
 
   const expenseRows: SummaryRow[] = [
     { label: 'Recurring', value: formatCurrency(recurringYearly), sub: perMonth(recurringYearly) },
     { label: 'Budget', value: formatCurrency(budgetYearly), sub: perMonth(budgetYearly) },
   ];
+  if (planningFundsYearly > 0) {
+    expenseRows.push({
+      label: 'Planning funds',
+      value: formatCurrency(planningFundsYearly),
+      sub: perMonth(planningFundsYearly),
+      info: 'Active sinking-fund plans such as vacation or clothes. These reduce savings projections but do not count as current budget spend.',
+    });
+  }
 
   return (
     <PageShell maxWidth="7xl">

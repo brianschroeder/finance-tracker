@@ -239,6 +239,21 @@ export async function GET(_request: NextRequest) {
           console.error('Error exporting savings_plans:', error);
         }
       }
+
+      // Get planning funds
+      if (tableExists(db, 'planning_funds')) {
+        try {
+          const planningFunds = db.prepare(`
+            SELECT * FROM planning_funds ORDER BY id
+          `).all();
+
+          if (planningFunds && planningFunds.length > 0) {
+            exportData.planningFunds = planningFunds;
+          }
+        } catch (error) {
+          console.error('Error exporting planning_funds:', error);
+        }
+      }
       
       // ===== INCOME =====
       
