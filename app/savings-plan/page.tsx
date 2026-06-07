@@ -64,12 +64,23 @@ type SavingsPlanData = {
     }[];
   };
   savings: {
+    monthlyIncome: number;
+    monthlyExpenses: number;
+    monthlyLeftover: number;
+    monthlyBaseContribution: number;
     annualCashSavings: number;
+    annualBaseCashSavings: number;
+    grossBonus: number;
     netBonus: number;
+    netBonusMonthlyEquivalent: number;
     annualCashWithBonus: number;
     annual401kContribution: number;
     defaultAnnual401kContribution: number;
     totalAnnualSavings: number;
+    monthlyPace: number;
+    perPaycheckSurplus: number;
+    baseSavingsRate: number;
+    savingsRateWithBonus: number;
     savingsRate: number;
   };
   strategy: {
@@ -503,15 +514,18 @@ export default function SavingsPlanPage() {
           ]}
         />
         <SummaryCard
-          title="Yearly savings"
+          title="Leftover + bonus"
           total={formatCurrency(savings.totalAnnualSavings)}
           subtotal={`${perMonth(savings.totalAnnualSavings)} invested`}
           icon={<PiggyBank className="h-4 w-4" />}
           accent="emerald"
           rows={[
-            { label: 'Brokerage savings', value: formatCurrency(savings.annualCashWithBonus), sub: perMonth(savings.annualCashWithBonus), info: 'Cash left after expenses plus your net bonus, invested in a taxable brokerage you can access at any age.' },
+            { label: 'Monthly leftover', value: formatCurrency(savings.monthlyLeftover), sub: `${formatCurrency(savings.perPaycheckSurplus)}/check`, info: 'Take-home pay left after monthly recurring bills, budget categories, and planning funds. This excludes bonus.' },
+            { label: 'Base yearly leftover', value: formatCurrency(savings.annualBaseCashSavings), sub: 'No bonus', info: 'Monthly leftover annualized from regular paychecks only.' },
+            { label: 'Net bonus', value: formatCurrency(savings.netBonus), sub: `${formatCurrency(savings.netBonusMonthlyEquivalent)}/mo equiv`, info: 'Estimated bonus after supplemental federal withholding, payroll taxes, and New Jersey tax estimate.' },
+            { label: 'Brokerage default', value: formatCurrency(savings.annualCashWithBonus), sub: perMonth(savings.annualCashWithBonus), info: 'Base yearly leftover plus expected net bonus, invested in taxable brokerage for the early-retirement bridge.' },
             { label: '401k', value: formatCurrency(savings.annual401kContribution), sub: perMonth(savings.annual401kContribution), info: 'Service-based 401k contribution from payroll, locked until the access age.' },
-            { label: 'Savings rate', value: formatPercent(savings.savingsRate), info: 'Share of take-home pay plus net bonus that becomes investable cash (excludes 401k).' },
+            { label: 'Cash savings rate', value: `${formatPercent(savings.baseSavingsRate)} / ${formatPercent(savings.savingsRateWithBonus)}`, sub: 'base / with bonus', info: 'Cash savings as a share of regular take-home pay, shown before and after expected net bonus.' },
           ]}
         />
         <SummaryCard
@@ -578,7 +592,7 @@ export default function SavingsPlanPage() {
               accent={bridgePlan.surplusWithCurrentSavings >= 0 ? 'emerald' : 'amber'}
               rows={[
                 { label: 'Brokerage savings', value: formatCurrency(bridgePlan.currentYearlyBrokerageSavings), sub: `${formatCurrency(bridgePlan.currentMonthlyBrokerageSavings)}/mo` },
-                { label: 'Default from cashflow', value: formatCurrency(settings.defaultBrokerageYearlySavings), sub: `${formatCurrency(savings.netBonus)} net bonus included` },
+                { label: 'Default from cashflow', value: formatCurrency(settings.defaultBrokerageYearlySavings), sub: `${formatCurrency(savings.monthlyLeftover)}/mo + ${formatCurrency(savings.netBonus)} bonus` },
                 { label: 'Current plan result', value: formatCurrency(bridgePlan.projectedBridgeWithCurrentSavings), sub: bridgePlan.surplusWithCurrentSavings >= 0 ? `${formatCurrency(bridgePlan.surplusWithCurrentSavings)} cushion` : `${formatCurrency(Math.abs(bridgePlan.surplusWithCurrentSavings))} short` },
               ]}
             />
@@ -616,7 +630,7 @@ export default function SavingsPlanPage() {
             <Lever label="Withdrawal" suffix="%" value={form.withdrawalRate} onChange={(v) => setForm((p) => ({ ...p, withdrawalRate: v }))} info="The share of your portfolio you'd withdraw per year. It sets your FI target (budget divided by rate) and the orange can-live-on line. Lower is more conservative." />
             <Lever label="Inflation" suffix="%" value={form.inflation} onChange={(v) => setForm((p) => ({ ...p, inflation: v }))} info="How fast prices and your retirement budget rise each year. This now inflates the budget from today to retirement age and throughout retirement." />
             <Lever label="Retire budget" prefix="$" suffix="/mo" wide value={form.retirementBudget} onChange={(v) => setForm((p) => ({ ...p, retirementBudget: v }))} info={`Monthly family budget in today's dollars. The bridge starts from this amount inflated to age ${settings.targetAge}, then grows it every retirement year by the inflation assumption.`} />
-            <Lever label="Brokerage/yr" prefix="$" wide value={form.brokerageSavings} onChange={(v) => setForm((p) => ({ ...p, brokerageSavings: v }))} info="Yearly taxable brokerage savings. Defaults to cash left after expenses plus expected net bonus, and controls the early-retirement bridge before 401k access." />
+            <Lever label="Brokerage/yr" prefix="$" wide value={form.brokerageSavings} onChange={(v) => setForm((p) => ({ ...p, brokerageSavings: v }))} info="Yearly taxable brokerage savings. Defaults to monthly leftover from regular paychecks plus expected net bonus, and controls the early-retirement bridge before 401k access." />
             <Lever label="401k/yr" prefix="$" wide value={form.retirementContribution} onChange={(v) => setForm((p) => ({ ...p, retirementContribution: v }))} info="Yearly 401k contribution used in the projection. Defaults to the employer service-based 401k contribution, and controls the post-59.5 retirement phase." />
             <button type="button" onClick={resetSavingsAssumptions} className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50">
               Reset savings
@@ -626,7 +640,7 @@ export default function SavingsPlanPage() {
               {saving ? 'Saving' : 'Update'}
             </button>
           </form>
-          <p className="mt-3 text-xs text-slate-500">Tweak any assumption to preview live; <span className="font-medium text-slate-700">Update</span> saves it. Savings defaults are {formatCurrency(settings.defaultBrokerageYearlySavings)}/yr brokerage and {formatCurrency(settings.defaultRetirementYearlyContribution)}/yr 401k.</p>
+          <p className="mt-3 text-xs text-slate-500">Tweak any assumption to preview live; <span className="font-medium text-slate-700">Update</span> saves it. Brokerage defaults to {formatCurrency(savings.monthlyLeftover)}/mo leftover plus {formatCurrency(savings.netBonus)} net bonus, or {formatCurrency(settings.defaultBrokerageYearlySavings)}/yr total. 401k defaults to {formatCurrency(settings.defaultRetirementYearlyContribution)}/yr.</p>
         </PagePanel>
       )}
 

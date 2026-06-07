@@ -224,6 +224,7 @@ function getSavingsPlanSnapshot(overrides: SnapshotOverrides = {}) {
   const annualExpenses = monthlyExpenses * 12;
 
   // ----- Savings -----
+  const monthlyIncome = annualIncome / 12;
   const annualCashSavings = annualIncome - annualExpenses;
   const netBonus = bonusTaxEstimate.netBonus;
   const annualCashWithBonus = annualCashSavings + netBonus;
@@ -233,7 +234,10 @@ function getSavingsPlanSnapshot(overrides: SnapshotOverrides = {}) {
   const retirementYearlyContribution = overrides.retirementYearlyContribution ?? savedPlan?.retirementYearlyContribution ?? defaultRetirementYearlyContribution;
   const totalAnnualSavings = brokerageYearlySavings + retirementYearlyContribution;
   const monthlyPace = brokerageYearlySavings / 12;
+  const monthlyLeftover = annualCashSavings / 12;
   const perPaycheckSurplus = annualCashSavings / payPeriodsPerYear;
+  const netBonusMonthlyEquivalent = netBonus / 12;
+  const baseSavingsRate = annualIncome > 0 ? (annualCashSavings / annualIncome) * 100 : 0;
   const cashIncomeWithBonus = annualIncome + netBonus;
   const savingsRate = cashIncomeWithBonus > 0 ? (annualCashWithBonus / cashIncomeWithBonus) * 100 : 0;
 
@@ -420,14 +424,23 @@ function getSavingsPlanSnapshot(overrides: SnapshotOverrides = {}) {
       })),
     },
     savings: {
+      monthlyIncome: round2(monthlyIncome),
+      monthlyExpenses: round2(monthlyExpenses),
+      monthlyLeftover: round2(monthlyLeftover),
+      monthlyBaseContribution: round2(monthlyLeftover),
       annualCashSavings: round2(annualCashSavings),
+      annualBaseCashSavings: round2(annualCashSavings),
+      grossBonus: round2(annualBonus),
       netBonus: round2(netBonus),
+      netBonusMonthlyEquivalent: round2(netBonusMonthlyEquivalent),
       annualCashWithBonus: round2(annualCashWithBonus),
       annual401kContribution: round2(retirementYearlyContribution),
       defaultAnnual401kContribution: round2(defaultRetirementYearlyContribution),
       totalAnnualSavings: round2(totalAnnualSavings),
       monthlyPace: round2(monthlyPace),
       perPaycheckSurplus: round2(perPaycheckSurplus),
+      baseSavingsRate: round2(baseSavingsRate),
+      savingsRateWithBonus: round2(savingsRate),
       savingsRate: round2(savingsRate),
     },
     progress: {
