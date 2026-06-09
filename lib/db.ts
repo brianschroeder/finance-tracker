@@ -2023,7 +2023,10 @@ export function getBigPurchaseSpending(startDate: string, endDate: string) {
   const result = db.prepare(query).get(startDate, endDate) as any;
   
   return {
-    totalSpent: (result?.totalSpent || 0) - (result?.totalCashBack || 0) + (result?.totalCreditCardPending || 0),
+    // totalCreditCardPending is already part of totalSpent (the SUM includes
+    // every transaction in range); it is returned separately for reserving
+    // against checking, not added back here, to avoid double-counting spend.
+    totalSpent: (result?.totalSpent || 0) - (result?.totalCashBack || 0),
     totalCashBack: result?.totalCashBack || 0,
     totalRawSpent: result?.totalSpent || 0,
     totalCreditCardPending: result?.totalCreditCardPending || 0

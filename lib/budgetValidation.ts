@@ -237,7 +237,10 @@ function calculateBudgetCategories(startDate: string, endDate: string, periodTyp
       allocatedAmount = category.allocatedAmount * 0.25;
     }
 
-    const adjustedSpent = spent + amounts.pendingTipAmount - amounts.pendingCashbackAmount + amounts.creditCardPendingAmount;
+    // creditCardPendingAmount is already included in `spent` (getCategorySpending
+    // sums all transactions in range). It is tracked separately only so it can be
+    // reserved against checking; do not add it back here or it double-counts.
+    const adjustedSpent = spent + amounts.pendingTipAmount - amounts.pendingCashbackAmount;
     const remaining = allocatedAmount - adjustedSpent;
 
     return {
@@ -305,7 +308,10 @@ export function getBudgetValidation(): BudgetValidationResult {
   const baseRemaining = totalAllocated - totalSpent - pendingTips;
   const workingBudget = baseRemaining + additionalBudget;
   const rawChecking = latestAssets?.checking || 0;
-  const adjustedChecking = rawChecking - unpaidBills - completedTodayCheckingAdjustment - pendingTips + pendingCashback;
+  // Card-pending purchases are spent in the budget window but still sit in
+  // checking until the statement is paid. Reserve them like unpaid bills so the
+  // alignment check reflects the future outflow.
+  const adjustedChecking = rawChecking - unpaidBills - completedTodayCheckingAdjustment - pendingTips + pendingCashback - creditCardPending;
   const variance = adjustedChecking - workingBudget;
 
   const savingsTotal = funds
@@ -352,6 +358,14 @@ export function getBudgetValidation(): BudgetValidationResult {
     needsAttention.push({
       title: 'Bills still need room in checking',
       description: `${money(unpaidBills).toLocaleString('en-US', { style: 'currency', currency: 'USD' })} is reserved for unpaid recurring or manual items in this pay period.`,
+      severity: 'warning',
+    });
+  }
+
+  if (creditCardPending > 0) {
+    needsAttention.push({
+      title: 'Credit card charges await payment',
+      description: `${money(creditCardPending).toLocaleString('en-US', { style: 'currency', currency: 'USD' })} is spent in this period but still sits in checking until the card is paid.`,
       severity: 'warning',
     });
   }

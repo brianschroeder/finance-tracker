@@ -16,6 +16,7 @@ type BudgetValidationSummary = {
     unpaidBills: number;
     pendingTips: number;
     pendingCashback: number;
+    creditCardPending: number;
   };
   budget: {
     baseRemaining: number;
@@ -140,8 +141,9 @@ export default function BudgetAlignmentPanel({ compact = false }: { compact?: bo
       </div>
 
       {!compact && (
-        <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-4">
+        <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-5">
           <div>Unpaid bills: <span className="font-semibold text-slate-950">{money(data.checking.unpaidBills)}</span></div>
+          <div>Card pending: <span className="font-semibold text-slate-950">{money(data.checking.creditCardPending)}</span></div>
           <div>Tip adjustments: <span className="font-semibold text-slate-950">{money(data.checking.pendingTips)}</span></div>
           <div>Pending cashback: <span className="font-semibold text-slate-950">{money(data.checking.pendingCashback)}</span></div>
           <div>Additional budget: <span className="font-semibold text-slate-950">{money(data.budget.additionalBudget)}</span></div>

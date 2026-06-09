@@ -168,8 +168,11 @@ export async function GET(request: NextRequest) {
         }
       }
       
-      // Calculate the adjusted spent amount including all pending amounts
-      const adjustedSpent = spent + pendingAmounts.pendingTipAmount - pendingAmounts.pendingCashbackAmount + pendingAmounts.creditCardPendingAmount;
+      // Calculate the adjusted spent amount including all pending amounts.
+      // creditCardPendingAmount is already part of `spent` (getCategorySpending
+      // sums every transaction in range), so it is NOT added again here — it is
+      // surfaced separately only to reserve it against checking.
+      const adjustedSpent = spent + pendingAmounts.pendingTipAmount - pendingAmounts.pendingCashbackAmount;
       const categoryTransactions = transactionsByCategory.get(category.id) || [];
       const merchantTotals = categoryTransactions.reduce((acc, transaction) => {
         const merchant = transaction.name || 'Unnamed';

@@ -59,6 +59,7 @@ interface Transaction {
   pendingTipAmount?: number;
   cashBack?: number;
   cashbackPosted?: boolean;
+  creditCardPending?: boolean;
   notes?: string;
   createdAt?: string;
   category?: {
@@ -215,6 +216,7 @@ export default function Dashboard() {
   const [completedTodayPendingAmount, setCompletedTodayPendingAmount] = useState(0);
   const [pendingTipAmount, setPendingTipAmount] = useState(0);
   const [pendingCashbackAmount, setPendingCashbackAmount] = useState(0);
+  const [creditCardPendingAmount, setCreditCardPendingAmount] = useState(0);
   const [totalPendingAmount, setTotalPendingAmount] = useState(0);
 
   const router = useRouter();
@@ -346,10 +348,10 @@ export default function Dashboard() {
     // Robinhood checking is a live balance, so same-day completed card/subscription
     // charges are already reflected there. Show completedTodayPendingAmount for
     // visibility, but do not reserve it a second time in adjusted checking.
-    const total = pendingTransactionAmount + pendingTipAmount - pendingCashbackAmount;
+    const total = pendingTransactionAmount + pendingTipAmount - pendingCashbackAmount + creditCardPendingAmount;
     setTotalPendingAmount(total);
     setPendingOnlyAmount(total); // Keep this for backward compatibility
-  }, [pendingTransactionAmount, completedTodayPendingAmount, pendingTipAmount, pendingCashbackAmount]);
+  }, [pendingTransactionAmount, completedTodayPendingAmount, pendingTipAmount, pendingCashbackAmount, creditCardPendingAmount]);
 
   // Fetch pay settings
   useEffect(() => {
@@ -462,9 +464,17 @@ export default function Dashboard() {
           .reduce((sum: number, transaction: Transaction) =>
             sum + (transaction.cashBack || 0), 0);
 
+        // Card-pending purchases: spent in the budget window but not yet pulled
+        // from checking. Reserve them against checking like an unpaid bill.
+        const creditCardPending = allData.transactions
+          .filter((transaction: Transaction) => transaction.creditCardPending)
+          .reduce((sum: number, transaction: Transaction) =>
+            sum + (transaction.amount || 0), 0);
+
         // Update the pending amount states
         setPendingTipAmount(pendingTips);
         setPendingCashbackAmount(pendingCashback);
+        setCreditCardPendingAmount(creditCardPending);
       }
     } catch (err) {
       console.error('Error fetching recent transactions:', err);
@@ -1371,7 +1381,7 @@ export default function Dashboard() {
             <p className="text-xs font-semibold uppercase text-slate-700">Budget alignment</p>
             <h2 className="mt-1 text-xl font-semibold text-slate-950">Checking reality check</h2>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              Starts with posted checking, subtracts unpaid bills, bills completed today, and pending tip adjustments, then adds unposted cashback before comparing against the working budget.
+              Starts with posted checking, subtracts unpaid bills, pending tip adjustments, and unpaid credit card charges, then adds unposted cashback before comparing against the working budget.
             </p>
           </div>
 
@@ -1411,11 +1421,17 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-5">
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-6">
           <div className="rounded-lg border border-slate-200 bg-white p-3">
             <div className="flex items-center justify-between gap-3 text-sm">
               <span className="text-slate-500">Unpaid bills</span>
               <span className="font-semibold text-slate-950">-{formatCurrency(pendingTransactionAmount)}</span>
+            </div>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-white p-3">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="text-slate-500">Card pending</span>
+              <span className="font-semibold text-slate-950">-{formatCurrency(creditCardPendingAmount)}</span>
             </div>
           </div>
           <div className="rounded-lg border border-slate-200 bg-white p-3">
@@ -1731,6 +1747,12 @@ export default function Dashboard() {
                         <div className="flex items-center justify-between pl-4 mt-1">
                           <span className="text-slate-600">Pending tips:</span>
                           <span className="text-slate-600">{formatCurrency(pendingTipAmount)}</span>
+                        </div>
+                      )}
+                      {creditCardPendingAmount > 0 && (
+                        <div className="flex items-center justify-between pl-4 mt-1">
+                          <span className="text-slate-600">Card pending:</span>
+                          <span className="text-slate-600">{formatCurrency(creditCardPendingAmount)}</span>
                         </div>
                       )}
                       {pendingCashbackAmount > 0 && (
